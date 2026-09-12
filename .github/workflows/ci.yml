@@ -1,0 +1,36 @@
+name: gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gates:
+    name: specification gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run all gates
+        run: bash tools/check-all.sh
+
+      # A green check that asserts nothing is worse than no check, so every run
+      # breaks a scratch copy of a document and requires the gate to reject it.
+      - name: Prove the identifier gate can fail
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          cp -r . "$tmp/repo"
+          cd "$tmp/repo"
+          printf '\n**OVR-9999** A citation to `DOM-9999`, which does not exist.\n' >> 00-overview.md
+          if python3 tools/check_ids.py; then
+            echo "::error::identifier gate passed a document with a dangling citation"
+            exit 1
+          fi
+          echo "identifier gate correctly rejected a dangling citation"
