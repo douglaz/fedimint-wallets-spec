@@ -34,3 +34,16 @@ jobs:
             exit 1
           fi
           echo "identifier gate correctly rejected a dangling citation"
+
+      - name: Prove the codebase-reference ratchet can fail
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          cp -r . "$tmp/repo"
+          cd "$tmp/repo"
+          printf '\nA sentence naming `Runtime::do_move`, which no requirement may.\n' >> 01-domain-model.md
+          if python3 tools/check_ids.py; then
+            echo "::error::ratchet passed a document with one more codebase reference than its baseline"
+            exit 1
+          fi
+          echo "ratchet correctly rejected a codebase reference above baseline"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Requirement-identifier gate for the as-built specification set.
+"""Requirement-identifier gate for the specification set.
 
 Enforces the README's append-only convention mechanically:
 
@@ -7,6 +7,7 @@ Enforces the README's append-only convention mechanically:
   * every cited id is defined somewhere               (dangling citations)
   * no id is missing from a namespace's sequence      (renumbering / gaps)
   * every cited ADR exists on disk                    (bad ADR references)
+  * codebase references per document match baseline  (ratchet, ADR-0032)
 
 Identifiers are append-only. Deleting a requirement is permitted -- the gap in
 the sequence IS the tombstone -- so a withdrawn id may be absent, but it must be
@@ -107,6 +108,8 @@ def main():
             if m.group(1) not in adrs:
                 bad_adrs.add(m.group(1))
 
+    ratchet = codebase_refs(spec_md)
+
     print(f"requirements: {len(defined)} | spec files: {len(spec_md)} | ADRs: {len(adrs)}")
     print(f"withdrawn ids indexed: {len(withdrawn)}")
     print("DUPES:", dupes or "none")
@@ -115,8 +118,53 @@ def main():
     print("NUMBER GAPS:", gaps or "none")
     print("OUTLIER IDS:", outliers or "none")
     print("BAD ADR REFS:", sorted(bad_adrs) or "none")
+    print("CODEBASE REFS vs baseline:", ratchet or "at baseline")
 
-    return 1 if (dupes or dangling or reused or gaps or outliers or bad_adrs) else 0
+    return 1 if (dupes or dangling or reused or gaps or outliers or bad_adrs or ratchet) else 0
+
+
+# --- codebase-reference ratchet (ADR-0032) ---------------------------------
+#
+# A requirement may not name the codebase: a function or method path, a source
+# file, a crate directory, a pull request, an issue id, or a file:line cite.
+# The count of offending lines per document is pinned in a baseline file and
+# may only go down; a document with MORE lines than its baseline fails, and so
+# does one with FEWER, so the baseline is lowered in the same change that earns
+# it. The review ends when every baseline is zero.
+
+BASELINE = os.path.join(SPEC, "tools", "codebase-refs-baseline.txt")
+GATED = re.compile(r"^(\d\d-.*|CONTEXT)\.md$")
+CODEBASE_REF = re.compile(
+    r"`[^`]*::[^`]*`"                        # `Type::method`, `module::item`
+    r"|\b[a-z_][a-z0-9_]*\.rs\b"             # source files, with or without :line
+    r"|\bwallet-(?:core|fedimint|api|cli|web)/"  # crate directories
+    r"|\bPR #\d+"                            # pull requests
+    r"|`br-[a-z0-9][a-z0-9.-]*`"             # issue ids
+)
+
+
+def codebase_refs(spec_md):
+    """Return {doc: (actual, baseline)} for every document off its baseline."""
+    baseline = {}
+    if os.path.exists(BASELINE):
+        for line in open(BASELINE, encoding="utf-8"):
+            line = line.strip()
+            if line and not line.startswith("#"):
+                name, n = line.split()
+                baseline[name] = int(n)
+
+    off = {}
+    for f in spec_md:
+        name = os.path.basename(f)
+        if not GATED.match(name):
+            continue
+        actual = sum(
+            1 for line in open(f, encoding="utf-8") if CODEBASE_REF.search(line)
+        )
+        allowed = baseline.get(name, 0)
+        if actual != allowed:
+            off[name] = (actual, allowed)
+    return off
 
 
 if __name__ == "__main__":
