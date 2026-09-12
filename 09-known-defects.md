@@ -291,7 +291,7 @@ body.
 holds the location; everything else points at the runbook.
 
 *Provenance: `br-kcw` (the remediation decision is still open — `F21` in
-[11-open-findings.md](https://github.com/douglaz/fedimint-wallets/blob/main/docs/open-findings.md)).*
+[the code repository's `docs/open-findings.md`](https://github.com/douglaz/fedimint-wallets/blob/main/docs/open-findings.md)).*
 
 ## Tests that proved nothing
 
