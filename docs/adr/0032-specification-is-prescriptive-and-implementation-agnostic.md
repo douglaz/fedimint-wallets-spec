@@ -75,7 +75,7 @@ and every observable behaviour the same. And it describes no deployment of any i
 ## The boundary: the refactor test
 
 A sentence is a requirement only if a rewrite of the code that keeps every byte on disk, every
-byte on the wire and every observable behaviour identical could still violate it. If a pure
+byte on the wire and every observable behaviour identical **cannot** violate it. If a pure
 refactor cannot break it, it is a requirement. If a refactor would break it merely by renaming
 or moving things, it describes the codebase and comes out.
 

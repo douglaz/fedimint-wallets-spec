@@ -133,9 +133,9 @@ def main():
 # it. The review ends when every baseline is zero.
 
 BASELINE = os.path.join(SPEC, "tools", "codebase-refs-baseline.txt")
-GATED = re.compile(r"^(\d\d-.*|CONTEXT)\.md$")
+GATED = re.compile(r"^(\d\d-.*|CONTEXT|executive-summary)\.md$")
 CODEBASE_REF = re.compile(
-    r"`[^`]*::[^`]*`"                        # `Type::method`, `module::item`
+    r"\b[A-Za-z_]\w*::[A-Za-z_]\w*"          # Type::method, module::item, backticked or bare
     r"|\b[a-z_][a-z0-9_]*\.rs\b"             # source files, with or without :line
     r"|\bwallet-(?:core|fedimint|api|cli|web)/"  # crate directories
     r"|\bPR #\d+"                            # pull requests

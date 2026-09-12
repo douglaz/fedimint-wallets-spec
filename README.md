@@ -10,8 +10,8 @@ particular codebase, and it describes no deployment.
 
 This repository holds **specifications only**: the requirement documents, the conformance
 scenarios, the ADRs, the glossary and the gates that check them. The code, its tests, its
-runbooks, its conformance results and its issue tracker live in the code repository, and an
-unqualified `docs/…` path anywhere in this set names a file there. Where the implementation falls
+runbooks, its conformance results and its issue tracker live in the code repository, and a
+`docs/…` path in this set that is not `docs/adr/` names a file there. Where the implementation falls
 short of a requirement, the code repository says so in its
 [`docs/open-findings.md`](https://github.com/douglaz/fedimint-wallets/blob/main/docs/open-findings.md),
 one `Fn` item per tracked issue.
@@ -85,7 +85,7 @@ meets it today. Each is tagged with a stable identifier:
 ### The refactor test
 
 A sentence belongs in a requirement only if a rewrite of the code that keeps every byte on disk,
-every byte on the wire and every observable behaviour identical could still violate it. On-disk
+every byte on the wire and every observable behaviour identical **cannot** violate it. On-disk
 shapes, wire shapes, protocol facts and the names of persisted or serialized types pass. Function
 and method names, crate and file paths, line numbers, frameworks and dependency pins fail
 (`ADR-0032`). The codebase-reference gate counts the lines that fail it.

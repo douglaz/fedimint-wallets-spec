@@ -16,11 +16,13 @@ was open can see where it landed.
 ## Open
 
 1. **Does the engine ship ON by default?** `ADR-0014` makes the allocator the user's own
-   on-device agent under a **standing instruction**; whether that instruction is presumed at
-   first run or gated on an explicit acknowledgement is undecided. It turns on a fee-vs-risk
-   expected-value computation at small balances and a legal opinion on the `ADR-0014` posture.
-   Until answered, the set says what the standing instruction's parameters are (`OVR-8`) and
-   nothing about their default state.
+   on-device agent under a **standing instruction** given through an explicit acknowledgement
+   before any funds are received; that acknowledgement is decided and not in question. What is
+   undecided is whether automated management is the onboarding flow's default posture — the
+   acknowledgement presented to every user, declined to opt out — or an option a user turns on.
+   It turns on a fee-vs-risk expected-value computation at small balances and a legal opinion on
+   the `ADR-0014` posture. Until answered, the set says what the standing instruction's
+   parameters are (`OVR-8`) and nothing about which flow presents it.
 
 ## Answered
 

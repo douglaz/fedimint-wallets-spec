@@ -31,7 +31,8 @@ repository's `docs/open-findings.md` says so, one item per tracked issue.
 **A money operation is a durable intent, not a function call.** Every pay, receive, move, join
 and recovery is written to a journal under an idempotency key *before* any network call, then
 driven by a task that can be killed at any point and resumed by a reconcile pass. The
-cross-federation move — two Lightning legs through one gateway — survives a crash at four named
+cross-federation move — two Lightning legs, through one gateway that serves both federations or
+two when none does — survives a crash at four named
 points without paying twice or minting a second payable invoice, because the fedimint client's
 deterministic operation ids and the journal's compare-and-swap writers together make the second
 attempt attach to the first (`03-operation-lifecycle.md`, `CNF-12`).
@@ -79,10 +80,11 @@ amount is marked with durable evidence, and a qualifying cap increase atomically
 admits a linked successor. An unopened federation fences all planning and reports why on
 `/v1/health`; so does a corrupt registry row.
 
-**Host.** The daemon owns both stores under one lock, serves the HTTP API behind a bearer token,
+**Host.** The daemon owns both stores exclusively — a second process that opens them is refused —
+serves the HTTP API behind a bearer token,
 runs the scheduler with adaptive sleep, wakes early for a federation's announced expiry, restarts
 itself on a settlement stall, and refuses to start on an invalid stored policy. The CLI's
-`--standalone` mode drives the same engine one-shot under the same lock.
+`--standalone` mode drives the same engine one-shot under the same exclusive ownership.
 
 ## 4. How to use this set
 

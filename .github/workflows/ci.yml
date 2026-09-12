@@ -41,7 +41,7 @@ jobs:
           tmp="$(mktemp -d)"
           cp -r . "$tmp/repo"
           cd "$tmp/repo"
-          printf '\nA sentence naming `Runtime::do_move`, which no requirement may.\n' >> 01-domain-model.md
+          printf '\nA sentence naming Runtime::do_move bare, which no requirement may.\n' >> 01-domain-model.md
           if python3 tools/check_ids.py; then
             echo "::error::ratchet passed a document with one more codebase reference than its baseline"
             exit 1
