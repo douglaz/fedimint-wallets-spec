@@ -115,5 +115,4 @@ live store gain fields only with `serde(default)` and never carry `deny_unknown_
 
 ## What this document does not decide
 
-Whether the engine ships on by default, and whether the long-running deployment is a pilot or a
-test, are open at the product level (`11-open-questions.md`).
+Whether the engine ships on by default is open at the product level (`11-open-questions.md`).

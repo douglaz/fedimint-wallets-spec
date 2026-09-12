@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run every gate that guards the as-built specification set.
+# Run every gate that guards the specification set.
 #
 # Each gate runs to completion and its exit status is captured directly -- never
 # through a pipe, which would report the status of the last command in the
@@ -29,7 +29,7 @@ run() {
   return 0
 }
 
-run "identifiers  (append-only, dangling, gaps, ADR refs)" python3 tools/check_ids.py
+run "identifiers  (append-only, dangling, gaps, ADR refs, codebase-ref ratchet)" python3 tools/check_ids.py
 
 echo
 echo "=============================================================="

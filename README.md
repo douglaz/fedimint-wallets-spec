@@ -1,83 +1,71 @@
-# fedimint-wallets — as-built specification
+# fedimint-wallets — specification
 
-A description of the wallet in
-[`douglaz/fedimint-wallets`](https://github.com/douglaz/fedimint-wallets) **as it exists at
-that repository's `main` `7225114`** (which contains PR #40, #45, #49 and #50; first written
-against `ee4ba1c` on 2026-09-07 and re-read in full against `7225114` on 2026-09-10). Not a
-plan, not a roadmap, and not a record of what was intended: where a plan document, an ADR, a
-code comment or the glossary says one thing and the code does another, this set records what
-the code does and the code repository files the difference in its
-[`docs/open-findings.md`](https://github.com/douglaz/fedimint-wallets/blob/main/docs/open-findings.md).
+The specification of the wallet implemented in
+[`douglaz/fedimint-wallets`](https://github.com/douglaz/fedimint-wallets): what a compliant
+wallet MUST, MUST NOT, SHOULD and MAY do, completely enough that an implementer who has never seen
+that code can build one, and precisely enough that any implementation can be reviewed against it
+and found compliant or not (`ADR-0032`). It presupposes the product's stack — Rust, the Fedimint
+client SDK, its embedded database, the hosts named in `08-hosts-and-deployment.md` — and no
+particular codebase, and it describes no deployment.
 
-This repository holds **specifications only**: the requirement documents, the ADRs, the glossary
-and the gate that checks them. The code, its tests, its runbooks and its issue tracker live in
-the code repository, and an unqualified `docs/…` or `wallet-*/…` path anywhere in this set names
-a file there. The findings file stays beside the code because each finding names the issue that
-tracks it and closes with the pull request that fixes it; the one forward-looking document here
-is `11-open-questions.md`.
+This repository holds **specifications only**: the requirement documents, the conformance
+scenarios, the ADRs, the glossary and the gates that check them. The code, its tests, its
+runbooks, its conformance results and its issue tracker live in the code repository, and a
+`docs/…` path in this set that is not `docs/adr/` names a file there. Where the implementation falls
+short of a requirement, the code repository says so in its
+[`docs/open-findings.md`](https://github.com/douglaz/fedimint-wallets/blob/main/docs/open-findings.md),
+one `Fn` item per tracked issue.
 
-It was written by reading the code, not the prose. Every requirement traces to a function the
-code repository contains; the extraction notes it was built from cite `file:line` for each claim,
-and the documents keep the function names so a reader can go and look.
+Until 2026-09-12 this set was descriptive — a record of what one codebase did, function names
+included. `ADR-0032` records the change of posture and the review it started; while that review
+runs, a chapter may still carry sentences that fail the refactor test below, and
+`tools/codebase-refs-baseline.txt` says how many.
 
 ## How to read this
 
 | Document | Contents |
 |---|---|
-| [`executive-summary.md`](./executive-summary.md) | **Start here.** What the wallet is, what is built, what is not, and how much to trust the rest |
+| [`executive-summary.md`](./executive-summary.md) | **Start here.** What the wallet is and the four ideas everything else follows from |
 | [`00-overview.md`](./00-overview.md) | The problem, the shape of the solution, the system context, decided non-goals |
 | [`01-domain-model.md`](./01-domain-model.md) | Entities and their states: federation, intent, operation, ledger row, move record, policy, candidate, occurrence |
-| [`02-fedimint-integration.md`](./02-fedimint-integration.md) | The SDK boundary: the pin, clients and partitions, gateways, the two Lightning legs, recovery, the signals a federation emits |
+| [`02-fedimint-integration.md`](./02-fedimint-integration.md) | The SDK boundary: clients and partitions, gateways, the two Lightning legs, recovery, the signals a federation emits |
 | [`03-operation-lifecycle.md`](./03-operation-lifecycle.md) | How an intent is admitted, executed, resumed and terminalized; the killpoints; supersession; reconcile |
 | [`04-api-contract.md`](./04-api-contract.md) | Every HTTP route and field, the error envelope, the CLI verbs and exit codes |
-| [`05-persistence.md`](./05-persistence.md) | The two stores, the thirteen key tags, every persisted row, the transaction model, the ledger's write discipline, the compatibility rules |
+| [`05-persistence.md`](./05-persistence.md) | The two stores, the key tags, every persisted row, the transaction model, the ledger's write discipline, the compatibility rules |
 | [`06-allocator-and-automation.md`](./06-allocator-and-automation.md) | The pure decision core, route economics, scoring, probes, discovery, evacuation, the tick, the scheduler cycle, and the readiness signal |
-| [`07-security-requirements.md`](./07-security-requirements.md) | The threat model and what is actually enforced — including what is not |
-| [`08-hosts-and-deployment.md`](./08-hosts-and-deployment.md) | The daemon, the standalone mode, the browser sidecar as built, the build, CI, and the one long-running deployment |
-| [`09-known-defects.md`](./09-known-defects.md) | Twenty-five defects found in this system — most shipped and fixed, one still open — written as prohibitions |
-| [`10-conformance-checklist.md`](./10-conformance-checklist.md) | What has been demonstrated, by which gate, and what has not |
-| [`11-open-questions.md`](./11-open-questions.md) | Product decisions nobody has taken yet; answered ones stay, marked with the ADR that answered them |
-| [`docs/open-findings.md`](https://github.com/douglaz/fedimint-wallets/blob/main/docs/open-findings.md) *(code repository)* | **Read before planning.** The gaps between this set and the code, `F1`…, each tied to the issue that tracks it |
-| [`CONTEXT.md`](CONTEXT.md) | The glossary. Entries define the ADR-accepted target and carry a one-line pointer to the gap where the code lags; `F6` and `F7` list them |
-| [`docs/adr/`](docs/adr/) | The thirty-one decisions and what was rejected to reach them. Canonical where they conflict with older prose; **not** canonical where they describe unbuilt behaviour. Unbuilt in whole or in part: `ADR-0003` (Android silent backup), `ADR-0011` (Keystore, scoped to Android), `ADR-0013` (recurringd), `ADR-0014`'s gating acknowledgement (only a reason-code label exists), `ADR-0016`/`ADR-0017`'s reputation weighting and trust-anchor set (no Nostr source, `FMI-29`), `ADR-0018`'s stranded-funds UI, `ADR-0026` (`F11`), `ADR-0027` (`F13`), `ADR-0028` beyond the config skeleton (`F27`), `ADR-0029`'s hop and set-aside record (`F3`), the threshold-vetted list `ADR-0029` "What this rests on" decides (`F6`) and the persisted committed route (`F7`; `ADR-0030` itself is built, `F4` closed), `ADR-0031` items 2–3 (`F17`), and `ADR-0004`'s Lightning-Address/LNURL send (deferred by the roadmap; `OVR-11`) |
+| [`07-security-requirements.md`](./07-security-requirements.md) | The threat model and what MUST be enforced against it |
+| [`08-hosts-and-deployment.md`](./08-hosts-and-deployment.md) | The daemon, the standalone mode, the CLI as a frontend, the browser sidecar, and the operator-facing contracts of each |
+| [`09-known-defects.md`](./09-known-defects.md) | Prohibitions written from defects this system has had, each with the failure it prevents |
+| [`10-conformance-checklist.md`](./10-conformance-checklist.md) | The scenarios a conformant implementation MUST pass, and the requirements each demonstrates |
+| [`11-open-questions.md`](./11-open-questions.md) | Product decisions nobody has taken; the set is silent on what they govern until an ADR answers them |
+| [`docs/open-findings.md`](https://github.com/douglaz/fedimint-wallets/blob/main/docs/open-findings.md) *(code repository)* | Where the implementation does not meet this set, `F1`…, each tied to the issue that tracks it |
+| [`CONTEXT.md`](CONTEXT.md) | The glossary: the vocabulary the requirements are written in, and the words they avoid |
+| [`docs/adr/`](docs/adr/) | The thirty-two decisions and what was rejected to reach them. Canonical where they conflict with older prose. Those before `ADR-0032` were written about one implementation and say so; a requirement cites one as its owner only where the decision is a behaviour of the wallet |
 
 Read `00`, `01` and `03` first. `03` is the part that distinguishes this wallet from a thin
 fedimint client: a money operation is a durable, idempotency-keyed intent that survives a crash
 at any of four named points without double-paying, and everything else is built around that.
 
-## How much to trust this
+## How compliance is measured
 
-Every requirement wears the same costume — a MUST, a stable identifier — and the confidence
-behind them is not uniform.
+A requirement is a claim about the wallet, not about any codebase. Three things follow.
 
-- **Every requirement describes code that exists** and was read on 2026-09-07, then re-read
-  against `7225114` on 2026-09-10 by six slice reviewers and a codex + Claude review panel. The unit suite
-  was green at `ab52094` (1,071 tests, `CNF-5`); no run is recorded at `7225114`, and a requirement
-  is not a test either way: `10-conformance-checklist.md`
-  says which behaviour a gate actually exercises, and `HST-23`–`HST-25` and the unchecked `CNF`
-  items describe facts no suite touches.
-- **Most money paths have also been exercised live** against a two-federation devimint harness
-  by the smokes in `10-conformance-checklist.md`. That document says which, and which not.
-- **Nothing after build `b5f46de` (2026-07-26) has run against a real federation.** The one
-  long-running deployment is a test rig at that build; `main` is 240 commits past it (`HST-24`). Everything
-  the evacuation-cap, supersession, watch-suppression and persistence-fix work changed has only
-  devimint evidence (`HST-24`).
-- **The extraction notes flagged `[verify]` where a fact was inferred rather than read.** Those
-  were either resolved by a second read or dropped; none survive as a requirement. `[gap]` items
-  became findings.
-- **How this set was reviewed.** The first draft was written in one sitting from six extraction
-  passes and was not reviewed. On 2026-09-10 six slice reviewers re-read every document against
-  the code it describes and a two-model panel (codex + Claude) reviewed the resulting diff over
-  six passes, each finding verified against the source before it was fixed. That is a review of
-  the *text against the code*, not a test of the code: treat a claim you are about to rely on as
-  a pointer to the function it names, and read the function.
+- **A requirement is observable at a boundary** — what reaches a federation or gateway, what is
+  derived from the seed, what a frontend sees, what survives a crash. Where it can be demonstrated,
+  `10-conformance-checklist.md` carries the scenario that demonstrates it, and a conformant
+  implementation passes every scenario there.
+- **The code repository owns the evidence.** Which scenarios its implementation has passed, at
+  which commit, and which requirements it does not yet meet (`docs/open-findings.md`) are facts
+  about that tree and live beside it. A requirement here is never weakened to match an
+  implementation; the implementation gains a finding.
+- **Nothing here is a test.** A MUST is met when a scenario or a review shows it is met, by the
+  implementation under review, not by the sentence existing.
 
 ## Requirement conventions
 
-Requirements use RFC 2119 keywords — **MUST**, **MUST NOT**, **SHOULD**, **MAY** — in the
-descriptive sense: "MUST" means the code does this and a change that stops it doing so is a
-regression against this document, not that someone decided it ought to. Each is tagged with a
-stable identifier:
+Requirements use RFC 2119 keywords — **MUST**, **MUST NOT**, **SHOULD**, **MAY** — in their
+ordinary sense: a MUST is required of every compliant wallet, whether or not any implementation
+meets it today. Each is tagged with a stable identifier:
 
 | Prefix | Domain |
 |---|---|
@@ -89,10 +77,18 @@ stable identifier:
 | `STO-n` | Persistence |
 | `ALC-n` | Allocator, scoring, probes, discovery, tick and scheduler |
 | `SEC-n` | Security |
-| `HST-n` | Hosts, frontends and deployment |
+| `HST-n` | Hosts and frontends |
 | `DEF-n` | Defect prohibitions |
-| `CNF-n` | Conformance items |
-| `Fn` | Open findings — defined in the code repository's `docs/open-findings.md`, cited from here; not gated; tracked one-to-one with `br-…` issues |
+| `CNF-n` | Conformance scenarios |
+| `Fn` | Non-conformances of the implementation — defined in the code repository's `docs/open-findings.md`, cited from here; not gated; tracked one-to-one with that repository's issues |
+
+### The refactor test
+
+A sentence belongs in a requirement only if a rewrite of the code that keeps every byte on disk,
+every byte on the wire and every observable behaviour identical **cannot** violate it. On-disk
+shapes, wire shapes, protocol facts and the names of persisted or serialized types pass. Function
+and method names, crate and file paths, line numbers, frameworks and dependency pins fail
+(`ADR-0032`). The codebase-reference gate counts the lines that fail it.
 
 ### Identifiers are append-only. Text is not.
 
@@ -102,6 +98,10 @@ old citation still resolves. `tools/check_ids.py` enforces most of this: duplica
 citations, sequence gaps not listed as withdrawn, and references to ADRs that do not exist all
 fail the gate. It cannot see a deleted **highest** id in a namespace — the range simply shrinks —
 so that one case rests on the convention and on review, not on the gate.
+
+A requirement whose prescribed behaviour is the behaviour it already described keeps its id. One
+that described only a codebase fact with no behavioural content is withdrawn and not replaced.
+New behaviour gets the next free id in its namespace.
 
 ### A decision gets its identifier when it is accepted
 
@@ -130,25 +130,30 @@ Deleted from the documents. Never reused. Listed so an older citation still reso
 bash tools/check-all.sh
 ```
 
-runs the identifier gate. It exits non-zero on any failure and captures each gate's own exit
-code rather than the last command's in a pipe. Run it before and after editing this set.
+runs every gate. It exits non-zero on any failure and captures each gate's own exit code rather
+than the last command's in a pipe. Run it before and after editing this set.
 `.github/workflows/ci.yml` runs the same script on every push and, on every run, breaks a
-scratch copy of a document and asserts the gate rejects it, so its green check is evidence
-rather than decoration. A withdrawn identifier that is defined again fails it.
+scratch copy of a document and asserts each gate rejects it, so its green check is evidence
+rather than decoration.
+
+- **Identifiers** — duplicates, dangling citations, sequence gaps, reused withdrawn ids, ADR
+  references that do not exist.
+- **Codebase references** — per document, the number of lines naming the codebase, checked
+  against `tools/codebase-refs-baseline.txt`. A ratchet: more than the baseline fails, and so does
+  fewer, so the baseline is lowered in the change that earns it and never drifts upward.
 
 ## Relationship to the code repository
 
 This set was extracted from `docs/spec/` in the code repository on 2026-09-12 and moved here so
 that a specification change and a code change are two different pull requests against two
-different gates. The code repository keeps: `docs/open-findings.md` (the gaps, one per tracked
-issue); the runbooks (`docs/real-sats-pilot-runbook.md`, `docs/devimint-runbook.md`), which are
-operator procedure and remain authoritative for procedure; the older reference documents
-(`docs/fedimint-mechanics.md`, `docs/federation-data-sources-spec.md`,
-`docs/operation-history-spec.md`), which cite requirement ids here rather than restating them;
-the roadmap and the phase plans; and `docs/archive/`, the record of *why* the code is the way it
-is. The ADRs and the glossary moved with the requirements because they are the decisions and the
-vocabulary the requirements are written in.
+different gates. The code repository keeps: `docs/open-findings.md` (the non-conformances, one
+per tracked issue); the conformance results (which `CNF` scenarios pass, at which commit); the
+runbooks, which are operator procedure and remain authoritative for procedure; the roadmap and
+the phase plans; the reference design (how its implementation meets the requirements here, the
+actor and its commands included); and `docs/archive/`, the record of *why* the code is the way it
+is. The ADRs and the glossary are here because they are the decisions and the vocabulary the
+requirements are written in.
 
-A change to the code that changes what a requirement describes lands as two pull requests: the
-code first, then the requirement here naming the code repository's merge commit. The findings
-file is where the two are allowed to disagree in between.
+A change to what the wallet must do lands here first, under a named identifier. The code follows
+in its own pull request, and until it does, the findings file records the gap. A change to the
+code that does not change what a requirement says needs no change here.
