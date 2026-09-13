@@ -2,8 +2,10 @@
 
 Specifications only. `tools/` holds the gates that check them; `.github/workflows/` runs the same
 script. Nothing that implements the specified system belongs here — the code, its tests, its
-runbooks, its conformance results and its issue tracker live in
-[`douglaz/fedimint-wallets`](https://github.com/douglaz/fedimint-wallets).
+runbooks, its conformance results and the tracker for work on the code live in
+[`douglaz/fedimint-wallets`](https://github.com/douglaz/fedimint-wallets). Work on the
+specification itself is tracked in `.beads/` here (`br`, ids `spec-…`); a bead is a work item,
+never a requirement, and nothing in `.beads/` is normative.
 
 ## The one rule that shapes every edit
 
