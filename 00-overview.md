@@ -8,110 +8,108 @@ balance and history, fully private receives. They are also **ephemeral** in prac
 federation can degrade, lose its gateway, or announce it is shutting down — so a wallet that
 holds its whole balance in one federation is one outage away from a user who cannot pay.
 
-The system described here spreads a small spending balance across federations and moves it
+The wallet specified here spreads a small spending balance across federations and moves it
 automatically on the user's standing instruction, so that one federation degrading never leaves
 the user with nothing to spend. It does this as an **on-device agent** with no operator, no
 curated list and no service in the fund path (`ADR-0014`, `ADR-0015`), and it records every
-action it takes and every operation it refuses durably enough that the user can reconstruct what
-happened, why, and what it cost. Two declines are not recorded: a funding shortfall deferred
-below the route floor, and a duplicate-key drop (`ALC-5`, `F1`).
+action it takes and every operation it refuses durably enough that the user can reconstruct
+what happened, why, and what it cost.
 
-## What is built
+## What the wallet is
 
-**OVR-1** The repository contains a headless engine (`wallet-core`, pure logic;
-`wallet-fedimint`, the SDK integration, journal, executor, runtime, scheduler), a 24/7 daemon
-(`wallet-daemon`, binary `walletd`) that hosts it behind a loopback HTTP API, the wire types
-(`wallet-api`), a CLI (`wallet-cli`) that is a client of that API by default, and the skeleton
-of a browser sidecar (`wallet-web`) that serves nothing yet (`HST-26`).
+**OVR-1** The wallet is one **engine** — the decision-and-admission core — embedded in a
+**host**, which decides when the engine runs and never what it decides, and used through
+**frontends**, which talk to the engine and never schedule, supervise or admit work
+(`CONTEXT.md` **Engine**, **Host**, **Frontend**; `ADR-0031`). Every resident host MUST embed the
+same engine, so that the frontends "behave identically" (`ADR-0031`) by construction. The hosts
+and frontends a compliant wallet provides, and the contract of each, are
+`08-hosts-and-deployment.md`.
 
-**OVR-2** Every money operation is a durable, idempotency-keyed intent, journaled before any
-network call, driven by a task that may die at any point, and resumed by reconcile without
-double-paying (`03-operation-lifecycle.md`). This is the property the rest of the design
-protects.
+**OVR-2** Every money operation MUST be a durable, idempotency-keyed intent, recorded before any
+network call, and MUST be resumable after a crash at any point without paying twice
+(`03-operation-lifecycle.md`, `CNF-12`). This is the property the rest of the design protects.
 
-**OVR-3** No money operation's network IO blocks another's start. The actor that owns admission
-does millisecond bookkeeping only; drivers wait (`ADR-0024`, `OPS-13`).
+**OVR-3** A money operation's network IO MUST NOT block another's start: admission is
+millisecond bookkeeping, and the waiting happens inside the operation, never at the point that
+admits it (`ADR-0024`, `CNF-21`).
 
-**OVR-4** Every operation, failure and refusal is an append-only ledger row. An intent-backed
-row is written in the same transaction as the intent transition it describes (`STO-16`); the rows
-that describe no intent — tick, refusal, discovery, auto-join — are written best-effort
-(`approve` is the exception: its row shares the candidate promotion's transaction, `STO-26`)
-and a failed write is logged, not fatal (`ALC-34`). History without failures is not history.
+**OVR-4** Every operation the wallet performs, fails, or refuses to perform — a funding
+shortfall it defers below the route floor and a duplicate it drops included — MUST be written
+to the append-only ledger as a row. An intent-backed row MUST be written in the same
+transaction as the intent transition it describes (`STO-16`), so it is never missing. A row
+that describes no intent is written best-effort — `ALC-34`: "Every ledger write around a tick
+is best-effort (warn on error) except the money path" — so a failed write of one MUST NOT fail
+the work it records, and such a row MAY be absent after a storage error and for no other
+reason; `approve` is the exception, whose row shares the candidate promotion's transaction
+(`STO-26`). History without failures is not history.
 
-**OVR-5** The allocator funds only what a probe has proven. A discovered federation is fundable
-after a sustained window of real sats-spending round trips passes, never on discovery alone
-(`ALC-37`, `ADR-0017`).
+**OVR-5** The allocator MUST fund only what a probe has proven. A discovered federation
+becomes fundable after a sustained window of real sats-spending round trips passes, never on
+discovery alone (`ALC-37`, `ADR-0017`).
 
-**OVR-6** The allocator is pure: `decide(snapshot, occurrence, blockers)` reads no IO and is
-tested against golden fixtures. Everything it needs — balances, probes, reservations, route
-prices — is gathered by the tick and placed in the snapshot (`ALC-1`).
+**OVR-6** An allocator decision MUST depend only on its inputs — a snapshot gathered before
+the decision is made (the policy's targets and caps, balances, probes, reservations, route
+prices), the occurrence it plans for, and the goal blockers in force — and on nothing observed after the snapshot was taken: two
+decisions over the same inputs are identical (`ALC-1`).
 
-**OVR-7** An **evacuation's** enforced fee cap is recomputed from what the destination is
+**OVR-7** An **evacuation's** enforced fee cap MUST be computed from what the destination is
 actually credited, never from the amount asked for (`ALC-21`); a cap computed on an amount nobody
-received bounds nothing. A funding `Move` keeps the proportional cap the allocator stamped on
-the planned amount even when delivery settles a hair under — the executor updates the amount and
-not the cap, which errs conservatively by a few msat (`OPS-22`).
+received bounds nothing. A funding `Move` keeps the proportional cap the allocator stamped on the
+planned amount even when delivery settles a hair under: the amount is revised and the cap is not,
+which errs conservatively by a few msat (`OPS-22`, `OPS-24`).
 
-**OVR-8** The user holds the standing instruction's parameters as one stored `Policy`, edited at
+**OVR-8** The user's standing instruction's parameters are one stored `Policy`, edited at
 runtime through the wallet's own surfaces and never through a host config file (`STO-13`,
 `API-20`).
 
 ## System context
 
 ```
-   wallet-cli ──HTTP/bearer──►  walletd  (one process, one lock, two RocksDB stores)
-   wallet-web (skeleton)        │
-   ops/walletd-watch.py         │  axum handlers ──► actor (admission, journal transitions,
-                                │                          tokens, leases; ms-scale only)
-                                │        │                    │
-                                │        │  spawn         one-shot commands
-                                │        ▼                    ▼
-                                │   driver tasks ────► FedimintJournal ◄─── scheduler loop
-                                │   (perform, await)     journal.db          (reconcile, open,
-                                │        │               ┌─ intents          probes, discovery,
-                                │        │               ├─ move records     tick plan+commit,
-                                │        ▼               ├─ ledger           deadlines)
-                                │   MultiClient ◄────────┤─ registry
-                                │   client.db            ├─ candidates, probes
-                                │   ┌─ seed              ├─ watch state, policy
-                                │   ├─ fed A client      └─ supersession sidecars
-                                │   ├─ fed B client
-                                │   └─ …
-                                ▼
-            federations (guardian APIs) ◄──► lnv2 gateways ◄──► Lightning
-            Fedimint Observer (discovery only, untrusted)
+   frontends  ──────────►  host  (embeds the engine; owns cadence, restart, config)
+   (CLI, web UI,             │
+    Android UI)              │   engine: admission, intents, ledger, allocator, reconcile
+                             │        │
+                             │        ▼
+                             │   the wallet's two stores: the fedimint client's, and
+                             │   the journal (intents, ledger, registry, candidates,
+                             │   probes, watch state, policy)   `05-persistence.md`
+                             ▼
+       federations (guardian APIs) ◄──► lnv2 gateways ◄──► Lightning
+       Fedimint Observer (discovery only, untrusted; `ADR-0020`)
 ```
 
-**OVR-9** One process owns the wallet. The daemon is the only resident host; the CLI's
-`--standalone` mode is a one-shot process that takes the same lock and drives the same engine. Its
-money, await and `reconcile` verbs run the actor like the daemon; only `tick` is the documented
-exception to "admission goes through the actor", and `probe` is an undocumented second one
-(`ADR-0031`, `HST-9`, `OPS-12`, `F42`).
+**OVR-9** Exactly one process owns the wallet's stores at a time: a second opener MUST block or
+be refused, and MUST never open them alongside the first (`STO-2`, `HST-1`). A one-shot
+standalone host takes the same exclusive ownership and drives the same engine, and every intent
+it admits — the agent's probe legs included — MUST pass through the engine's one admission
+point, with the single exception `ADR-0031` documents: the standalone tick, "a deliberately
+isolated compatibility exception, not a resident host or a model for a future frontend".
 
-**OVR-10** The daemon is a **host**, not the engine (`CONTEXT.md` **Host**/**Engine**). It owns
-cadence, restart and config; the engine owns every decision. A future Android host would embed
-the same engine and drive it from platform wakes; that seam is not yet built (`F17`).
+**OVR-10** A host drives; the engine decides. A host MAY drive the engine from a resident loop
+or from platform wakes, and a cycle so driven MUST be safe to run at any time, overlapping
+another or not, without duplicating work — `ADR-0031`: "an arbitrary, possibly-overlapping 'run
+a cycle now' cannot duplicate work unless the goal model itself fails" — because the engine, not
+the host, owns admission (`CONTEXT.md` **Host**).
 
 ## Non-goals, decided
 
 **OVR-11** No on-chain evacuation (`ADR-0004`, `ADR-0018`), no Cashu, no iOS, no multi-device,
-and no LNURL/Lightning address in this version. The last is a deviation from `ADR-0004`, which
-placed Lightning Address and LNURL-pay **in** v1; the built scope defers them together with their
-provider, recurringd (`ADR-0013`); the deferral is recorded in the roadmap's "Explicitly v2+"
-line (`docs/roadmap-to-v1.md`) and in `ADR-0004`'s build note — the ADR's decision text
-itself is unamended.
+and no LNURL or Lightning Address in this version — the last per `ADR-0004` as amended, which
+defers Lightning Address and LNURL-pay to v2+ together with their provider, recurringd
+(`ADR-0013`).
 
 **OVR-12** No Tor. Reliability over network anonymity; "private" means no KYC, a blind provider,
 and private receives, not network-level anonymity (`ADR-0002`, `CONTEXT.md` **Private**).
 
-**OVR-13** A two-gateway Lightning route is a non-goal for ordinary movement. Every move resolves
-one gateway that validates at both federations. Evacuation is the decided exception — a hop over
-two gateways on different Lightning nodes, each leg chosen from its own federation's vetted list
-— and that exception is unbuilt (`ADR-0029`, `F3`).
+**OVR-13** A two-gateway Lightning route is a non-goal for ordinary movement. Every ordinary move
+resolves one gateway that validates at both federations. Evacuation is the decided exception: when
+no gateway serves both federations, an evacuation MUST fall through to a hop over two gateways on
+different Lightning nodes, each leg chosen from its own federation's vetted list — `ADR-0029`,
+"a second route when no gateway is shared", where "the hop is tried in the same tick".
 
-**OVR-14** No compatibility shims, with one deliberate class of exceptions: types written to a
-live store gain fields only with `serde(default)` and never carry `deny_unknown_fields`
-(`STO-29`–`STO-31`).
+**OVR-14** No compatibility shims. A persisted type changes only by gaining fields: a field so
+added MUST decode when absent from a stored row, and a row written by a newer build MUST stay
+readable by the build before it (`STO-29`–`STO-31`, which own the reference encoding).
 
 ## What this document does not decide
 
