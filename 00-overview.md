@@ -48,8 +48,8 @@ becomes fundable after a sustained window of real sats-spending round trips pass
 discovery alone (`ALC-37`, `ADR-0017`).
 
 **OVR-6** An allocator decision MUST depend only on its inputs — a snapshot gathered before
-the decision is made (balances, probes, reservations, route prices), the occurrence it plans
-for, and the goal blockers in force — and on nothing observed after the snapshot was taken: two
+the decision is made (the policy's targets and caps, balances, probes, reservations, route
+prices), the occurrence it plans for, and the goal blockers in force — and on nothing observed after the snapshot was taken: two
 decisions over the same inputs are identical (`ALC-1`).
 
 **OVR-7** An **evacuation's** enforced fee cap MUST be computed from what the destination is
