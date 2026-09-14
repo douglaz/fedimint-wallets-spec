@@ -142,8 +142,11 @@ the cloud-metadata address `169.254.169.254`, or a loopback, RFC 1918 or unique-
 A host MAY offer an explicit configuration that permits private-network gateways — a test
 environment's gateways are on loopback — and that configuration MUST default to off and MUST
 NOT affect the link-local and metadata rule. A hostname MUST be resolved and the rule applied
-to every address it resolves to, and an IPv4-mapped or IPv4-compatible IPv6 address
-(`::ffff:a.b.c.d`, `::a.b.c.d`) MUST be judged as the IPv4 address it carries. A URL so rejected is never on the vetted list for selection
+to every address it resolves to; the address actually connected to MUST be one the rule
+approved (connect to the resolved address, or re-apply the rule at connect time), so a name
+that re-resolves between check and connect gains nothing; and an IPv4-mapped or
+IPv4-compatible IPv6 address (`::ffff:a.b.c.d`, `::a.b.c.d`) MUST be judged as the IPv4
+address it carries. A URL so rejected is never on the vetted list for selection
 purposes and is never counted as a validating gateway (`07-security-requirements.md`, threat
 model: a malicious or misconfigured guardian).
 
@@ -153,8 +156,8 @@ one is armed for this intent's key (`FMI-14`): for a raw pay, the **source** fed
 keeping the cheapest gateway whose gateway-plus-federation send quote fits the cap; for a raw
 receive, the **destination**'s list, keeping the cheapest whose receive quote fits; for a
 planned move, the cheapest `Routable` candidate by modelled fee (`ALC-13`); for a move whose
-amount is final, every candidate on the **destination**'s list is priced at that amount within a
-10-second budget and the cheapest that fits is kept. A candidate whose gateway or federation
+amount is final, every candidate on the **destination**'s list that serves the route (`FMI-13`)
+is priced at that amount within a 10-second budget and the cheapest that fits is kept. A candidate whose gateway or federation
 quote errors is skipped silently. Ties keep the **first-seen** candidate — a later candidate
 replaces the incumbent only on a strictly lower total — so among equal-priced gateways the choice
 follows `FMI-10`'s order.
@@ -245,8 +248,8 @@ names the gateway. The protocol's own pre-fund refusals, and the class each MUST
 | gateway expiration over limit | the gateway's expiration delta exceeds 1 440 blocks | `Permanent` (route defect) |
 | gateway unreachable, consensus read failed, funding failed | transport, consensus-read or funding fault | `Retryable` |
 
-A failure before the protocol call — an unparseable invoice or gateway URL, a missing lnv2
-module — is `Retryable`.
+A failure before the protocol call: an unparseable invoice is `Permanent` (an input defect that
+no retry changes); an unparseable gateway URL or a missing lnv2 module is `Retryable`.
 
 **FMI-18** Fee shapes. A gateway fee is `base + floor(amount × parts_per_million / 1 000 000)`,
 the multiplication saturating in `u64` before the division — the protocol's `PaymentFee`. The
@@ -426,8 +429,8 @@ the value is advisory and MUST NOT be an input to an allocator decision.
 **FMI-28** The Fedimint Observer is a discovery source only (`ADR-0020`): `GET
 {base}/federations`, the base with trailing slashes trimmed, under a 20-second total bound; a
 non-2xx status, a `Content-Length` above 1 MiB, or a streamed body exceeding 1 MiB is a source
-failure. Parsing: an empty body is a healthy empty result; the body MUST be a JSON array or an
-object with a `federations` array, else a source failure; each row needs string `id` and
+failure. Parsing: an empty body is a healthy empty result; otherwise the body MUST be a JSON
+array or an object with a `federations` array, else a source failure; each row needs string `id` and
 `invite` — `id` parsed as a 64-hex federation id, `invite` as an invite code — with optional
 string `network` kept as a hint; a row that fails any of these is skipped silently. A candidate
 MUST be dropped unless its claimed `id`, the invite's embedded id and the previewed config's
@@ -441,8 +444,10 @@ scoring or shutdown input. No requirement in this set produces a `Nostr` candida
 **FMI-36** Transport. The wallet MUST support the iroh, WebSocket and HTTP federation
 connectors, and MUST NOT route any of them over Tor (`OVR-12`); the same connector set serves
 preview, join, open and recovery. Which transport a federation is reached over is decided by
-its invite code and config, not by the wallet, and the connector configuration MUST NOT be read
-from the process environment (`HST-2` owns the complete environment surface). The bound
+its invite code and config, not by the wallet, and the connector configuration — which
+transports exist and how they are wired — MUST NOT be read from the process environment; the
+standard proxy variables are host environment, not connector configuration, and `HST-2` owns
+them with the rest of the environment surface. The bound
 on a wait over any of them is `FMI-38`.
 
 ## The active probe at the protocol level

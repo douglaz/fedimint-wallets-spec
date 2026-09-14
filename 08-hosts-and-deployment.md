@@ -203,8 +203,8 @@ money surfaces, `/healthz` — is unbuilt (`F27`).
 **HST-28** A `Stranded` move (`DOM-10`: the send leg settled and the receive leg terminally
 failed; the transition is `OPS-27`) is terminal and nothing re-drives it (`OPS-35`:
 `reconcile` re-drives `pending()` only). The operator response is **evidence preservation, not
-recovery** — the preimage is not a recovery procedure, and the re-claim `FMI-41` requires runs
-only after this procedure — and MUST run in this order
+recovery** — the preimage is not a recovery procedure, and the `FMI-41` re-claim runs only
+after this procedure — and MUST run in this order
 (`docs/real-sats-pilot-runbook.md`, "Stranded is TERMINAL"): (1) stop the daemon and preserve
 the **whole** data directory before any diagnosis, because it holds the destination's complete
 client state for both receive-failure branches; (2) rule out a duplicated claimant: enumerate
