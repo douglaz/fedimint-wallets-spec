@@ -1,7 +1,7 @@
 # Lines per document that name the codebase (ADR-0032 ratchet).
 # Lower a number in the same change that removes the references; never raise one.
 00-overview.md 0
-01-domain-model.md 1
+01-domain-model.md 0
 02-fedimint-integration.md 35
 03-operation-lifecycle.md 22
 04-api-contract.md 18

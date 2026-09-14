@@ -137,11 +137,10 @@ shape, and both probe legs' `move:` keys embed `occurrence_from_nonce(nonce) =
 u64::from_str_radix(&nonce[..16], 16)` — the first sixteen hex characters read as a big-endian
 `u64` — so the leg keys are reconstructible from the session alone. Probe legs are **not**
 namespaced away from user moves: `MoveRequest.occurrence` accepts any `u64`, so a user move with
-the same endpoints, amount and cap and an occurrence equal to a nonce head would attach to that
-leg. The separation is probabilistic (a random 64-bit head against the small occurrences users
-and the scheduler actually supply), not excluded (`DOM-16`); that is a defect, not a settled
-shape, and namespacing it moves this key shape — but not `STO-24`'s `classify_key`, which already
-sends an unrecognised prefix to the never-repaired class (`F44`).
+the same endpoints, amount and cap and an occurrence equal to a nonce head resolves to that
+leg's key and is refused (`DOM-21`). The separation is probabilistic (a random 64-bit head
+against the small occurrences users and the scheduler actually supply), not excluded
+(`DOM-16`); the key shape is not namespaced and does not move.
 
 `pay:` keys carry the payment hash and no nonce, so paying the same invoice twice attaches to
 one operation (`OPS-8`). `docs/operation-history-spec.md` §2's `pay:<fed>:<nonce>` is not
