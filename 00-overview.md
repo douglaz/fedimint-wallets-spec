@@ -34,21 +34,23 @@ millisecond bookkeeping, and the waiting happens inside the operation, never at 
 admits it (`ADR-0024`, `CNF-21`).
 
 **OVR-4** Every operation the wallet performs, fails, or refuses to perform — a funding
-shortfall it defers below the route floor and a duplicate it drops included — MUST leave an
-append-only ledger row. An intent-backed row MUST be written in the same transaction as the
-intent transition it describes (`STO-16`); a row that describes no intent is written
-best-effort — `ALC-34`: "Every ledger write around a tick is best-effort (warn on error) except
-the money path" — and a failed write of one MUST NOT fail the work it records; `approve` is the
-exception, whose row shares the candidate promotion's transaction (`STO-26`). History without
-failures is not history.
+shortfall it defers below the route floor and a duplicate it drops included — MUST be written
+to the append-only ledger as a row. An intent-backed row MUST be written in the same
+transaction as the intent transition it describes (`STO-16`), so it is never missing. A row
+that describes no intent is written best-effort — `ALC-34`: "Every ledger write around a tick
+is best-effort (warn on error) except the money path" — so a failed write of one MUST NOT fail
+the work it records, and such a row MAY be absent after a storage error and for no other
+reason; `approve` is the exception, whose row shares the candidate promotion's transaction
+(`STO-26`). History without failures is not history.
 
 **OVR-5** The allocator MUST fund only what a probe has proven. A discovered federation
 becomes fundable after a sustained window of real sats-spending round trips passes, never on
 discovery alone (`ALC-37`, `ADR-0017`).
 
-**OVR-6** An allocator decision MUST depend only on a snapshot gathered before the decision is
-made — balances, probes, reservations, route prices — and on nothing observed after it: two
-decisions over the same snapshot are identical (`ALC-1`).
+**OVR-6** An allocator decision MUST depend only on its inputs — a snapshot gathered before
+the decision is made (balances, probes, reservations, route prices), the occurrence it plans
+for, and the goal blockers in force — and on nothing observed after the snapshot was taken: two
+decisions over the same inputs are identical (`ALC-1`).
 
 **OVR-7** An **evacuation's** enforced fee cap MUST be computed from what the destination is
 actually credited, never from the amount asked for (`ALC-21`); a cap computed on an amount nobody
@@ -80,8 +82,8 @@ runtime through the wallet's own surfaces and never through a host config file (
 be refused, and MUST never open them alongside the first (`STO-2`, `HST-1`). A one-shot
 standalone host takes the same exclusive ownership and drives the same engine, and every intent
 it admits — the agent's probe legs included — MUST pass through the engine's one admission
-point, with the single exception `ADR-0031` documents for the standalone tick (`OPS-12`,
-`HST-9`).
+point, with the single exception `ADR-0031` documents: the standalone tick, "a deliberately
+isolated compatibility exception, not a resident host or a model for a future frontend".
 
 **OVR-10** A host drives; the engine decides. A host MAY drive the engine from a resident loop
 or from platform wakes, and a cycle so driven MUST be safe to run at any time, overlapping
