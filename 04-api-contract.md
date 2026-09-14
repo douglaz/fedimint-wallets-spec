@@ -257,7 +257,8 @@ the web plan's money forms exist to pin these values at render time (`F27`). Val
 no-op)`; then `from` and `to` are each checked against the registry (`ensure_joined`, `422`
 `federation <hex> is not joined`); then the policy is read and the key derived. A destination
 that is joined but not open is 503 **for a fresh key**; a replay of an
-existing key attaches before that check runs and succeeds. As for `pay`, an unopened
+existing key attaches before that check runs and succeeds, unless the key is an active probe
+leg's, which a user request never attaches to: `409` `conflict` (`DOM-21`). As for `pay`, an unopened
 **source** is not gated and surfaces as `409 insufficient_after_reservations` (`API-18`).
 
 **API-20** `PUT /v1/policy` accepts a JSON object (a non-object body is `422` `policy must be

@@ -99,7 +99,8 @@ spends nothing under it. Standalone `tick` and `status` use the standalone tick 
 with any flag overrides). `operator_hard_cap(true)` — the `None` that disables the cap — has no
 caller: no verb exposes `--allow-over-cap`.
 
-**OPS-8** Idempotency. A request whose key already exists attaches: `Done` → deduplicated with
+**OPS-8** Idempotency. A request whose key already exists attaches — except that a user
+request never attaches to an intent an active probe admitted; it is refused (`DOM-21`): `Done` → deduplicated with
 the existing outcome; `Awaiting`, `Pending` or `Executing` → the existing intent is driven or
 re-awaited; `Failed` → the retry path (`OPS-10`) for a `User` actor, while a `Failed` key hit by
 an `Agent` decision takes the **live** path below (the sizing check, then the core's
