@@ -6,13 +6,13 @@ and what it does with the signals a federation emits. The federation and gateway
 presupposed and cited freely; the client SDK's internal API is not (`ADR-0032`). A type named in
 backticks is a wire or on-disk shape, or a Fedimint protocol type.
 
-## The SDK's behaviours the wallet depends on
+## Protocol behaviours the wallet depends on
 
 **FMI-39** A single-guardian federation MUST be usable for every lnv2 operation: aggregating one
 threshold-decryption share MUST yield the decrypted preimage, and MUST NOT panic or stop the
 client's state machines. A one-guardian federation fails the structural floor (`ALC-14`), so
 this binds only where such a federation is joined by a user or pinned — but a client that
-freezes there freezes every operation on every federation it hosts (`DEF-16`, `CNF-32`).
+freezes there freezes every operation on every federation it hosts (`DEF-16`).
 
 **FMI-38** Every wait the wallet issues against a federation's API while driving an intent —
 awaiting an incoming contract, a preimage or a decryption key share — MUST be bounded at the
@@ -29,26 +29,26 @@ modules: a federation config carrying any of these MUST decode, and seed recover
 MUST rebuild each module's state. The `wallet` module is exposed only so that the config decodes
 and the network can be read (`FMI-5`): the wallet MUST NOT peg in or peg out (`OVR-11`). The
 wallet MUST NOT pay or receive through lnv1; it is exposed so that configs decode and its
-recovery runs. The wallet does not consume the `meta` module, so the meta module's consensus
-expiry value is never an input (`FMI-26`).
+recovery runs. The `meta` module is not consumed (`FMI-26`).
 
 **FMI-4** A federation MUST have the `mint` and `wallet` modules to pass the structural floor
 (`ALC-14`), and MUST have `lnv2` to be eligible at all: every money primitive requires the lnv2
 module and MUST fail without it, and a federation without it has no available gateway
 (`ALC-15`).
 
-**FMI-5** `is_mainnet` is derived from the wallet module's network in the **authenticated**
-config — true iff it is Bitcoin mainnet — and is `false` when the config has no wallet module.
-The light probe reads it from the joined client's config; discovery reads it from the previewed
-config. `require_mainnet` is a stored `Policy` field (`DOM-15`) that defaults to true in both
-the scorer and the discovery policy.
+**FMI-5** `is_mainnet` MUST be derived from the wallet module's network in the
+**authenticated** config — true iff it is Bitcoin mainnet — and a config with no wallet module
+MUST be treated as not mainnet, for a joined federation and for a previewed candidate alike.
+Whether it gates is `Policy.require_mainnet` (`DOM-15`), applied by the scorer (`ALC-14`) and
+by discovery (`ALC-28`).
 
 ## Clients and partitions
 
 **FMI-6** The wallet MUST hold one live client per open federation, all open at once, each in
 its own partition of the client store (`STO-3`); the application journal is the separate store
-`STO-1` owns. An operation on one federation MUST NOT wait for a join, open or recovery of
-another (`OVR-3`).
+`STO-1` owns. A money operation on one federation MUST NOT wait for a join, open or recovery of
+another (`OVR-3`), and a join or open of one federation MUST NOT wait for a recovery of another
+(`FMI-31`).
 
 **FMI-7** One seed, many federations. "Same seed, same funds" is this derivation, which every
 implementation MUST reproduce exactly — two wallets that derive differently recover different
@@ -91,7 +91,7 @@ budget and the 60-second preview bound is tighter, and an elapsed budget is the 
 exactly as a failed join does.
 
 **FMI-9** Opening every registered federation at startup is best-effort per federation: a
-partition that fails to open is warned and skipped, and that federation is
+partition that fails to open MUST be warned and skipped, and that federation is
 registered-but-unopened (`DOM-2`). The scheduler MUST retry opening it every cycle and MUST fence
 planning until it succeeds (`ALC-46`).
 
@@ -110,14 +110,14 @@ both join and recovery (`DEF-18`).
 
 **FMI-10** A federation's **vetted list** is the set of lnv2 gateway URLs that at least
 `threshold` of its guardians each return, where `threshold` is the federation's consensus
-threshold (`FMI-24`) — `ADR-0029`: "the set of gateways that at least [the threshold] of its
-guardians each return, read per guardian; the SDK's flattened union, where one guardian could
-admit a gateway, is not the list". The wallet MUST read each guardian's list separately
+threshold (`FMI-24`) — `ADR-0029`: "A federation's vetted list is the set of gateways that at least […] of its
+guardians each return, read per guardian […]; the SDK's flattened union, where one guardian
+could admit a gateway, is not the list". The wallet MUST read each guardian's list separately
 and apply the threshold itself; a guardian that does not answer counts as listing nothing. The
-list is ordered by descending number of guardians listing the URL, then by URL ascending, so
-that two reads over the same answers give the same order; every "first" and every tie-break in
-this chapter inherits that order. An empty list is a valid list (`ALC-15`: no gateway
-available).
+list is ordered by descending number of guardians listing the URL; the order among equally
+listed URLs is the implementation's, and MUST be stable within one resolution (the list read
+twice while resolving one route gives one order). Every "first" and every tie-break in this
+chapter inherits that order. An empty list is a valid list (`ALC-15`: no gateway available).
 
 **FMI-11** Gateway validation is the lnv2 `routing_info` exchange: `POST {gateway}/routing_info`
 — the gateway URL with `routing_info` joined as a path segment — with a request body that is the
@@ -127,25 +127,24 @@ federation id JSON-serialized as its 64-hex-character string, under a 5-second c
 expiration_delta_minimum, expiration_delta_default, receive_fee}`, where `module_public_key` is
 **required** (a body without it is a decode failure), `lightning_alias` is optional and omitted
 when absent, and each fee is `{base: <msat integer>, parts_per_million: <integer>}`. The
-outcome is tri-state and the wallet MUST keep the states apart where it selects: a decoded
-`RoutingInfo` means the gateway **serves** that federation; a `200` with `null` means it
-answered and does **not**; a transport failure, any non-`200` status (an lnv1-only gateway's
-`404` included) or a decode failure means it is **unavailable**. Neither "does not serve" nor
-"unavailable" fails a selection: the candidate is skipped (`FMI-12`); what a named gateway's
-refusal does to a pay or receive is `FMI-16` and `FMI-17`. Where the request may go is
-`FMI-40`.
+outcome is tri-state: a decoded `RoutingInfo` means the gateway **serves** that federation; a
+`200` with `null` means it answered and does **not**; a transport failure, any non-`200`
+status (an lnv1-only gateway's `404` included) or a decode failure means it is
+**unavailable**. A selection MUST treat the last two alike — the candidate is skipped
+(`FMI-12`) — and neither is an error of the operation; what a named gateway's refusal does to
+a pay or receive is `FMI-16` and `FMI-17`. Where the request may go is `FMI-40`.
 
 **FMI-40** The wallet MUST NOT let a guardian direct its egress. Before any gateway request
 (`FMI-11`, and every quote or payment call to a gateway) the wallet MUST reject a URL whose
 scheme is not `http` or `https`, MUST NOT follow redirects, and MUST treat as **unavailable** —
 without connecting — a URL whose host is a link-local address (`169.254.0.0/16`, `fe80::/10`),
-the cloud-metadata address `169.254.169.254`, or, unless the host configuration explicitly
-permits private-network gateways (a test environment's gateways are on loopback; the switch is
-a host contract `08-hosts-and-deployment.md` names, default off), a loopback, RFC 1918 or
-unique-local address. A hostname MUST be resolved and the rule applied to every address it
-resolves to. A URL so rejected is never on the vetted list for selection purposes and is never
-counted as a validating gateway (`07-security-requirements.md`, threat model: a malicious or
-misconfigured guardian).
+the cloud-metadata address `169.254.169.254`, or a loopback, RFC 1918 or unique-local address.
+A host MAY offer an explicit configuration that permits private-network gateways — a test
+environment's gateways are on loopback — and that configuration MUST default to off and MUST
+NOT affect the link-local and metadata rule. A hostname MUST be resolved and the rule applied
+to every address it resolves to. A URL so rejected is never on the vetted list for selection
+purposes and is never counted as a validating gateway (`07-security-requirements.md`, threat
+model: a malicious or misconfigured guardian).
 
 **FMI-12** Automated selection MUST choose the **cheapest** validated candidate (`DEF-5`). The
 candidate set is the federation's vetted list (`FMI-10`), or the single break-glass gateway when
@@ -168,13 +167,14 @@ federation has since revoked MUST NOT carry an automated move, and a route hint 
 travel a route without list membership is the operator's break-glass (`FMI-14`), and it still
 MUST answer `routing_info` for the source federation before anything is minted (`ADR-0030`).
 
-**FMI-14** Gateway precedence for a move, in order, per `ADR-0030` and `ADR-0029`:
+**FMI-14** Gateway precedence for a move, in order:
 
 1. The operator's **break-glass**, when this invocation armed one for THIS intent's key
-   (`CONTEXT.md` **Break-glass gateway override**), taken without a membership test. A
-   **committed** route (`CONTEXT.md` **Committed route**: the record has a committed leg — an
-   invoice minted or a send issued — whether held in the cache or recovered from the operation
-   log) replays as recorded, flag or no flag; only a draft yields to the break-glass.
+   (`CONTEXT.md` **Break-glass gateway override**), taken without a membership test —
+   `ADR-0030` §4, "Committed routes replay; drafts never do": a **committed** route
+   (`CONTEXT.md` **Committed route**: the record has a committed leg — an invoice minted or a
+   send issued — whether held in the cache or recovered from the operation log) replays as
+   recorded, flag or no flag; only a draft yields to the break-glass.
 2. The action's route hint, if it still holds (`FMI-13`).
 3. If the amount is final: the cheapest fitting candidate on the destination's list at that
    amount (`FMI-12`). If every candidate was priced and none fits the cap, the outcome is
@@ -186,11 +186,10 @@ MUST answer `routing_info` for the source federation before anything is minted (
 5. None → `Retryable`, never `Permanent`, so the intent stays `Pending` and a later run with a
    break-glass can resume it.
 
-An evacuation tries its route classes in `ADR-0029`'s order — the shared route first, then the
-hop over two gateways on different Lightning nodes (`OVR-13`) — and sizes each inside the same
-attempt (`ALC-21`); probes and route economics consult the vetted list only, and the light
-probe's `gateway_available` is true when any gateway on the list, scanned in the same order,
-serves.
+An evacuation tries its route classes in `ADR-0029`'s order — "swap first, hop only when no
+shared gateway serves THIS attempt" (`OVR-13`) — and sizes each inside the same attempt
+(`ALC-21`); probes and route economics consult the vetted list only, and the light probe's
+`gateway_available` is true when any gateway on the list, scanned in the same order, serves.
 
 **FMI-42** A gateway that quoted and did not **perform** MUST be set aside — `ADR-0029` §3: "A
 bounded, in-memory set-aside with a skip-until time, written on a PERFORM-level failure only and
@@ -218,9 +217,8 @@ The two are different verbs with different ledger semantics (`STO-15`).
 invoice and operation. The wallet MUST persist the `(operation id, invoice)` pair the moment the
 call returns and MUST find an orphaned one by its correlation key in the operation's metadata on
 resume (`OPS-18`, `STO-34`). Every receive the wallet issues MUST carry: invoice expiry
-3 600 seconds, the **empty** description, and an explicitly chosen gateway (`FMI-12`) — the
-wallet never delegates gateway selection to the SDK. The protocol refuses the receive, and the
-wallet MUST treat the refusal as `Retryable`, when the gateway's fresh `routing_info` says it
+3 600 seconds, the **empty** description, and an explicitly chosen gateway (`FMI-12`). The
+protocol refuses the receive, and the wallet MUST treat the refusal as `Retryable`, when the gateway's fresh `routing_info` says it
 does not serve the federation, when its `receive_fee` exceeds the limit (`FMI-19`), or when the
 contract `amount − receive_fee(amount)` is below the lnv2 minimum incoming contract of
 5 000 msat — which the wallet MUST pre-check itself (`OPS-18`).
@@ -269,8 +267,7 @@ parts_per_million: 5 000}` MUST be refused. "Above" is **component-wise**: a sch
 the limit iff its `base` is within the limit's base **and** its `parts_per_million` is within the
 limit's — never a lexicographic comparison that stops at `base`, under which a gateway below the
 base limit passes with any `parts_per_million` and the intended 1.5 % and 0.5 % envelopes do not
-bind. The send refusal is `Permanent` and the receive refusal `Retryable` (`FMI-16`, `FMI-17`).
-This is an admission filter on the posted schedule; the fee caps that bind **on the amount** are
+bind. The class each refusal takes is `FMI-16`'s and `FMI-17`'s. This is an admission filter on the posted schedule; the fee caps that bind **on the amount** are
 the wallet's own (`OPS-29`, `SEC-7`).
 
 **FMI-22** Bounds at the federation and gateway boundary. Each is a requirement; its owner is
@@ -284,14 +281,14 @@ named where it is not this chapter's:
 | `routing_info` request | 5 s connect, 10 s total (`FMI-11`) |
 | invoice expiry | 3 600 s (`FMI-16`) |
 | a federation-API wait while driving an intent | 5 min at the transport, then re-issued (`FMI-38`) |
-| per-intent perform | the host's perform timeout, default 600 s, `0` disables; never applied to join or recover (`OPS-15`, `HST-9`) |
+| per-intent perform | the host's perform timeout (`OPS-15`, `HST-9`); never applied to join or recover |
 | fallback route scan | 10 s (`FMI-12`) |
 | route pricing per tick | `ALC-13` |
 | Observer request | 20 s, 1 MiB body (`FMI-28`) |
 | module recovery | finite (`FMI-30`) |
 
-**FMI-23** A gateway that quotes but does not perform produces one of three outcomes, none of
-which the wallet retries through another gateway within the same operation: an invoice minted
+**FMI-23** A gateway that quotes but does not perform produces one of three outcomes, and the
+wallet MUST NOT retry any of them through another gateway within the same operation: an invoice minted
 and never funded expires after 3 600 seconds (a direct inflow stays `Awaiting` until then); a
 send funded and never completed is refunded by the protocol's send state machine on gateway
 forfeit or expiry, and the move terminalizes `Refunded`; a send that succeeds while the receive
@@ -320,14 +317,15 @@ MUST NOT change. A move whose error starts `send failed:` is NOT evidence the mo
 the funds' position.
 
 **FMI-41** A funded incoming contract the wallet has not claimed MUST remain claimable by the
-wallet: a claim whose transaction is rejected MUST be retried, boundedly, before the receive is
-terminalized `Failed`, and the wallet MUST provide an explicit re-claim — a verb an operator can
-run against one operation (`04-api-contract.md`) — that claims an incoming contract the
-federation still holds funded and unclaimed, the receive leg of a `Stranded` move included, and
-reports "not claimable" when the contract is expired or already consumed. This is the recovery
-path for `Stranded` that `HST-28`'s evidence-preservation procedure precedes; it does not
-contradict `DEF-20`, because it claims what the federation holds rather than reasoning from the
-preimage about what happened.
+wallet: a claim whose transaction is rejected MUST be retried until the contract's expiry has
+passed before the receive is terminalized `Failed`, and the wallet MUST provide an explicit
+re-claim, invocable for one operation by its operation key through the wallet's ordinary
+surfaces (`OVR-1`), that claims an incoming contract the federation still holds funded and
+unclaimed — the receive leg of a `Stranded` move included — and reports "not claimable" when
+the contract is expired or already consumed. This is the recovery path for `Stranded`; it runs
+only after `HST-28`'s evidence-preservation procedure, and it does not contradict `DEF-20`,
+because it claims what the federation holds rather than reasoning from the preimage about what
+happened.
 
 ## Recovery
 
@@ -352,7 +350,8 @@ open of that federation is refused while the recovery runs (`FMI-8`, `FMI-20`); 
 config under the 60-second bound (`FMI-21`); MUST allocate a fresh partition (`STO-3`) and
 recover into it from the seed (`FMI-7`) with no federation-stored backup snapshot (`FMI-32`);
 MUST treat "every module recovered" as the sole completion authority — recovery progress is a
-signal, never completion; MUST verify the recovered federation's id equals the invite's; MUST
+signal, never completion — and MUST NOT hold joins and opens of other federations while it
+waits for it (`FMI-6`); MUST verify the recovered federation's id equals the invite's; MUST
 let every state machine the recovery started run to completion before the client is used; and
 MUST, in **one** journal transaction, write the registry row, terminalize the intent `Done` and
 write a `UserApproved` candidate (`STO-26`), making the client live with no other write between.
@@ -367,9 +366,9 @@ pay plus an empty operation log is a double-pay (`ADR-0025`).
 **FMI-33** Recovery MUST never be automatic and MUST never be a side effect of a join (`DEF-15`).
 The partition rule is never-wipe: recovery into an initialized partition is refused by the
 protocol, so in-place recovery would need a wipe with a crash window, and the wallet MUST NOT
-wipe; orphaned partitions accumulate (`FMI-35`). `recover` is the one verb that MUST refuse a
-store with no seed (`FMI-7`), because minting one there would rebuild an empty wallet under a
-bogus root and occupy the slot a later `restore-mnemonic` needs.
+wipe; orphaned partitions accumulate (`FMI-35`). `recover` MUST refuse a store with no seed
+(`FMI-7`), because minting one there would rebuild an empty wallet under a bogus root and
+occupy the slot a later `restore-mnemonic` needs.
 
 **FMI-35** Orphaned client partitions — from a failed join, a failed recovery, or a lost
 registry — MUST never be reused and MUST never be collected automatically; reclaiming them, if
@@ -388,8 +387,10 @@ a threshold below the BFT bound (`ALC-14`).
 wall-clock is `latency_ms`. A federation whose light probe **errors** is dropped from the
 snapshot with a warning and is therefore neither scored nor evacuated that cycle (`ALC-48`).
 
-**FMI-26** Shutdown is derived from three signals with a 24-hour trigger lead (`ALC-19`), per
-`ADR-0019`: the merged meta `federation_expiry_timestamp` (which the federation's
+**FMI-26** Shutdown is derived from three signals with a 24-hour trigger lead (`ALC-19`) —
+`ADR-0019` ranks them, "`status.scheduled_shutdown` (consensus-reported, strong) primary;
+`federation_expiry_timestamp` meta secondary"; the corroboration rule and the lead are this
+set's: the merged meta `federation_expiry_timestamp` (which the federation's
 `meta_override_url` host can serve, so it is **untrusted**, never schedules alone, and is warned
 when uncorroborated); the at-join consensus config meta `federation_expiry_timestamp`; and
 per-peer `/status` `scheduled_shutdown`, corroborated when `f + 1 = floor((n − 1) / 3) + 1`
@@ -413,12 +414,12 @@ own. Mechanics:
 The runtime-mutable `Policy.evacuation_lead_secs` (default one hour) governs only when the
 scheduler wakes, not when an evacuation triggers (`ALC-19`).
 
-**FMI-27** Balances per federation: `spendable` is the client's spendable ecash; `claimable` is
-always zero by design; `in_flight` is the sum, in msat, of the invoice amounts of the wallet's
-lnv2 sends that have no terminal outcome yet (an amountless invoice adds 0; receives add
-nothing). Because a terminal outcome is known only once the wallet has observed it, a freshly
-reopened client MAY over-report `in_flight` until it re-subscribes; the value is advisory and
-MUST NOT be an input to an allocator decision.
+**FMI-27** Balances per federation: the **spendable** balance is the client's spendable ecash,
+and is the only balance the allocator reads; the **in-flight** amount is the sum, in msat, of
+the invoice amounts of the wallet's lnv2 sends that have no terminal outcome yet (an amountless
+invoice adds 0; receives add nothing). Because a terminal outcome is known only once the wallet
+has observed it, a freshly reopened client MAY over-report in-flight until it re-subscribes;
+the value is advisory and MUST NOT be an input to an allocator decision.
 
 **FMI-28** The Fedimint Observer is a discovery source only (`ADR-0020`): `GET
 {base}/federations`, the base with trailing slashes trimmed, under a 20-second total bound; a
@@ -438,8 +439,8 @@ scoring or shutdown input. No requirement in this set produces a `Nostr` candida
 **FMI-36** Transport. The wallet MUST support the iroh, WebSocket and HTTP federation
 connectors, and MUST NOT route any of them over Tor (`OVR-12`); the same connector set serves
 preview, join, open and recovery. Which transport a federation is reached over is decided by
-its invite code and config, not by the wallet, and the wallet's connector configuration is not
-read from the process environment (`HST-2` owns the complete environment surface). The bound
+its invite code and config, not by the wallet, and the connector configuration MUST NOT be read
+from the process environment (`HST-2` owns the complete environment surface). The bound
 on a wait over any of them is `FMI-38`.
 
 ## The active probe at the protocol level

@@ -17,8 +17,8 @@ much the design defends against them:
    honestly (`FMI-23`). It cannot strand a move alone and cannot open the preimage (`DEF-20`).
 3. **A malicious or misconfigured guardian.** Can place a gateway in the vetted list on its
    own (`SEC-17`), and by listing any URL can make the wallet host POST to an address of its
-   choosing — loopback, link-local, RFC1918, cloud metadata — because the `routing_info` call
-   restricts nothing (`FMI-11`, `F45`); can serve a false shutdown notice through the overridable
+   choosing — loopback, link-local, RFC1918, cloud metadata — unless the wallet restricts its
+   gateway egress (`FMI-40`); can serve a false shutdown notice through the overridable
    meta field (the wallet requires corroboration, `FMI-26`), cannot forge the authenticated config.
 4. **A poisoned discovery feed.** Every candidate's config is re-fetched and structurally scored,
    the Sybil check requires three ids to agree, and nothing is funded before a sats-spending
