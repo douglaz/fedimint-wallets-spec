@@ -96,10 +96,10 @@ registered-but-unopened (`DOM-2`). The scheduler MUST retry opening it every cyc
 planning until it succeeds (`ALC-46`).
 
 **FMI-20** A registered federation MUST never have two live clients on one partition, and a live
-client MUST never be replaced by a second open of the same partition (`DEF-17`): opens and joins
-of one federation are serialized, and a concurrent open that finds the client already live MUST
-discard its own and use the live one. Money operations MUST NOT wait on that serialization
-(`OVR-3`). Before opening a registry row, the wallet MUST skip a federation whose recovery is in
+client MUST never be replaced by a second open of the same partition (`DEF-17`): however opens
+and joins of one federation overlap, exactly one client becomes live, and a concurrent open that
+finds the client already live MUST discard its own and use the live one. Money operations MUST
+NOT wait for an open or join to complete (`OVR-3`). Before opening a registry row, the wallet MUST skip a federation whose recovery is in
 progress or whose client is already live; a row whose invite does not parse is opened by its
 partition alone and checked against the live set afterwards.
 
@@ -142,7 +142,8 @@ the cloud-metadata address `169.254.169.254`, or a loopback, RFC 1918 or unique-
 A host MAY offer an explicit configuration that permits private-network gateways — a test
 environment's gateways are on loopback — and that configuration MUST default to off and MUST
 NOT affect the link-local and metadata rule. A hostname MUST be resolved and the rule applied
-to every address it resolves to. A URL so rejected is never on the vetted list for selection
+to every address it resolves to, and an IPv4-mapped or IPv4-compatible IPv6 address
+(`::ffff:a.b.c.d`, `::a.b.c.d`) MUST be judged as the IPv4 address it carries. A URL so rejected is never on the vetted list for selection
 purposes and is never counted as a validating gateway (`07-security-requirements.md`, threat
 model: a malicious or misconfigured guardian).
 
@@ -207,7 +208,8 @@ destination is credited `amount` after gateway and federation receive fees — *
 possibly less by a bounded shortfall**: the gross-up (`FMI-18`) MUST produce an invoice the
 wallet has verified never over-credits and, when the federation's step fee prevents an exact
 solution, the best verified under-crediting candidate, so the shortfall is bounded by one
-receive-fee step of that federation and by nothing else (`CNF-10`). The external payer pays the
+receive-fee step of that federation plus the federation's mint output fee on the claim, which
+the lnv2 receive quote does not include; `CNF-10` demonstrates it within 1 000 msat. The external payer pays the
 invoice amount. A raw **receive** invoices `amount` and the recipient nets `amount` minus fees.
 The two are different verbs with different ledger semantics (`STO-15`).
 
@@ -308,7 +310,7 @@ operation state:
 | Leg | `Failure` is reached when | Money position |
 |---|---|---|
 | send | (a) the **funding** transaction was rejected, nothing was funded; or (b) the refund did not finalize — the **refund** transaction was rejected, or it was accepted and note issuance then failed — **and** no verifying preimage was available (`FMI-23`) | (a) nothing moved; (b) the outgoing contract WAS funded and its position is unresolved |
-| receive | the **claim** transaction was rejected (this wallet claimed nothing, which does not prove the contract is unclaimed) or it was accepted and note issuance then failed | unknown whether the incoming contract was consumed |
+| receive | the **claim** transaction was rejected and the retries `FMI-41` requires are exhausted (this wallet claimed nothing, which does not prove the contract is unclaimed), or it was accepted and note issuance then failed | unknown whether the incoming contract was consumed |
 
 The wallet MUST record the send case with an error beginning `send failed:` and the receive case
 with one beginning `receive failed:`; the two prefixes are the operator's anchors (`HST-28`) and
@@ -318,14 +320,14 @@ the funds' position.
 
 **FMI-41** A funded incoming contract the wallet has not claimed MUST remain claimable by the
 wallet: a claim whose transaction is rejected MUST be retried until the contract's expiry has
-passed before the receive is terminalized `Failed`, and the wallet MUST provide an explicit
-re-claim, invocable for one operation by its operation key through the wallet's ordinary
-surfaces (`OVR-1`), that claims an incoming contract the federation still holds funded and
-unclaimed — the receive leg of a `Stranded` move included — and reports "not claimable" when
-the contract is expired or already consumed. This is the recovery path for `Stranded`; it runs
-only after `HST-28`'s evidence-preservation procedure, and it does not contradict `DEF-20`,
-because it claims what the federation holds rather than reasoning from the preimage about what
-happened.
+passed before the receive reaches its terminal `Failure` (`FMI-37`) — so the transition
+`OPS-27` maps from that terminal is reached only once the retries are exhausted — and the
+wallet MUST provide an explicit re-claim, invocable for one operation by its operation key
+(`API-42`), that claims an incoming contract the federation still holds funded and unclaimed —
+the receive leg of a `Stranded` move included — and reports "not claimable" when the contract
+is expired or already consumed. This is the recovery path for `Stranded`; it runs only after
+`HST-28`'s evidence-preservation procedure, and it does not contradict `DEF-20`, because it
+claims what the federation holds rather than reasoning from the preimage about what happened.
 
 ## Recovery
 

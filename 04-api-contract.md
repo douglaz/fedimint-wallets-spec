@@ -102,7 +102,7 @@ key's presence, not the status code alone.
 
 ## Routes
 
-**API-8** The complete route table. There are eighteen routes on seventeen paths.
+**API-8** The complete route table. There are nineteen routes on eighteen paths.
 
 | Method | Path | Returns |
 |---|---|---|
@@ -110,6 +110,7 @@ key's presence, not the status code alone.
 | GET | `/v1/federations` | `[FederationView]` |
 | GET | `/v1/history` | `{operations:[OperationView], next_before_seq}` |
 | GET | `/v1/operations/{key}` | `OperationView` |
+| POST | `/v1/operations/{key}/reclaim` | 200 `{operation_key, outcome}` (`API-42`) |
 | GET | `/v1/status` | dry-run of the next tick (`API-15`) |
 | GET | `/v1/watch/status` | `{occurrence, last_discover_ms, discover_cursor, discover_backlog}` |
 | GET | `/v1/health` | `HealthView` (`API-16`) |
@@ -337,8 +338,9 @@ usage error, exit 1, before any request is made: `--data-dir`, `--perform-timeou
 
 **API-26** The verbs: `join, recover, discover, candidates, approve, balance, list-feds,
 receive, pay, await-receive, await-send, direct-inflow, await-move, move, probe, reconcile,
-tick, status, health, policy get, policy set, history, show`. Exactly four initiate movement on
-the user's behalf: `pay`, `receive`, `move`, `direct-inflow` (`CONTEXT.md` **Money verb**).
+tick, status, health, policy get, policy set, history, show, reclaim`. Exactly four initiate
+movement on the user's behalf: `pay`, `receive`, `move`, `direct-inflow` (`CONTEXT.md` **Money
+verb**); `reclaim` (`API-42`) claims what the wallet is already owed and initiates nothing.
 
 **API-27** Every one of the twenty-eight `Policy` fields is settable through `policy set` flags,
 which GETs the whole policy, applies the flags, and PUTs the whole struct back. The round trip
@@ -555,3 +557,18 @@ generates 16 random bytes as 32 lower-hex characters (`cli_nonce`), so every non
 inflow MUST pass a fresh nonce. `move --occurrence` defaults to `0`; the wire field is required
 (`API-19`) and the CLI always sends it. `--fee-cap` and `--to`/`--fed` are omitted from the
 request when not given, so the daemon-side policy defaults of `API-18`/`API-19`/`API-21` apply.
+
+**API-42** `POST /v1/operations/{key}/reclaim`, with an empty body, and the CLI verb
+`reclaim <key>` carry the re-claim `FMI-41` requires. `{key}` MUST name an operation whose
+incoming contract reached a terminal non-claim — a `receive` whose state is `Expired` or
+`Failed`, or a `direct-inflow`, `move` or `evacuation` whose receive leg did, a `Stranded` move
+included (`OPS-27`); an unknown key is `404 not_found`, and any other operation is `422 refused`
+with nothing attempted (`API-6`). The wallet attempts the claim synchronously; the response is
+`200 {operation_key, outcome}` with `outcome ∈ claimed, not_claimable`: `claimed` when the
+wallet holds the contract's notes after the call, whether this call or an earlier one claimed
+them; `not_claimable` when the contract is expired or was consumed by another claimant. The
+call is idempotent — repeating it returns the same outcome and never claims twice — and every
+attempt leaves a ledger row (`OVR-4`). It requires the bearer token like every route (`API-2`),
+and the break-glass gateway override is ignored on it, as on every verb that resolves no route
+(`ADR-0030`). The verb prints the outcome and exits 0 on `claimed`, 3 on `not_claimable` with
+the key in the message, and per `API-28` otherwise.
