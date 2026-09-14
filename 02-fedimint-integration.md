@@ -15,11 +15,11 @@ this binds only where such a federation is joined by a user or pinned — but a 
 freezes there freezes every operation on every federation it hosts (`DEF-16`).
 
 **FMI-38** Every wait the wallet issues against a federation's API while driving an intent —
-awaiting an incoming contract, a preimage or a decryption key share — MUST be bounded at the
-transport: a request that has produced neither a result nor an error within **5 minutes** MUST be
-re-issued over a fresh connection, and re-issuing MUST be safe (each such wait is a pure read
-that a replay repeats without skipping or duplicating). Retiring a connection MUST NOT abort
-unrelated requests in flight on it. The per-intent perform timeout (`FMI-22`, `OPS-15`) is a
+awaiting an incoming contract, a preimage or a decryption key share — MUST be bounded: a
+request that has produced neither a result nor an error within **5 minutes** MUST be abandoned
+and re-issued, re-issuing MUST be safe (each such wait is a pure read that a replay repeats
+without skipping or duplicating), and abandoning it MUST NOT fail or abort any other request in
+flight to the same guardian. The per-intent perform timeout (`FMI-22`, `OPS-15`) is a
 second, outer bound and does not replace this one: without the transport bound a degraded
 connection that still answers keep-alives stalls a receive for as long as the server-side
 long-poll allows. Which transport a federation is reached over is `FMI-36`.
@@ -285,7 +285,7 @@ named where it is not this chapter's:
 | fallback route scan | 10 s (`FMI-12`) |
 | route pricing per tick | `ALC-13` |
 | Observer request | 20 s, 1 MiB body (`FMI-28`) |
-| module recovery | finite (`FMI-30`) |
+| module recovery | fails after 600 s without progress (`FMI-30`) |
 
 **FMI-23** A gateway that quotes but does not perform produces one of three outcomes, and the
 wallet MUST NOT retry any of them through another gateway within the same operation: an invoice minted
@@ -333,9 +333,9 @@ happened.
 **complete-or-fail** semantics: it MUST end in exactly one of two states — every exposed module
 recovered and the federation registered, or failed with nothing registered — and MUST NOT park
 indefinitely. A module recovery that fails MUST surface as the recovery's failure (`ADR-0025`:
-"Recovery must be able to fail, not hang"), and a recovery against a federation that cannot be
-reached MUST fail within a finite bound of the implementation's choosing rather than retry the
-transport forever. Any error before the final commit leaves the fresh
+"Recovery must be able to fail, not hang"), and a recovery MUST fail once no module has made
+recovery progress for **600 seconds** — an unreachable federation makes none — rather than retry
+the transport forever. Any error before the final commit leaves the fresh
 partition unregistered, and a retry allocates the next partition. Every recovery error is
 `Permanent` for the intent. A crash mid-recovery leaves the intent `Executing`; reconcile
 re-drives it into a clean fresh partition or hits the refuse-if-registered guard (`DEF-15`).
@@ -432,7 +432,7 @@ MUST be dropped unless its claimed `id`, the invite's embedded id and the previe
 computed federation id all agree. Every candidate's config is re-fetched by preview before it
 is scored; nothing the Observer says is load-bearing.
 
-**FMI-29** Nostr is a discovery feed at most (`ADR-0019`): a Nostr announcement MAY be a
+**FMI-43** Nostr is a discovery feed at most (`ADR-0019`): a Nostr announcement MAY be a
 candidate source with the same Sybil check as `FMI-28`, and Nostr ratings MUST NOT be a trust,
 scoring or shutdown input. No requirement in this set produces a `Nostr` candidate (`DOM-12`).
 
