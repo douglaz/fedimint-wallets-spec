@@ -121,8 +121,8 @@ Deleted from the documents. Never reused. Listed so an older citation still reso
 
 | Identifier | Was | Why it went |
 |---|---|---|
-
-*(none yet)*
+| `FMI-1` | The fedimint dependency pinned to one fork revision, with the crates named and the three patches it carries | A dependency pin is a codebase fact (`ADR-0032`, "The dependency pin goes"); each patch's behaviour is its own requirement — `FMI-38` (bounded federation-API waits), `FMI-30` (recovery complete-or-fail), `FMI-39` (single-share threshold decryption) |
+| `FMI-2` | Any repoint of the dependency carries every fork-only patch, proven by a cross-federation move smoke | Dependency management and a build-adoption gate are the code repository's; the behaviours the patches provide are `FMI-38`, `FMI-30` and `FMI-39`, and an implementation that loses one gains a finding |
 
 ## Gates
 
