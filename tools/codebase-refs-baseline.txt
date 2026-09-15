@@ -10,7 +10,7 @@
 07-security-requirements.md 2
 08-hosts-and-deployment.md 15
 09-known-defects.md 29
-10-conformance-checklist.md 11
+10-conformance-checklist.md 9
 11-open-questions.md 0
 CONTEXT.md 0
 executive-summary.md 0

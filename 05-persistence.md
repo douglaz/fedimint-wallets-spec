@@ -17,9 +17,7 @@ are the outcome classes of `03-operation-lifecycle.md`.
 federation clients' partitions and the seed; `journal.db` holds the application journal. Inside
 `journal.db` every journal key is prefixed `0x00`; inside `client.db` every client partition is
 prefixed `0x01`; a key outside its store's prefix is not part of that store's contents. The two
-MUST be separate stores — a single store carrying both prefixes does not satisfy this — so that
-the journal's write churn can neither conflict with nor evict the client store's long-held
-Lightning transactions.
+MUST be separate stores; a single store carrying both prefixes does not satisfy this.
 
 **STO-2** One process owns both stores. The lock is an advisory lock **file**, `client.db.lock`,
 beside the `client.db` directory (not the store's own internal lock inside it), taken when
@@ -36,7 +34,7 @@ warning, any key shorter than five bytes; when the registry is empty **and** the
 nothing the result is `0`; when the greater of the two is the largest representable `u32` the
 allocation is an error, never a wrap. The raw scan closes the crash window in which a partition
 was created and the registry never recorded it. An orphaned partition MUST never be reused
-(`FMI-35`, `ADR-0025`). A failed join removes its fresh partition best-effort.
+(`FMI-35`, `ADR-0025`). A failed join SHOULD remove its fresh partition.
 
 **STO-4** The seed is twelve BIP-39 words stored as their **16-byte entropy** in the SDK's own
 client-secret slot at the root of `client.db`: the `EncodedClientSecretKey` (client-store
@@ -50,9 +48,8 @@ recovers different ecash from the same words. There is no mnemonic file. It is p
 
 **STO-5** Every journal key is `[tag] ++ id_bytes`. Every value except the three flagged below
 is a JSON envelope `{"version":1,"data":<T>}` (`version` is a `u8`; any other version decodes
-as `Permanent`; the envelope itself tolerates unknown keys). `<T>` is the JSON form below — the
-default derived encoding of the persisted types — and this rule is the single owner of that
-encoding for every stored type in `STO-29` and every wire DTO that embeds one of them (`API-…`
+as `Permanent`; the envelope itself tolerates unknown keys). `<T>` is the JSON form below, and
+this rule is the single owner of that encoding for every stored type in `STO-29` and every wire DTO that embeds one of them (`API-…`
 rules cite it rather than restate it):
 
 | Shape | JSON form |
@@ -68,9 +65,10 @@ rules cite it rather than restate it):
 | list | JSON array |
 | `InviteCode` (only in `CandidateRecord.invite`) | the invite's `fed1…` string; an unparsable string is a `Permanent` decode failure |
 
-No stored type renames a key, tags a variant internally or adjacently, leaves a variant
-untagged, flattens a nested object or omits a key (`MoveMeta`, which rides the operation log
-rather than the journal, is the one exception: `STO-33`). There are exactly thirteen tags:
+No stored type departs from that table: a key is never renamed, a variant is always
+externally tagged, a nested object is never flattened into its parent, and a key is never
+omitted (`MoveMeta`, which rides the operation log rather than the journal, is the one
+exception: `STO-33`). There are exactly thirteen tags:
 
 | Tag | Key | Value |
 |---|---|---|
@@ -179,20 +177,19 @@ every key is present, `null` when `None`, except the one field `STO-30` lists):
 | `invoice` | `Invoice?` | raw `Receive` artifact |
 | `evacuation_refusal` | `EvacuationRefusalEvidence?` | decodes when absent as `None` (`STO-30`); `{cap_components: EvacFeeCap {base_msat, bps}, requested_net: Msat, source_spendable: Msat, low: EvacuationQuoteSample, high: EvacuationQuoteSample, diagnostic: String, measured_at_ms: u64}` with `EvacuationQuoteSample {delivered_net: Msat, total_fee: Msat, fee_cap: Msat}` (`DOM-19`) |
 
-Every write to an intent names the attempt it expects. An unconditional write — the admission
+Every write to an intent MUST name the attempt it expects. An unconditional write — the admission
 insert, a plain status write, the retryable reset — whose stored attempt differs is a
 `Permanent` error; a fenced write — a conditional status transition, a move-record write, the
 recovery commit, every write `OPS-13` calls attempt-fenced — writes nothing and reports that
-it did not apply. Every status write enforces the transition table of `OPS-2`: `Pending→any,
-Executing→any, Awaiting→{Awaiting,Done,Failed}, Done→Done, Failed→Failed`. `Failed→Pending`
+it did not apply. Every status write enforces the transition table `OPS-2` owns. `Failed→Pending`
 happens only through the retry write (`OPS-10`), which requires the caller's copy of the row to
 be `Pending` at exactly `attempt + 1`, refuses a superseded parent (a `0x0c` row under the key,
 `STO-25`), and in one transaction moves the `0x04` entry from `Failed` to `Pending`, deletes the
 `0x02` move row, appends a **fresh** ledger row and repoints `0x06` to it (`STO-20`), so a
-crashed attempt and its retry are two truthful rows. Exactly two writes touch
-`evacuation_refusal`: the `Pending→Executing` claim clears it to `None` (a fresh claim consumes
-the planning handoff), and the retryable reset — which requires `Executing` and writes
-`Pending` — sets it to exactly the evidence the caller supplies, `None` clearing it (`OPS-31`).
+crashed attempt and its retry are two truthful rows. `OPS-31` owns which writes touch `evacuation_refusal`; on disk, the `Pending→Executing` claim
+clears it to `None` (a fresh claim consumes the planning handoff), the retryable reset —
+which requires `Executing` and writes `Pending` — sets it to exactly the evidence the caller
+supplies, `None` clearing it, and the deliberate clear blanks it and nothing else.
 
 **STO-10** The pending index `0x04` holds `Pending`, `Executing`, `Awaiting` and `Failed`
 intents; **`Done` is never indexed**, which is what makes finished work unscannable. Index and
@@ -210,7 +207,7 @@ rather than under-reserve (`OPS-9`).
 | `key` | `IdempotencyKey` | must equal the row key; a write whose `key` differs from the row key is `Permanent` |
 | `from` | `FederationId?` | `None` for a receive-only `DirectInflow` |
 | `to` | `FederationId` | |
-| `amount` | `Msat` | the executed net (`STO-17`) |
+| `amount` | `Msat` | the net the receive was committed at (`OPS-24`'s `net`; `STO-17`) |
 | `fee_cap` | `Msat` | the cap actually enforced; for an `Evacuate` recomputed from `fee_cap_components` at the sized net |
 | `gateway` | `GatewayUrl` | **required**: the one gateway of a shared route, or the receive-leg (destination) gateway of a hop; recorded when the record is created, replayed once the move is committed (`OPS-20`) |
 | `send_required` | `bool` | `true` for `Move`/`Evacuate`, `false` for `DirectInflow` |
@@ -231,13 +228,11 @@ when `invoice`, `recv_op` or `send_op` is `Some`. A move record of an intent-bac
 written only while the intent is at the expected attempt, non-terminal, and carries no
 refusal marker; a write that observes otherwise writes nothing and reports that it did not
 apply. A record write MUST NOT leave behind a record that belongs to a retired attempt or to
-an intent that became terminal or marked while the record was being written: an
-implementation whose record write can race a status write MUST detect the race after commit
-and restore the previous record (same attempt, retired) or remove the row (any other loss),
-reporting the write as not applied.
+an intent that became terminal or marked while the record was being written; how a wallet
+whose record write can race a status write keeps that invariant is its own.
 
 **STO-12** `WatchState` (`0x0a`): `occurrence`, `last_discover_ms`, `discover_cursor?`,
-`discover_backlog`, `discover_rotation` (decodes when absent as `0`, `STO-30`). A cycle's
+`discover_backlog`, `discover_rotation` (decodes when absent as `0`, the value a fresh `WatchState` starts at; `STO-30`). A cycle's
 occurrence is allocated by a checked `+1` on the stored value, which fails only when that value
 is already the largest representable `u64`, so it can write that value once; an observation
 (a standalone tick recording its operator-supplied occurrence as the floor, `DOM-16`) writes
@@ -260,7 +255,7 @@ is: `per_fed_cap 1_500_000_000`, `spending_target 500_000_000`, `standby_target 
 43_200`, `max_auto_joins_per_week 5`, `auto_join_lifetime_cap 20`, `max_candidates_per_pass
 256`, `per_preview_timeout_secs 20`, `discover_pass_deadline_secs 60`, `auto_join false`,
 `require_mainnet true`. Field types: every `*_msat`/`_cap`/`_target`/`_amount`/`_spend_*`/
-`max_fee` is `Msat`; `max_fee_bps_of_move` and `evac_fee_bps` are `u16`; the two pins are
+`max_fee` is `Msat`; `max_fee_bps_of_move` and `evac_fee_bps` are `u16`; the two federation fields are
 `FederationId?`; `probe_min_successes`, `max_probe_attempts_per_week`,
 `max_auto_joins_per_week`, `auto_join_lifetime_cap`, `max_candidates_per_pass` are `u32`; every
 `*_secs` is `u64`; the two flags are `bool`.
@@ -268,9 +263,8 @@ is: `per_fed_cap 1_500_000_000`, `spending_target 500_000_000`, `standby_target 
 **STO-14** The federation registry (`0x03`) is written by a plain overwrite after the client
 partition exists and before the client is made live (`FMI-8`). A read of one federation fails
 closed on a corrupt row; the listing skips a malformed key or undecodable value, reports the
-number skipped, and warns. Three planning surfaces MUST treat a nonzero skipped count as "the
-world is unknown" rather than plan from the healthy subset (`ALC-46`); explicit user and admin
-verbs keep the poison-tolerant list.
+number skipped, and warns. That count is what `ALC-46`'s three planning surfaces refuse a partial world on; explicit
+user and admin verbs keep the poison-tolerant list.
 
 ## The operation ledger
 
@@ -290,8 +284,8 @@ thirteen externally-tagged variants:
 | `Receive` | `fed: FederationId, amount_invoiced: Msat` (gross), `op_id: OperationId?, gateway: GatewayUrl?` |
 | `Pay` | `fed: FederationId, invoice_amount: Msat?, payment_hash: [u8;32]?, op_id: OperationId?, gateway: GatewayUrl?` |
 | `DirectInflow` | `to: FederationId, amount: Msat, recv_op: OperationId?, gateway: GatewayUrl?` |
-| `Move` | `from: FederationId, to: FederationId, amount: Msat, send_op: OperationId?, recv_op: OperationId?, gateway: GatewayUrl?, evacuation: bool` (`true` for an `Action` `Evacuate`)`, send_gateway: GatewayUrl?` (a hop's source-leg gateway, `None` on a shared route; decodes when absent as `None`, `STO-30`) |
-| `Refusal` | `fed: FederationId, diagnostics: RefusalDiagnostics` (decodes when absent as all-`None`, `STO-30`) |
+| `Move` | `from: FederationId, to: FederationId, amount: Msat, send_op: OperationId?, recv_op: OperationId?, gateway: GatewayUrl?, evacuation: bool` (`true` for an `Action` `Evacuate`), `send_gateway: GatewayUrl?` (a hop's source-leg gateway, `None` on a shared route; decodes when absent as `None`, `STO-30`) |
+| `Refusal` | `fed: FederationId, diagnostics: RefusalDiagnostics` (decodes when absent as all-`None` with `conflict_suppressed: false`, `STO-30`) |
 | `Probe` | `fed: FederationId, from: FederationId, amount_msat: Msat, cost_msat: Msat?` |
 | `Tick` | `occurrence: Occurrence, decisions: u32, performed: u32, failed: u32` |
 | `Discover` | `source: DiscoverySource ∈ {Observer, Nostr, Manual}, status: SourceStatus ∈ {"Ok", {"Failed": String}}, found: u32, structurally_passed: u32, rejected: u32` |
@@ -321,9 +315,10 @@ same key is a no-op).
 
 A re-claim (`API-42`, `FMI-41`) writes one `Reclaim` row per attempt, keyed
 `reclaim:<nonce>:<key>` (`STO-6`): `actor User`, `reason UserInitiated`, `fees` default,
-`repaired false`; `status Succeeded` with `error` `None` on the outcome `claimed`, `status
-Failed` with `error = "not claimable: <detail>"` on `not_claimable`. It describes no intent and
-is written best-effort (`OVR-4`); the reclaimed operation's own row is not touched.
+`repaired false`; `status Succeeded` with `error` `None` on the outcome `claimed`, and `status
+Failed` on `not_claimable` — the attempt claimed nothing — with an `error` that states why
+(expired, or consumed by another claimant; the text is informative, `OPS-40`). It describes no
+intent and is written best-effort (`OVR-4`); the reclaimed operation's own row is not touched.
 
 **STO-16** Write discipline. A ledger row is created on first observation of its key; it is
 updated only to advance status (rank `Started < Awaiting < terminal`) and to fill fields; a
@@ -366,7 +361,7 @@ no write; otherwise the current status (pure enrichment).
 **STO-17** On every intent-backed ledger write the row refreshes operation ids, gateways and
 quoted fees from the `0x02` record, and — once a move artifact exists (invoice, receive
 operation or send operation, `STO-11`) — refreshes **both** `amount` and `fee_cap` to the
-executed amount and the enforced cap (`DEF-4`). Refreshing one without the other is forbidden:
+net the receive was committed at and the cap enforced at that net (`DEF-4`). Refreshing one without the other is forbidden:
 an auditor recomputing the cap from a planned amount would derive a number nobody enforced.
 Precisely: on a `Move` kind `send_op`/`recv_op` are copied when `Some` on the record, `gateway`
 is set to `Some(record.gateway)` unconditionally, `send_gateway` is set to
@@ -380,11 +375,11 @@ that, a `Pay`/`Receive` kind's `op_id` is set to `Intent.operation_id` whenever 
 `recv_op` set, `amount` and `fee_cap` at the committed pair, no invoice — has an artifact, so
 this rule stamps that row with the committed pair and names the orphan.
 
-**STO-18** Sequence assignment is fenced in O(1): before any fresh append the counter `0x07`
+**STO-18** Sequence assignment is fenced without a ledger scan: before any fresh append the counter `0x07`
 MUST equal `tail_seq + 1`, where the tail is the lexicographically greatest `0x05` key, which
 MUST be a canonical nine-byte key whose embedded `seq` matches. Any disagreement is a
 `Permanent` error that fences **every** fresh append, user and agent, with an operator message
-to restore from backup. An absent `0x07` reads as `0`; a nonzero counter over an empty ledger,
+to restore the stores from a snapshot (`STO-28`). An absent `0x07` reads as `0`; a nonzero counter over an empty ledger,
 a tail key that is not exactly nine bytes, or a tail `seq` equal to the largest representable
 `u64` are all the same fence. The first row of a fresh store is `seq 0`. The counter is
 exhausted at the largest representable value.
@@ -454,8 +449,7 @@ sidecars exist and agree before returning success without writing (`OPS-30`).
 
 **STO-26** `ProbeRecord` (`0x08`): `{attempts: Vec<ProbeAttempt>, in_flight: ProbeSession?}`
 (both keys always present). `ProbeAttempt` is `{at_ms: u64, ok: bool, from: FederationId,
-amount_msat: u64, leg_fee_cap_msat: u64, error: String?}` (`DOM-13`; note the plain `u64`
-fields, not `Msat`). `attempts` is chronological append order and is pruned in two steps on
+amount_msat: u64, leg_fee_cap_msat: u64, error: String?}` (`DOM-13`). `attempts` is chronological append order and is pruned in two steps on
 every outcome write — first keep every attempt with `now_ms − at_ms ≤ 604_800_000` (a
 **constant** 7-day window, never `Policy.probe_ttl_secs`), the newest attempt, and per `from`
 source the newest `ok` attempt and the newest **default-qualifying** attempt, where
@@ -519,7 +513,7 @@ requirement that introduced it names: for a numeric field that is never an unsta
 (`DEF-10`; a zero evacuation cap is a livelock). The fields that decode when absent, and what
 they decode to, are: `Intent.evacuation_refusal` (`None`), `Action` `Move.gateway` (`None`),
 `Action` `Evacuate.gateway` (`None`) and `Evacuate.fee_cap_components` (`None`),
-`OperationKind` `Refusal.diagnostics` (all-`None`), `RefusalDiagnostics.max_fee_bps` (`None`)
+`OperationKind` `Refusal.diagnostics` (all-`None`, `conflict_suppressed: false`), `RefusalDiagnostics.max_fee_bps` (`None`)
 and `RefusalDiagnostics.conflict_suppressed` (`false`), the three `Policy` fields of `STO-13`,
 `OperationRecord.repaired` (`false`), `WatchState.discover_rotation` (`0`),
 `MoveRecord.send_gateway` (`None`) and `OperationKind` `Move.send_gateway` (`None`) — fourteen
@@ -546,12 +540,12 @@ is:
 | `fee_cap` | `u64` msat | optional: **omitted** when none, never `null`; absent decodes as none and reassembly falls back to the intent's planned cap — never to zero |
 | `from` | `[u8;32]` | optional, same omission rule; absent for a `DirectInflow` |
 | `to` | `[u8;32]` | required |
-| `gateway` | `String` | optional, same omission rule: the URL of the gateway this leg was committed through, so a committed route replays after cache loss (`OPS-20`); absent on an operation written before this key existed, and decodes as none |
+| `gateway` | `String` | optional, same omission rule: the URL of the gateway this leg was committed through, so a committed route replays after cache loss (`OPS-20`); absent on an operation an older build wrote, and decodes as none |
 | `send_gateway` | `String` | optional, same omission rule: on the receive operation of a **hop** (`OVR-13`), the URL of the source-leg gateway the route was committed with, so the whole route replays before any send operation exists; absent on a shared route and on a send operation |
 
 A receive operation additionally carries `receive_contract_quoted` (`u64` msat): the exact
-contract amount the quote expected before minting (`OPS-23`); absent means an operation
-written before the never-over check existed, malformed is corruption; a send operation never
+contract amount the quote expected before minting (`OPS-23`); absent means an operation an
+older build wrote, malformed is corruption; a send operation never
 carries it, and a reader of `MoveMeta` ignores it as an unknown key. The operation-log backfill
 (`OPS-20`) recognises a move operation by the **presence of the `move_id` key** alone: an
 operation without it is skipped silently; one with it whose value fails to decode as a
@@ -580,6 +574,6 @@ Every wording ever written to a row that reached an unrepaired terminal therefor
 store forever, and any classifier that reads `error` — the auto-join count that excludes a
 `Succeeded` agent `Join` row carrying "already joined (concurrent/prior); no-op re-open"
 (`OPS-42`, `ALC-29`), the never-reached recogniser of `STO-24`, and the operator reading
-history — MUST match the stored text exactly as listed in `STO-24` and `OPS-42`, and a change
-to any of these strings MUST keep matching the legacy wording or it silently changes the money
-accounting of rows already on disk.
+history — MUST match the stored text exactly as listed here and in `STO-24`, and a change to any of
+these strings MUST keep matching the wording already on disk or it silently changes the money
+accounting of rows already written.
