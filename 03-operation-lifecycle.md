@@ -498,17 +498,20 @@ side {q} msat exceeds the {cap} msat cap at the {d} msat this would deliver)"; a
 **OPS-24** The persistence order at minting is load-bearing and MUST be: the draft record (phase
 `Created`, gateway, receive quote, no invoice, no receive operation id) written **before** the
 lnv2 receive is issued; the receive committed carrying `MoveMeta {move_id, role, amount: net,
-fee_cap: delivered_cap, from, to}` plus the quoted contract (`STO-33`); the committed contract
+fee_cap: delivered_cap, from, to, gateway}` plus the quoted contract (`STO-33`); the committed contract
 read back and verified (`OPS-23`); **only then** — after `rec.amount := net` and `rec.fee_cap :=
 delivered_cap` when `net < rec.amount` (a no-op cap for a non-evacuation rule) — the `invoice`,
 the receive operation id and phase `Invoiced` written to the record. The order matters because
 the artifact test of `OPS-21` is what stops a later pass from re-sizing a committed evacuation
 against fresh prices; an implementation MUST NOT write the invoice before the contract is
 verified. A receive that commits and is then refused (`OPS-23`, or the committed-fee check of
-`OPS-18`) leaves an orphaned contract that expires unpaid; the operation's ledger row MUST then
-carry, alongside the planned pair, the amount and fee cap the contract was committed at — filled
-in the write that terminalizes the row or before it, which `STO-16` permits — so that the row is
-a truthful account of what reached the federation. Which fields carry them is `STO-15`'s.
+`OPS-18`) leaves an orphaned contract that expires unpaid. The refusal MUST be written together
+with what it orphans: the move record takes `amount := net`, `fee_cap := delivered_cap`, the
+orphaned receive operation id and phase `Failed` with the refusal as its outcome — and MUST NOT
+take the invoice, which is never surfaced (`OPS-23`) — so that the ledger row, refreshed to the
+executed pair once a receive operation id exists (`STO-17`, `STO-15`'s `recv_op`), records the
+amount and cap the contract was committed at and names the orphan, while the planned pair stays
+on the intent (`STO-9`).
 
 **OPS-23** The never-over check: the committed incoming contract MUST equal the quoted one, else
 `Permanent` "gateway receive fee changed between quote and mint; re-run". The protocol re-reads
