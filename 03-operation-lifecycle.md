@@ -422,8 +422,9 @@ destination's cap room: `room = per_fed_cap − balance(to)` saturating; `room =
 cap {cap} msat, so an evacuation cannot drain into it")`; else `desired = min(amount, room)`.
 Read the source's spendable balance; take the cap rule from the action's components (an intent
 without components uses `{base: the intent's fee_cap, bps: 0}`); snapshot one gateway fee per leg
-for the whole search — the gateway's receive fee at the destination and its swap send fee
-(`send_fee_minimum`, `FMI-18`) at the source — warning, never refusing, on a schedule outside
+for the whole search — the receive-leg gateway's receive fee at the destination and the
+send-leg gateway's pre-invoice send fee as `FMI-18` assumes it (the swap fee `send_fee_minimum`
+on a shared route, `send_fee_default` on a hop) — warning, never refusing, on a schedule outside
 `FMI-19`'s limits (the protocol refuses at the send); run the search of `OPS-44` (`ALC-22`).
 `Sized(n)` sets `rec.amount = n, rec.fee_cap = cap.at(n)`; `Refused(r)` is `Retryable("no
 evacuable amount fits: desired {d} msat, source balance {s} msat, evacuation fee cap {base} msat
@@ -583,10 +584,12 @@ implementation injects the aborts to prove this is its own (`SEC-18`).
 | Move | receive leg ≤ `fee_cap` (`Permanent`); fallback route priced at the amount | fixed receive + re-quoted send ≤ `fee_cap` | `floor(amount × max_fee_bps_of_move / 10 000)` stamped by the allocator (`ALC-7`) |
 | Evacuate | sizing at delivered net; receive leg ≤ `cap.at(delivered)` (`Retryable`) | same, on `cap.at(delivered net)` + viability | `base + floor(net × bps / 10 000)` (`ALC-20`) |
 
-**OPS-42** `Join`: parse the invite (`Permanent`); join (`FMI-8`; an error → `Retryable`);
-compute `newly_joined = !membership_preexisting && (the protocol reported a new join || the
-registry row's invite equals the intent's)`, reading the registry row only when neither of the
-first two terms holds; if the actor is `User`, mark the candidate `UserApproved` — **but only
+**OPS-42** `Join`: parse the invite (`Permanent`); join (`FMI-8`; an error → `Retryable`); the
+join is **new** iff `!membership_preexisting && (the protocol reported a new join || the
+registry row's invite equals the intent's)`, the registry row read only when neither of the
+first two terms holds, and a join that is not new records the ledger note `STO-35` names
+("already joined (concurrent/prior); no-op re-open"), which is what keeps a re-open out of the
+auto-join counts (`ALC-29`); if the actor is `User`, mark the candidate `UserApproved` — **but only
 from a state that is neither `AutoJoined` nor already `UserApproved`** (`DOM-12`), so a user
 `join` of an already-auto-joined federation leaves the row
 agent-owned and only the audited `approve` verb (`API-23`) releases its probe gate and unproven
