@@ -65,8 +65,9 @@ admission point (`OPS-13`), with the spendable balance of every **open** federat
 sampled before admission and handed to it: `pay`: `from`; `move`: `from` and `to`; `receive` and
 `direct-inflow`: `to`; `join` and `recover`: none. A federation that is joined but not open
 (`DOM-2`) samples no balance and is treated as zero spendable on the source side (`API-18`); a
-**fresh** request whose destination — `move`, `receive`, `direct-inflow` — is joined but not open
-MUST be refused as destination-unavailable with nothing journaled (`OPS-6`; `API-6`: 503). An
+**fresh** request, or a retry (`OPS-10`), whose destination — `move`, `receive`,
+`direct-inflow` — is joined but not open MUST be refused as destination-unavailable with nothing
+journaled (`OPS-6`; `API-6`: 503). An
 active probe's legs are agent work: they MUST be admitted through the same point, validated
 against the probe's in-flight session (`ALC-27`, `OPS-6`), and each awaited to terminal
 (`OPS-16`) under the host's perform timeout (`FMI-22`; `HST-2` names the daemon's setting), or
@@ -150,9 +151,9 @@ view.
 **OPS-10** Retry. Only a `Failed` intent, only by a `User` request, only preserving the anchor
 fields of `OPS-8`, and never a `Failed` pay that recorded an operation id — refused `conflict`,
 "this invoice already consumed its single payment attempt" (`FMI-17`). Before the write the retry
-is admitted like a fresh key: the driver cap and the probe hold (`OPS-6`), and the arithmetic
-(`OPS-7`) on the refreshed intent against the strict projection, the request's sampled balances
-and the stored cap. The retry write then, in one transaction (`STO-9`): writes `Pending` at
+is admitted like a fresh key: an unopened destination (`OPS-5`), the driver cap and the probe
+hold (`OPS-6`), and the arithmetic (`OPS-7`) on the refreshed intent against the strict
+projection, the request's sampled balances and the stored cap. The retry write then, in one transaction (`STO-9`): writes `Pending` at
 `attempt + 1`, deletes the cached move record, appends a fresh ledger row and repoints the key
 index (`STO-20`), so the failed attempt and the retry are two truthful rows and the failed row's
 error is kept verbatim (`STO-35`); the new attempt's effects carry its own correlation key
