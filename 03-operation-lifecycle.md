@@ -21,11 +21,12 @@ wording is informative.
 
 ## Intents and their states
 
-**OPS-1** An executable operation is driven by an intent (`DOM-6`). Every effect an attempt
-issues to a federation or gateway MUST carry that attempt's correlation key in the operation's
-metadata (`STO-34`: the operation key on attempt 0, `retry:<len>:<key>:<n>` on attempt `n > 0`),
-so that a resume finds the attempt's own operations and a retry can never adopt the operations of
-the attempt that failed.
+**OPS-1** An executable operation is driven by an intent (`DOM-6`). Every lnv2 send or receive
+an attempt issues MUST carry that attempt's correlation key in the operation's metadata
+(`STO-33`, `STO-34`: the operation key on attempt 0, `retry:<len>:<key>:<n>` on attempt
+`n > 0`), so that a resume finds the attempt's own operations and a retry can never adopt the
+operations of the attempt that failed. A join or a recovery creates no such operation and carries
+none.
 
 **OPS-2** The status machine, which every durable writer MUST enforce (`STO-9`):
 
@@ -209,9 +210,9 @@ and the operation-log backfill (`ADR-0024`), never on who owned the key. A drive
 MUST re-read its intent and continue only when: the same attempt is now `Awaiting` (hand-off to
 an awaiter); the same attempt, or a newer one, is `Pending` and a re-drive was requested while the
 driver owned the key (`OPS-8`); or an awaiter asked to retry — and never when the intent is a
-planner-owned marker (`OPS-35`). A driver that ends `Retryable` leaves its `Pending` key
-unowned until the next reconcile pass: there is no in-driver retry loop, so the retry cadence
-is the reconcile cadence (`ALC-38`). A read fault while releasing ownership MUST schedule a
+planner-owned marker (`OPS-35`). A driver that ends `Retryable` with no re-drive requested leaves
+its `Pending` key unowned until the next reconcile pass: there is no in-driver retry loop, so
+the retry cadence is the reconcile cadence (`ALC-38`). A read fault while releasing ownership MUST schedule a
 reconcile pass in preserve mode (`OPS-35`), retried with bounded backoff until a scan completes.
 
 **OPS-15** The per-intent perform timeout (`FMI-22`; `HST-2` names the daemon's setting) bounds
