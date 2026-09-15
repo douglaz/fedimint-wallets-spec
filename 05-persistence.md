@@ -20,9 +20,10 @@ prefixed `0x01`; a key outside its store's prefix is not part of that store's co
 MUST be separate stores; a single store carrying both prefixes does not satisfy this.
 
 **STO-2** One process owns both stores. The lock is an advisory lock **file**, `client.db.lock`,
-beside the `client.db` directory (not the store's own internal lock inside it), taken when
-`client.db` is opened, and `client.db` MUST be opened before `journal.db`: it is the
-exclusivity anchor. A second opener MUST block (a resident host) or refuse after a non-blocking
+beside the `client.db` directory (not the store's own internal lock inside it). A process MUST
+hold it before it opens or touches either store — it is the exclusivity anchor — and MUST hold
+it until both are closed; in what order the stores are then opened is the implementation's.
+A second opener MUST block (a resident host) or refuse after a non-blocking
 probe (the standalone process) — `HST-1`, `HST-9`, `SEC-23`. `init`, `mnemonic` and
 `restore-mnemonic` (`HST-2`) therefore run only while no resident host holds the lock.
 

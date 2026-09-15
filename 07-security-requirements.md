@@ -107,8 +107,8 @@ It re-asserts the `0700` data directory before opening the store, as `init` and 
 
 **SEC-12** Loss of `client.db` loses the seed and the send-dedup state. Loss of `journal.db`
 loses the federation list and the ledger. Seed recovery rebuilds balances, not dedup, not
-history (`FMI-32`, `STO-28`). There is no application-level backup of either (`F12`); what the
-operator must hold instead is `SEC-24`.
+history (`FMI-32`, `STO-28`). None is required of either (`STO-28`); what the operator must hold
+instead is `SEC-24`.
 
 **SEC-23** One seed, one live `client.db`, one process. The store lock is the file
 `<data_dir>/client.db.lock`, so it excludes only a second process opening **that same
