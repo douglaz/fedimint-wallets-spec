@@ -493,11 +493,13 @@ bare default yields zero (`DEF-10`; a zero evacuation cap is a livelock). As bui
 carrying it are `Intent.evacuation_refusal`, `Action::Move.gateway`,
 `Action::Evacuate.{gateway, fee_cap_components}`, `OperationKind::Refusal.diagnostics`,
 `RefusalDiagnostics.{max_fee_bps, conflict_suppressed}`, and the three `Policy` fields in
-`STO-13` — ten in the journal — plus `MoveMeta.fee_cap` and `MoveMeta.from`, which ride the
-SDK op-log's `custom_meta` in `client.db` (`OPS-25`): twelve. Each SHOULD be pinned by a test that strips the key from the serialized type and re-reads it.
+`STO-13` — ten in the journal — plus `MoveMeta.fee_cap`, `MoveMeta.from` and `MoveMeta.gateway`
+(`STO-33`, added for `OPS-20`), which ride the
+SDK op-log's `custom_meta` in `client.db` (`OPS-25`): thirteen. Each SHOULD be pinned by a test that strips the key from the serialized type and re-reads it.
 Ten are: `Refusal.diagnostics`, `Move.gateway`, `Intent.evacuation_refusal`, both
-`RefusalDiagnostics` fields, the three `Policy` fields, and both `MoveMeta` fields. Two are not:
-the `Evacuate` defaults, which one bare-`Action` fixture omits both at once (`CNF-18`, `F41`).
+`RefusalDiagnostics` fields, the three `Policy` fields, `MoveMeta.fee_cap` and `MoveMeta.from`.
+Three are not: the `Evacuate` defaults, which one bare-`Action` fixture omits both at once
+(`CNF-18`, `F41`), and `MoveMeta.gateway`, which no implementation writes yet.
 
 **STO-31** No type on that list may carry `#[serde(deny_unknown_fields)]` (`DEF-11`): a row
 written by a newer build must stay readable by the previous build or a rollback cannot start.

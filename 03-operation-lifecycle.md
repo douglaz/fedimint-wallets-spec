@@ -215,8 +215,9 @@ is the reconcile cadence (`ALC-38`). A read fault while releasing ownership MUST
 reconcile pass in preserve mode (`OPS-35`), retried with bounded backoff until a scan completes.
 
 **OPS-15** The per-intent perform timeout (`FMI-22`; `HST-2` names the daemon's setting) bounds
-one perform. On expiry the wallet MUST abandon the drive and issue no further IO for that attempt,
-MUST NOT terminalize the intent, and MUST leave it re-performable by a later reconcile pass under
+one perform. On expiry the wallet MUST abandon the drive — no further IO is issued from the
+abandoned drive — MUST NOT terminalize the intent, and MUST leave it re-performable by a later
+reconcile pass, at the same attempt (`OPS-4`), under
 the executor's idempotency (`OPS-43`); whether it rests `Executing` until reconcile normalizes it
 (`OPS-35`) or is reset to `Pending` at once is the implementation's. Join and recover MUST NOT
 be timed out (`FMI-21` and `FMI-30` bound them). The transport bound `FMI-38` is the inner bound
@@ -504,8 +505,9 @@ delivered_cap` when `net < rec.amount` (a no-op cap for a non-evacuation rule) �
 the receive operation id and phase `Invoiced` written to the record. The order matters because
 the artifact test of `OPS-21` is what stops a later pass from re-sizing a committed evacuation
 against fresh prices; an implementation MUST NOT write the invoice before the contract is
-verified. A receive that commits and is then refused (`OPS-23`, or the committed-fee check of
-`OPS-18`) leaves an orphaned contract that expires unpaid. The refusal MUST be written together
+verified. A move-shaped receive that commits and is then refused (`OPS-23`) leaves an orphaned
+contract that expires unpaid (a raw receive's orphan is `OPS-18`'s: operation id and invoice
+persisted first). The refusal MUST be written together
 with what it orphans: the move record takes `amount := net`, `fee_cap := delivered_cap`, the
 orphaned receive operation id and phase `Failed` with the refusal as its outcome — and MUST NOT
 take the invoice, which is never surfaced (`OPS-23`) — so that the ledger row, refreshed to the
