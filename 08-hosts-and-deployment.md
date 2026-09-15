@@ -92,7 +92,7 @@ the money, await and `reconcile` verbs run the actor, where the deadline instead
 future and leaves the intent `Executing` for reconcile (`OPS-15`, `FMI-38`). Only its `tick` verb is
 the documented admission
 exception in `ADR-0031` (`OPS-12`); the standalone money verbs run the actor, and `probe`'s
-bypass is the undocumented second exception `F42` tracks. It resolves `data_dir` from `--data-dir`, else `walletd.toml` (parsed with the
+bypass is a non-conformance against `OPS-12` (`F42`). It resolves `data_dir` from `--data-dir`, else `walletd.toml` (parsed with the
 daemon's own closed schema, so a stale `gateway` key fails here too), else the default; then
 asserts the directory `0700` (`HST-19`). The lock mechanism (`check_db_lock`): open-or-create
 `<data_dir>/client.db.lock` (truncating), attempt a non-blocking exclusive `flock`

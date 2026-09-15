@@ -521,6 +521,7 @@ Its JSON is:
 | `fee_cap` | `u64` msat | `Option`, `#[serde(default, skip_serializing_if = "Option::is_none")]`: **omitted** when `None`, never `null`; absent decodes as `None` and reassembly falls back to the intent's planned cap — never to zero |
 | `from` | `[u8;32]` | `Option`, same omission rule; absent for a `DirectInflow` |
 | `to` | `[u8;32]` | required |
+| `gateway` | `String` | `Option`, same omission rule: the URL of the gateway the leg was committed through, so a committed route replays after cache loss (`OPS-20`); absent on an operation written before this key existed, and decodes as `None` |
 
 Receive ops additionally carry `receive_contract_quoted` (`u64` msat): the exact contract
 amount the quote solver expected before minting, written by
