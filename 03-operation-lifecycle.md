@@ -688,7 +688,7 @@ is the other repair path. Neither admits a fresh intent.
 | refused, with a reason (`OPS-39`) | admission or commit refused; nothing journaled for a fresh key | 422 / 409 |
 | storage fault | a durable read or write failed or an internal invariant broke; a fresh agent admission may or may not have committed | 500 |
 | not found | an await on an unknown key | 404 |
-| destination unavailable | fresh destination-side admission to a joined-but-unopened federation; nothing journaled | 503 |
+| destination unavailable | a fresh admission, or a retry (`OPS-5`), whose destination is joined but not open; nothing journaled | 503 |
 | timeout | the await deadline elapsed; the operation is still live | 504 |
 | shutting down | the wallet is draining or its engine is gone | 503 |
 

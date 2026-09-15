@@ -178,7 +178,10 @@ MUST answer `routing_info` for the source federation before anything is minted (
    `ADR-0030` §4, "Committed routes replay; drafts never do": a **committed** route
    (`CONTEXT.md` **Committed route**: the record has a committed leg — an invoice minted or a
    send issued — whether held in the cache or recovered from the operation log) replays as
-   recorded, flag or no flag; only a draft yields to the break-glass.
+   recorded, flag or no flag; only a draft yields to the break-glass. A committed leg recovered
+   from the operation log with no recorded route — one committed before the route was
+   persisted with the leg (`STO-33`) — has none to replay and is treated as a draft here
+   (`OPS-20`).
 2. The action's route hint, if it still holds (`FMI-13`).
 3. If the amount is final: the cheapest fitting candidate on the destination's list at that
    amount (`FMI-12`). If every candidate was priced and none fits the cap, the outcome is
