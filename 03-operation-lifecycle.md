@@ -409,9 +409,11 @@ replayed, send-required or not. Committed → the route MUST replay as recorded,
 and, after cache loss, from the `gateway` — and, for a hop, the `send_gateway` — the committed
 leg's metadata carries (`STO-33`) —
 `CONTEXT.md` **Committed route**: "a restart cannot pay through a different gateway than the one
-the invoice was sized for" — and MUST NOT be re-resolved. A committed send-required move whose
-recovered metadata carries no `gateway` (an operation written before that key existed) is
-re-resolved as a draft is. A committed receive-only move recovered without a cache takes the
+the invoice was sized for" — and MUST NOT be re-resolved. The one exception is an operation
+committed before the route was persisted with the leg: a committed send-required move whose
+recovered metadata carries no `gateway` has no committed route to replay and is re-resolved as
+a draft is, under the same fee cap, which the pay step re-checks (`OPS-26`); `CONTEXT.md`
+**Committed route** names this exception. A committed receive-only move recovered without a cache takes the
 `gateway` its metadata carries; when the metadata carries none it carries the local sentinel
 gateway string `recovered-receive-only-gateway-not-used`, since no send leg will use it.
 
