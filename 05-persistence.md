@@ -292,7 +292,7 @@ thirteen externally-tagged variants:
 | `Discover` | `source: DiscoverySource ∈ {Observer, Nostr, Manual}, status: SourceStatus ∈ {"Ok", {"Failed": String}}, found: u32, structurally_passed: u32, rejected: u32` |
 | `AutoJoin` | `considered: u32, joined: u32, blocked_concurrent: u32, blocked_weekly: u32, blocked_lifetime: u32` |
 | `Approve` | `fed: FederationId` |
-| `Reclaim` | `fed: FederationId` (the federation holding the contract)`, target: IdempotencyKey` (the key of the operation whose contract is claimed)`, op_id: OperationId?` (its receive operation) |
+| `Reclaim` | `fed: FederationId` — the federation holding the contract; `target: IdempotencyKey` — the key of the operation whose contract is claimed; `op_id: OperationId?` — its receive operation |
 
 An intent-backed row is seeded from its action: `Move`/`Evacuate → Move` (operation ids and
 both gateways `None`, `evacuation` per variant), `DirectInflow → DirectInflow`, `Pay → Pay
@@ -543,7 +543,7 @@ is:
 | `move_id` | `String` | the attempt's operation correlation key (`STO-34`): equal to the intent key on attempt 0 |
 | `role` | `"send"` \| `"receive"` | lowercase — the one lowercase enum in the system |
 | `amount` | `u64` msat | the net the destination should receive, after any evacuation down-sizing |
-| `fee_cap` | `u64` msat | optional: **omitted** when none, never `null`; absent decodes as none and reassembly falls back to the intent's planned cap — never to zero |
+| `fee_cap` | `u64` msat | optional: **omitted** when none, never `null`; absent (a row an older build wrote) decodes as none, never as zero, and which cap reassembly then uses is `OPS-20`'s precedence |
 | `from` | `[u8;32]` | optional, same omission rule; absent for a `DirectInflow` |
 | `to` | `[u8;32]` | required |
 | `gateway` | `String` | optional, same omission rule: the URL of the gateway this leg was committed through, so a committed route replays after cache loss (`OPS-20`); absent on an operation an older build wrote, and decodes as none |
