@@ -195,8 +195,6 @@ by `docs/devimint-runbook.md` §1.
 - [ ] **CNF-45** A human reading of the four supersession money-path boundaries (`F26`).
 - [ ] **CNF-46** The browser sidecar's route manifest and live gate (`F27`).
 - [ ] **CNF-47** A crash-safe seed re-encryption with injected failures at each step (`F11`).
-- [ ] **CNF-48** A restore drill from an app-state snapshot plus seed with in-flight operations
-      explained (`F12`).
 - [ ] **CNF-49** The readiness poller running from a schedule and paging on a transition (`F14`).
 - [ ] **CNF-50** A failed `ReconcileDecide` reported as `automation_blocked` (`F32`).
 - [x] **CNF-51** A malformed value under a well-formed registry key fences the scheduler with

@@ -405,10 +405,11 @@ above every Agent occurrence ever appended, whatever path admitted it (`DOM-16`)
 **STO-22** An unreadable ledger row MUST NOT fence automation (`DEF-12`). Operational scans
 (history, the re-drivable-intent scan, the failed-intent scan) skip and warn. The scans that
 decide money — the probe budget, the auto-join caps, the reservation scan — fail closed on a
-corrupt row **of their own class**: each MUST select the rows it reads by key prefix (`STO-6`)
-before decoding any, so a row of a kind the build does not know (`OVR-14`) is never a corrupt
-row to it. The blast radius of one bad row is therefore a disabled subsystem with an explicit
-error, never a silent under-count and never a permanently stopped scheduler.
+corrupt row **of their own class** only: a row whose key (`STO-6`) is of a class the scan does
+not decide on — a row of a kind the build does not know (`OVR-14`) included — MUST NOT fence
+that scan, however the scan reads the store. The blast radius of one bad row is therefore a
+disabled subsystem with an explicit error, never a silent under-count and never a permanently
+stopped scheduler.
 
 **STO-23** An absent `WatchState` is seeded from the ledger's highest `Agent` occurrence by one
 scan of the ledger. Discovery cursor, backlog and rotation are not recoverable.
