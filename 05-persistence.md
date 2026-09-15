@@ -15,9 +15,11 @@ are the outcome classes of `03-operation-lifecycle.md`.
 
 **STO-1** A data directory holds **two** RocksDB stores, not one. `client.db` holds the
 federation clients' partitions and the seed; `journal.db` holds the application journal. Inside
-`journal.db` every journal key is prefixed `0x00`; inside `client.db` every client partition is
-prefixed `0x01`; a key outside its store's prefix is not part of that store's contents. The two
-MUST be separate stores; a single store carrying both prefixes does not satisfy this.
+`journal.db` every journal key is prefixed `0x00`, and a key outside that prefix is not part of
+the journal; inside `client.db` every client partition is prefixed `0x01`, and the SDK's own
+root keys — the seed slot of `STO-4` among them — sit beside the partitions under their own
+prefixes. The two MUST be separate stores; a single store carrying both prefixes does not
+satisfy this.
 
 **STO-2** One process owns both stores. The lock is an advisory lock **file**, `client.db.lock`,
 beside the `client.db` directory (not the store's own internal lock inside it). A process MUST
