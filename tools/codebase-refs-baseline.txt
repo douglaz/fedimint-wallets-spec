@@ -3,7 +3,7 @@
 00-overview.md 0
 01-domain-model.md 0
 02-fedimint-integration.md 0
-03-operation-lifecycle.md 22
+03-operation-lifecycle.md 0
 04-api-contract.md 18
 05-persistence.md 43
 06-allocator-and-automation.md 22

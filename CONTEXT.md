@@ -206,7 +206,8 @@ a sizing pass the hint path does not run.
 **Committed route**:
 The route recorded with an **Operation** once any leg has committed; from then on it is
 replayed as recorded and never re-resolved, so a restart cannot pay through a different gateway
-than the one the invoice was sized for. What commits is the route actually RESOLVED for the
+than the one the invoice was sized for (the one exception is an operation committed before the
+route was persisted with the leg, which has no recorded route to replay — `OPS-20`). What commits is the route actually RESOLVED for the
 operation — equal to the **route hint** only when the hint was retained, never a hint that was
 re-resolved; a **break-glass gateway override** chooses a route but never travels on the intent,
 so a committed break-glass route replays without the flag.

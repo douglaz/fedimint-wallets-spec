@@ -30,12 +30,11 @@ and is what **every** planning path runs under: the daemon, and `--standalone ti
 which build their `TickPolicy` from the **stored** policy (`build_standalone_tick_policy` →
 `TickPolicy::from(&stored)`, falling back to `Policy::default()` on an empty store) with any
 override flags applied — flags are validated and **never persisted** (`OPS-7`). The second set,
-`tick::TickPolicy::default()`, governs no planning: its `per_fed_cap` reaches a money path only
-as the hard cap of standalone `probe` (`operator_hard_cap(false)`, `OPS-7`, `F43`; standalone
-`discover` receives the same cap but its auto-join never probes, so nothing spends under it),
-and the rest of it is read by tests and the watch harness. `Policy` validation is `API-20`.
+`tick::TickPolicy::default()`, governs no planning and MUST NOT reach a money path — standalone
+`probe` runs under the stored cap like every other entry point (`OPS-7`); it is read by tests
+and the watch harness. `Policy` validation is `API-20`.
 
-| Knob | `Policy::default()` (daemon **and** standalone `tick`/`status`) | `TickPolicy::default()` (standalone `probe`/`discover` cap; tests) |
+| Knob | `Policy::default()` (every planning and money path) | `TickPolicy::default()` (tests and the watch harness) |
 |---|---|---|
 | `per_fed_cap` | 1,500,000,000 msat | 5,000,000,000 msat |
 | `spending_target` / `target_spending_balance` | 500,000,000 | 100,000,000 |

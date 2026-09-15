@@ -78,7 +78,7 @@ arrives by substring from the core's own `validate_attach`, which runs after the
 | 422 | refused | `policy_invalid`, `amount_required`, `sizing_conflict`; and every daemon-side request validation failure with no reason (bad invoice, `from == to`, unjoined federation, bad nonce, malformed JSON, bad query or path, unknown policy field) |
 | 409 | refused | `insufficient_after_reservations`, `fed_held_by_probe`, `over_cap`, `budget_exhausted`, `storage_error`, `policy_superseded`, `conflict` |
 | 409 | failed | a journaled terminal failure surfaced synchronously; carries `operation_key` |
-| 503 | failed | shutting down, actor stopped, destination federation joined but not open (fresh key), a balance read failing on an open source federation during money-verb admission, or a `/v1/status` precondition (`API-15`) |
+| 503 | failed | shutting down, actor stopped, destination federation joined but not open (fresh key, or a retry of a `Failed` key), a balance read failing on an open source federation during money-verb admission, or a `/v1/status` precondition (`API-15`) |
 | 504 | timeout | a long-poll or invoice deadline elapsed; carries `operation_key` when the operation was admitted |
 | 500 | failed | storage error (`API-37`) |
 
@@ -257,8 +257,9 @@ the web plan's money forms exist to pin these values at render time (`F27`). Val
 `from == to` is `422` `move from and to must be different federations (from == to is a
 no-op)`; then `from` and `to` are each checked against the registry (`ensure_joined`, `422`
 `federation <hex> is not joined`); then the policy is read and the key derived. A destination
-that is joined but not open is 503 **for a fresh key**; a replay of an
-existing key attaches before that check runs and succeeds, unless the key is an active probe
+that is joined but not open is 503 **for a fresh key, and for a retry of a `Failed` key**
+(`OPS-5`, `OPS-10`); a replay of a live or `Done` key attaches before that check runs and
+succeeds, unless the key is an active probe
 leg's, which a user request never attaches to: `409` `conflict` (`DOM-21`). As for `pay`, an unopened
 **source** is not gated and surfaces as `409 insufficient_after_reservations` (`API-18`).
 
