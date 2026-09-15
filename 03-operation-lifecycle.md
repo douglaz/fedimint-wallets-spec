@@ -203,17 +203,19 @@ Which task or thread does this is the implementation's (`ADR-0032`).
 
 ## Driving an intent
 
-**OPS-14** A `Pending` or `Executing` intent is driven by one driver at a time (`OPS-43`); an
-`Awaiting` one by one awaiter (`OPS-16`). Ownership does not survive a restart and need not:
+**OPS-14** Driving, as invariants; what task or thread does it is the implementation's
+(`OPS-13`). At most one perform of a given key is in progress in a process at any time
+(`OPS-43`), and at most one await (`OPS-16`). Ownership does not survive a restart and need not:
 cross-restart exactly-once rests on the deterministic operation ids, the protocol's send dedup
-and the operation-log backfill (`ADR-0024`), never on who owned the key. A driver that finishes
-MUST re-read its intent and continue only when: the same attempt is now `Awaiting` (hand-off to
-an awaiter); the same attempt, or a newer one, is `Pending` and a re-drive was requested while the
-driver owned the key (`OPS-8`); or an awaiter asked to retry — and never when the intent is a
-planner-owned marker (`OPS-35`). A driver that ends `Retryable` with no re-drive requested leaves
-its `Pending` key unowned until the next reconcile pass: there is no in-driver retry loop, so
-the retry cadence is the reconcile cadence (`ALC-38`). A read fault while releasing ownership MUST schedule a
-reconcile pass in preserve mode (`OPS-35`), retried with bounded backoff until a scan completes.
+and the operation-log backfill (`ADR-0024`), never on who owned the key. A re-drive requested
+while a key is being driven (`OPS-8`) MUST NOT be lost: when that drive ends with the same
+attempt, or a newer one, `Pending`, the intent MUST be re-performed without waiting for the next
+reconcile pass; when it ends `Awaiting`, an awaiter MUST take the key over at once. Absent such
+a request, a drive that ends `Retryable` leaves its `Pending` key unowned until the next
+reconcile pass: there is no in-driver retry loop, so the retry cadence is the reconcile cadence
+(`ALC-38`). Nothing on this path re-drives a planner-owned marker (`OPS-35`). A read fault while
+ownership is released MUST cause a reconcile pass in preserve mode (`OPS-35`), retried with
+bounded backoff until a scan completes.
 
 **OPS-15** The per-intent perform timeout (`FMI-22`; `HST-2` names the daemon's setting) bounds
 one perform. On expiry the wallet MUST abandon the drive — no further IO is issued from the
@@ -403,7 +405,8 @@ drafts never do"): a move is **committed** when the cache holds an invoice, a re
 operation id, **or** the operation log recovered an artifact for this attempt. Not committed →
 the break-glass for this key, else resolve afresh: a draft's cached gateway is **never**
 replayed, send-required or not. Committed → the route MUST replay as recorded, from the cache
-and, after cache loss, from the `gateway` the committed leg's metadata carries (`STO-33`) —
+and, after cache loss, from the `gateway` — and, for a hop, the `send_gateway` — the committed
+leg's metadata carries (`STO-33`) —
 `CONTEXT.md` **Committed route**: "a restart cannot pay through a different gateway than the one
 the invoice was sized for" — and MUST NOT be re-resolved. A committed send-required move whose
 recovered metadata carries no `gateway` (an operation written before that key existed) is
@@ -500,7 +503,8 @@ side {q} msat exceeds the {cap} msat cap at the {d} msat this would deliver)"; a
 **OPS-24** The persistence order at minting is load-bearing and MUST be: the draft record (phase
 `Created`, gateway, receive quote, no invoice, no receive operation id) written **before** the
 lnv2 receive is issued; the receive committed carrying `MoveMeta {move_id, role, amount: net,
-fee_cap: delivered_cap, from, to, gateway}` plus the quoted contract (`STO-33`); the committed contract
+fee_cap: delivered_cap, from, to, gateway, send_gateway?}` plus the quoted contract (`STO-33`);
+the committed contract
 read back and verified (`OPS-23`); **only then** — after `rec.amount := net` and `rec.fee_cap :=
 delivered_cap` when `net < rec.amount` (a no-op cap for a non-evacuation rule) — the `invoice`,
 the receive operation id and phase `Invoiced` written to the record. The order matters because

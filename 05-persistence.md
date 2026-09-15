@@ -493,13 +493,13 @@ bare default yields zero (`DEF-10`; a zero evacuation cap is a livelock). As bui
 carrying it are `Intent.evacuation_refusal`, `Action::Move.gateway`,
 `Action::Evacuate.{gateway, fee_cap_components}`, `OperationKind::Refusal.diagnostics`,
 `RefusalDiagnostics.{max_fee_bps, conflict_suppressed}`, and the three `Policy` fields in
-`STO-13` — ten in the journal — plus `MoveMeta.fee_cap`, `MoveMeta.from` and `MoveMeta.gateway`
-(`STO-33`, added for `OPS-20`), which ride the
-SDK op-log's `custom_meta` in `client.db` (`OPS-25`): thirteen. Each SHOULD be pinned by a test that strips the key from the serialized type and re-reads it.
+`STO-13` — ten in the journal — plus `MoveMeta.fee_cap`, `MoveMeta.from`, `MoveMeta.gateway`
+and `MoveMeta.send_gateway` (`STO-33`, added for `OPS-20`), which ride the
+SDK op-log's `custom_meta` in `client.db` (`OPS-25`): fourteen. Each SHOULD be pinned by a test that strips the key from the serialized type and re-reads it.
 Ten are: `Refusal.diagnostics`, `Move.gateway`, `Intent.evacuation_refusal`, both
 `RefusalDiagnostics` fields, the three `Policy` fields, `MoveMeta.fee_cap` and `MoveMeta.from`.
-Three are not: the `Evacuate` defaults, which one bare-`Action` fixture omits both at once
-(`CNF-18`, `F41`), and `MoveMeta.gateway` (`F7`).
+Four are not: the `Evacuate` defaults, which one bare-`Action` fixture omits both at once
+(`CNF-18`, `F41`), and `MoveMeta.gateway` / `MoveMeta.send_gateway` (`F7`).
 
 **STO-31** No type on that list may carry `#[serde(deny_unknown_fields)]` (`DEF-11`): a row
 written by a newer build must stay readable by the previous build or a rollback cannot start.
@@ -523,7 +523,8 @@ Its JSON is:
 | `fee_cap` | `u64` msat | `Option`, `#[serde(default, skip_serializing_if = "Option::is_none")]`: **omitted** when `None`, never `null`; absent decodes as `None` and reassembly falls back to the intent's planned cap — never to zero |
 | `from` | `[u8;32]` | `Option`, same omission rule; absent for a `DirectInflow` |
 | `to` | `[u8;32]` | required |
-| `gateway` | `String` | `Option`, same omission rule: the URL of the gateway the leg was committed through, so a committed route replays after cache loss (`OPS-20`); absent on an operation written before this key existed, and decodes as `None` |
+| `gateway` | `String` | `Option`, same omission rule: the URL of the gateway this leg was committed through, so a committed route replays after cache loss (`OPS-20`); absent on an operation written before this key existed, and decodes as `None` |
+| `send_gateway` | `String` | `Option`, same omission rule: on the receive operation of a **hop** (`OVR-13`), the URL of the source-leg gateway the route was committed with, so the whole route replays before any send operation exists; absent on a shared route and on a send operation |
 
 Receive ops additionally carry `receive_contract_quoted` (`u64` msat): the exact contract
 amount the quote solver expected before minting, written by
