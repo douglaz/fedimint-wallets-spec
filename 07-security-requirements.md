@@ -15,10 +15,10 @@ much the design defends against them:
 2. **A misbehaving or malicious gateway.** It sees both legs of every move (`SEC-13`) and can
    quote without performing; the wallet bounds the loss to one operation's amount and terminalizes
    honestly (`FMI-23`). It cannot strand a move alone and cannot open the preimage (`DEF-20`).
-3. **A malicious or misconfigured guardian.** Can place a gateway in the vetted list on its
-   own (`SEC-17`), and by listing any URL can make the wallet host POST to an address of its
-   choosing — loopback, link-local, RFC1918, cloud metadata — because the `routing_info` call
-   restricts nothing (`FMI-11`, `F45`); can serve a false shutdown notice through the overridable
+3. **A malicious or misconfigured guardian.** Cannot place a gateway in the vetted list on its
+   own (`SEC-17`, `FMI-10`); with enough colluding guardians can list any URL, so the wallet
+   restricts where a gateway request may go — loopback, link-local, RFC1918, cloud metadata
+   (`FMI-40`); can serve a false shutdown notice through the overridable
    meta field (the wallet requires corroboration, `FMI-26`), cannot forge the authenticated config.
 4. **A poisoned discovery feed.** Every candidate's config is re-fetched and structurally scored,
    the Sybil check requires three ids to agree, and nothing is funded before a sats-spending
@@ -133,19 +133,15 @@ bookkeeping and is not part of the unit (`ADR-0025`).
 
 ## Money-path controls
 
-**SEC-7** Every fee cap that binds **on the amount** is the wallet's own (`OPS-29`). The SDK
-also enforces its `SEND_FEE_LIMIT` / `RECEIVE_FEE_LIMIT` at the pin, but lexicographically on
-`(base, ppm)` (`FMI-19`): a gateway posting a base above 100 sat (send) or 50 sat (receive) is
-refused, and one under that base passes with any ppm — an
-admission filter on the gateway's posted fee, not a bound on what a payment costs. That check runs
-**after** the wallet's own, not before it, and no wallet crate reads either limit: the executor
-quotes the candidates, keeps the cheapest that fits the wallet's cap, and only then calls
-`mc.pay` / `mc.receive`, inside which the SDK checks the **already-selected** gateway. A gateway
-over the base limit therefore fails the attempt rather than being skipped in favour of the next
-candidate — `GatewayFeeExceedsLimit` → `RouteRejected` → `Permanent` for a send, and the receive
-refusal → `Retryable` (`FMI-17`, `OPS-17`, `OPS-18`). A move is
-refused before minting if the receive leg alone exceeds
-the cap, and again before paying if both legs do.
+**SEC-7** Every fee cap that binds **on the amount** is the wallet's own (`OPS-29`). The
+protocol's limits on a gateway's posted fee schedule are `FMI-19`'s — compared component-wise,
+an admission filter on the schedule, not a bound on what a payment costs. That check runs
+**after** the wallet's own selection, not before it: the wallet quotes the candidates, keeps the
+cheapest that fits its cap, and the schedule limit is then applied to the **already-selected**
+gateway, so a gateway over the limit fails the attempt rather than being skipped in favour of
+the next candidate (`Permanent` for a send, `Retryable` for a receive: `FMI-17`, `FMI-16`,
+`OPS-17`, `OPS-18`). A move is refused before minting if the receive leg alone exceeds the cap,
+and again before paying if both legs do.
 
 **SEC-8** A committed receive whose contract differs from the quote is refused before the
 invoice is surfaced (`OPS-23`); a gateway that lowers its fee between quote and mint cannot
@@ -175,14 +171,14 @@ trusted as the user's decision — **except** over a federation the agent alread
 candidate row stays agent-owned and probe-gated until the audited `approve` verb releases it
 (`OPS-42`; seed recovery cannot, since it refuses a registered federation, `FMI-31`).
 
-**SEC-17** The vetted gateway list is a union of what each responding guardian returned, so one
-Byzantine or misconfigured guardian can place a gateway in the automated candidate set, and
-source-side membership is not re-tested at route time (`FMI-10`, `FMI-13`). The list's order is
-a per-call random shuffle stable-sorted by how many guardians returned each URL (`FMI-10`), so
-"the first that validates" is non-deterministic among equally-vetted gateways and two calls can
-route the same move differently. The threshold check
-`ADR-0029` and `ADR-0030` decide is unbuilt (`F6`). A bound on what each guardian's response may
-contribute is tracked by `br-gw-threshold-membership-k4t` alone; no ADR records it.
+**SEC-17** The vetted gateway list is the threshold-vetted, per-guardian list `FMI-10` defines,
+so no single Byzantine or misconfigured guardian can place a gateway in the automated candidate
+set, and a gateway serves a route only while it is on both federations' lists at resolution
+time (`FMI-13`). The list's order among equally vetted gateways is the implementation's and is
+stable within one resolution (`FMI-10`); where the wallet takes "the first that validates"
+(`FMI-14`), the fee cap, not gateway identity, is the money backstop. No requirement bounds how
+many URLs one guardian's response may contribute; `FMI-40` bounds where any of them may send
+the wallet.
 
 ## Build and environment
 
