@@ -320,8 +320,8 @@ same key is a no-op).
 A re-claim (`API-42`, `FMI-41`) writes one `Reclaim` row per attempt, keyed
 `reclaim:<nonce>:<key>` (`STO-6`): `actor User`, `reason UserInitiated`, `fees` default,
 `repaired false`; `status Succeeded` with `error` `None` on the outcome `claimed`, and `status
-Failed` on `not_claimable` — the attempt claimed nothing — with an `error` that states why
-(expired, or consumed by another claimant; the text is informative, `OPS-40`). It describes no
+Failed` on `not_claimable` — the attempt claimed nothing — with an `error` that states only
+what the attempt observed (`OPS-40`; the text is informative). It describes no
 intent and is written best-effort (`OVR-4`); the reclaimed operation's own row is not touched. `Reclaim`
 is a variant added to a persisted enum, which `OVR-14` allows for `OperationKind` alone: a
 build without it cannot decode the row and skips it as unreadable (`STO-19`, `STO-22`), and

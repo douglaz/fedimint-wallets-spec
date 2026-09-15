@@ -136,9 +136,10 @@ check for nulls (the CLI does, and exits 1).
 **API-10** `GET /v1/history` reads exactly two query parameters: `limit` (unsigned integer,
 default 50, values above 500 are silently capped to 500 by `capped_history_limit`) and
 `before_seq` (unsigned integer). `before_seq` is **exclusive**: the page holds rows with
-`seq < before_seq`, newest first (`STO-19`). `next_before_seq` is the `seq` of the last row when
-the page is full (`rows.len() == limit && limit > 0`), else `null`; pass it back as `before_seq`
-for the next page. `limit=0` returns `{"operations":[],"next_before_seq":null}`. A
+`seq < before_seq`, newest first (`STO-19`). `next_before_seq` is the `seq` of the last row the
+page **reached** — returned or skipped as unreadable (`STO-19`, `OVR-14`), so a skipped row
+never strands the rows older than it — when `limit > 0` and the scan stopped before the
+ledger's first row, else `null`; pass it back as `before_seq` for the next page. `limit=0` returns `{"operations":[],"next_before_seq":null}`. A
 non-integer or negative value for either parameter is `422` `invalid query parameters: …`
 (`API-6`). `HistoryQuery` does not deny unknown fields: **any other query parameter
 (`status`, `actor`, `fed`, `kind`, …) is silently ignored and the page is unfiltered** — a
