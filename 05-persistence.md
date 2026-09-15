@@ -386,7 +386,8 @@ this rule stamps that row with the committed pair and names the orphan.
 MUST equal `tail_seq + 1`, where the tail is the lexicographically greatest `0x05` key, which
 MUST be a canonical nine-byte key whose embedded `seq` matches. Any disagreement is a
 `Permanent` error that fences **every** fresh append, user and agent, with an operator message
-to restore the stores from a snapshot (`STO-28`). An absent `0x07` reads as `0`; a nonzero counter over an empty ledger,
+naming the recovery paths of `STO-28`: the stores restored together from one snapshot where
+the operator holds one, else seed recovery (`FMI-30`). An absent `0x07` reads as `0`; a nonzero counter over an empty ledger,
 a tail key that is not exactly nine bytes, or a tail `seq` equal to the largest representable
 `u64` are all the same fence. The first row of a fresh store is `seq 0`. The counter is
 exhausted at the largest representable value.
