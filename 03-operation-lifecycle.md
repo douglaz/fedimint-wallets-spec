@@ -407,9 +407,9 @@ and, after cache loss, from the `gateway` the committed leg's metadata carries (
 `CONTEXT.md` **Committed route**: "a restart cannot pay through a different gateway than the one
 the invoice was sized for" — and MUST NOT be re-resolved. A committed send-required move whose
 recovered metadata carries no `gateway` (an operation written before that key existed) is
-re-resolved as a draft is. A committed receive-only move recovered without a cache carries the
-local sentinel gateway string `recovered-receive-only-gateway-not-used`, since no send leg will
-use it.
+re-resolved as a draft is. A committed receive-only move recovered without a cache takes the
+`gateway` its metadata carries; when the metadata carries none it carries the local sentinel
+gateway string `recovered-receive-only-gateway-not-used`, since no send leg will use it.
 
 **OPS-21** `Evacuate` only, and only while no artifact exists (no invoice, receive or send
 operation id): size the fresh evacuation. The ask is the **action's** `amount`, not the cached
@@ -682,9 +682,10 @@ is the other repair path. Neither admits a fresh intent.
 
 **OPS-39** The refusal **reason** is the contract; the message is informative. A refusal carries
 exactly one of the nine reasons below (`API-5` gives their wire spelling, `API-6` their status;
-the tenth reason, `amount_required`, is minted by the HTTP handler alone, `API-18`), and a
-compliant wallet MUST assign the reason from the condition that refused — never by inspecting
-message text — so that rewording a message cannot change the wire:
+the tenth reason, `amount_required`, is minted by the HTTP handler alone, `API-18`). The
+mapping from refusing condition to reason below is the requirement: each condition MUST yield
+its reason whatever the message text says, and a change to any message MUST NOT change the
+reason a condition yields; how an implementation derives the reason is its own:
 
 | Reason | Assigned when |
 |---|---|
