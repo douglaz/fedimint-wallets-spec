@@ -565,7 +565,9 @@ incoming contract reached a terminal non-claim — a `receive` whose state is `E
 `Failed`, or a `direct-inflow`, `move` or `evacuation` whose receive leg did, a `Stranded` move
 included (`OPS-27`); an unknown key is `404 not_found`, and any other operation is `422 refused`
 with nothing attempted (`API-6`). The wallet attempts the claim synchronously; the response is
-`200 {operation_key, outcome}` with `outcome ∈ claimed, not_claimable`: `claimed` when the
+`200 {operation_key, outcome}`, where `operation_key` is `{key}` — the reclaimed operation's,
+never the attempt's own `reclaim:` row key, which `history` lists (`STO-6`, `STO-15`) — and
+`outcome ∈ claimed, not_claimable`: `claimed` when the
 wallet holds the contract's notes after the call, whether this call or an earlier one claimed
 them; `not_claimable` when the contract is expired or was consumed by another claimant. The
 call is idempotent — repeating it returns the same outcome and never claims twice — and every
