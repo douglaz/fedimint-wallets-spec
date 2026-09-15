@@ -33,8 +33,8 @@ scan reads bytes `1..5` of every key under the `0x01` prefix as `u32_le` and ign
 warning, any key shorter than five bytes; when the registry is empty **and** the scan finds
 nothing the result is `0`; when the greater of the two is the largest representable `u32` the
 allocation is an error, never a wrap. The raw scan closes the crash window in which a partition
-was created and the registry never recorded it. An orphaned partition MUST never be reused
-(`FMI-35`, `ADR-0025`). A failed join SHOULD remove its fresh partition.
+was created and the registry never recorded it. A failed join's partition is an orphan: MUST never be
+reused and MUST never be collected automatically (`FMI-35`, `ADR-0025`).
 
 **STO-4** The seed is twelve BIP-39 words stored as their **16-byte entropy** in the SDK's own
 client-secret slot at the root of `client.db`: the `EncodedClientSecretKey` (client-store
@@ -177,11 +177,12 @@ every key is present, `null` when `None`, except the one field `STO-30` lists):
 | `invoice` | `Invoice?` | raw `Receive` artifact |
 | `evacuation_refusal` | `EvacuationRefusalEvidence?` | decodes when absent as `None` (`STO-30`); `{cap_components: EvacFeeCap {base_msat, bps}, requested_net: Msat, source_spendable: Msat, low: EvacuationQuoteSample, high: EvacuationQuoteSample, diagnostic: String, measured_at_ms: u64}` with `EvacuationQuoteSample {delivered_net: Msat, total_fee: Msat, fee_cap: Msat}` (`DOM-19`) |
 
-Every write to an intent MUST name the attempt it expects. An unconditional write — the admission
-insert, a plain status write, the retryable reset — whose stored attempt differs is a
-`Permanent` error; a fenced write — a conditional status transition, a move-record write, the
-recovery commit, every write `OPS-13` calls attempt-fenced — writes nothing and reports that
-it did not apply. Every status write enforces the transition table `OPS-2` owns. `Failed→Pending`
+Every write to an intent MUST name the attempt it expects. The admission insert, a plain status
+write and the retryable reset report a differing stored attempt as a `Permanent` error (the
+reset is still the compare-and-swap write of `STO-8`: retried on a write conflict, `Permanent`
+on a failed guard); every other fenced write — a conditional status transition, a move-record
+write, the recovery commit, every write `OPS-13` calls attempt-fenced — writes nothing and
+reports that it did not apply. Every status write enforces the transition table `OPS-2` owns. `Failed→Pending`
 happens only through the retry write (`OPS-10`), which requires the caller's copy of the row to
 be `Pending` at exactly `attempt + 1`, refuses a superseded parent (a `0x0c` row under the key,
 `STO-25`), and in one transaction moves the `0x04` entry from `Failed` to `Pending`, deletes the
@@ -318,7 +319,10 @@ A re-claim (`API-42`, `FMI-41`) writes one `Reclaim` row per attempt, keyed
 `repaired false`; `status Succeeded` with `error` `None` on the outcome `claimed`, and `status
 Failed` on `not_claimable` — the attempt claimed nothing — with an `error` that states why
 (expired, or consumed by another claimant; the text is informative, `OPS-40`). It describes no
-intent and is written best-effort (`OVR-4`); the reclaimed operation's own row is not touched.
+intent and is written best-effort (`OVR-4`); the reclaimed operation's own row is not touched. `Reclaim`
+is a variant added to a persisted enum, which `OVR-14` allows for `OperationKind` alone: a
+build without it cannot decode the row and skips it as unreadable (`STO-19`, `STO-22`), and
+nothing else about that build changes.
 
 **STO-16** Write discipline. A ledger row is created on first observation of its key; it is
 updated only to advance status (rank `Started < Awaiting < terminal`) and to fill fields; a
@@ -401,8 +405,10 @@ above every Agent occurrence ever appended, whatever path admitted it (`DOM-16`)
 **STO-22** An unreadable ledger row MUST NOT fence automation (`DEF-12`). Operational scans
 (history, the re-drivable-intent scan, the failed-intent scan) skip and warn. The scans that
 decide money — the probe budget, the auto-join caps, the reservation scan — fail closed on a
-corrupt row, so the blast radius of one bad row is a disabled subsystem with an explicit error,
-never a silent under-count and never a permanently stopped scheduler.
+corrupt row **of their own class**: each MUST select the rows it reads by key prefix (`STO-6`)
+before decoding any, so a row of a kind the build does not know (`OVR-14`) is never a corrupt
+row to it. The blast radius of one bad row is therefore a disabled subsystem with an explicit
+error, never a silent under-count and never a permanently stopped scheduler.
 
 **STO-23** An absent `WatchState` is seeded from the ledger's highest `Agent` occurrence by one
 scan of the ledger. Discovery cursor, backlog and rotation are not recoverable.

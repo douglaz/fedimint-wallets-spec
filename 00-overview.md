@@ -107,9 +107,13 @@ no gateway serves both federations, an evacuation MUST fall through to a hop ove
 different Lightning nodes, each leg chosen from its own federation's vetted list — `ADR-0029`,
 "a second route when no gateway is shared", where "the hop is tried in the same tick".
 
-**OVR-14** No compatibility shims. A persisted type changes only by gaining fields: a field so
+**OVR-14** No compatibility shims. A persisted type changes only by gaining fields — a field so
 added MUST decode when absent from a stored row, and a row written by a newer build MUST stay
-readable by the build before it (`STO-29`–`STO-31`, which own the reference encoding).
+readable by the build before it (`STO-29`–`STO-31`, which own the reference encoding) — with one
+exception: `OperationKind` MAY gain a variant for a new kind of operation (`STO-15`), and a row
+of a kind a build does not know MUST be skipped by that build as an unreadable row and MUST
+fence nothing in it (`STO-22`), so a rollback past the variant's introduction still starts and
+runs.
 
 ## What this document does not decide
 
