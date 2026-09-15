@@ -51,7 +51,7 @@ by `docs/devimint-runbook.md` §1.
       the three `Policy` fields, and `MoveMeta.fee_cap` / `MoveMeta.from`
       (`wallet-fedimint/tests/move_meta.rs`). Three are not: the `Evacuate` defaults share one
       bare-`Action` fixture that omits both keys at once (`F41`), and `MoveMeta.gateway`
-      (`STO-33`, added for `OPS-20`) has no fixture yet.
+      (`STO-33`, added for `OPS-20`; `F7`).
 - [x] **CNF-33** The **downgrade** direction is pinned for `Policy`: a row written by the
       current shape decodes under the previous shape's rules, and the handler rejects an unknown
       key (`DEF-11`, PR #43, both red-first).

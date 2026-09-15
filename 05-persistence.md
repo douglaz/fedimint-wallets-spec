@@ -499,7 +499,7 @@ SDK op-log's `custom_meta` in `client.db` (`OPS-25`): thirteen. Each SHOULD be p
 Ten are: `Refusal.diagnostics`, `Move.gateway`, `Intent.evacuation_refusal`, both
 `RefusalDiagnostics` fields, the three `Policy` fields, `MoveMeta.fee_cap` and `MoveMeta.from`.
 Three are not: the `Evacuate` defaults, which one bare-`Action` fixture omits both at once
-(`CNF-18`, `F41`), and `MoveMeta.gateway`, which no implementation writes yet.
+(`CNF-18`, `F41`), and `MoveMeta.gateway` (`F7`).
 
 **STO-31** No type on that list may carry `#[serde(deny_unknown_fields)]` (`DEF-11`): a row
 written by a newer build must stay readable by the previous build or a rollback cannot start.
