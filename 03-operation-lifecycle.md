@@ -535,14 +535,16 @@ the planned-amount cap.
 **OPS-26** The pay step: verify the recovered receive contract (`OPS-23`; the destination
 federation not open → `Retryable`; missing or corrupt with it open → `Permanent`); parse the fixed
 invoice; expired → `Permanent` "move invoice expired before the send leg could pay it"; re-quote
-the send leg: `receive_quote = invoice_msat − rec.amount`, `send_gw` = the recorded gateway's
-send fee on the invoice (`FMI-18`), `send_quote = send_gw` + the federation's send quote on
-`invoice_msat + send_gw` (a quote error → `Retryable`); persist both quotes (this also restores
+the send leg through the **send-leg gateway** — the recorded gateway on a shared route, the
+recorded `send_gateway` on a hop (`STO-33`, `OVR-13`): `receive_quote = invoice_msat −
+rec.amount`, `send_gw` = that gateway's send fee on the invoice (`FMI-18`), `send_quote =
+send_gw` + the federation's send quote on `invoice_msat + send_gw` (a quote error →
+`Retryable`); persist both quotes (this also restores
 the receive quote after a cache loss); **both-leg cap check** on `rec.fee_cap`: the fixed receive
 quote alone over the cap → `Permanent`, the total over → `Retryable`; for `Evacuate` the
 viability check (`receive > net` → `Permanent`, `total > net` → `Retryable`); issue the lnv2
-send, accepting a started or an already-in-flight outcome (`FMI-17`); persist the send operation
-id, phase `Sending`.
+send through that same send-leg gateway, accepting a started or an already-in-flight outcome
+(`FMI-17`); persist the send operation id, phase `Sending`.
 
 **OPS-27** Awaiting settlement: await the **send first**. Any await error → `Retryable`,
 reservations retained. `Success(preimage)` → persist the preimage **before** awaiting the receive;
