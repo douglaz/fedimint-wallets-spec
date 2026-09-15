@@ -125,6 +125,7 @@ Deleted from the documents. Never reused. Listed so an older citation still reso
 | `FMI-2` | Any repoint of the dependency carries every fork-only patch, proven by a cross-federation move smoke | Dependency management and a build-adoption gate are the code repository's; the behaviours the patches provide are `FMI-38`, `FMI-30` and `FMI-39`, and an implementation that loses one gains a finding |
 | `FMI-29` | "Nostr is an enum variant and a label. No Nostr source is implemented." | A codebase fact with no behavioural content; the Nostr rule `ADR-0019` decides (discovery at most, never a trust input) is new behaviour and is `FMI-43` |
 | `OPS-34` | "Core `reconcile`": one implementation layer's reconcile entry point, which harness reached it, which verbs did not, and a test-only await refusal | A description of one codebase's call graph; the two behaviours it carried — one drive step per intent per pass, and the optional move-record backfill before stepping — are `OPS-35`'s |
+| `STO-32` | "The ledger is greenfield in one respect only": `OperationRecord.repaired` and `WatchState.discover_rotation` carry no default, on a claim unverified against one deployment's store | A codebase fact about one build plus a deployment claim (`ADR-0032`, "Nothing about a deployment belongs here"); the behaviour required of the two fields — decode when absent, as `false` and `0` — is `STO-30`'s rule, and they are on its list |
 
 ## Gates
 

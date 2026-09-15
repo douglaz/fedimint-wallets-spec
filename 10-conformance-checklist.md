@@ -44,14 +44,16 @@ by `docs/devimint-runbook.md` §1.
       and test steps.
 - [x] **CNF-7** `nix build` produces `walletd`, `wallet-cli` and a non-empty OCI image, and both
       binaries answer `--help` (`HST-16`).
-- [ ] **CNF-18** Every persisted field that carries `serde(default)` (`STO-30`) is pinned by a
-      test that strips the key from the serialized type and re-reads it. Ten of fourteen are:
+- [ ] **CNF-18** Every persisted field that decodes when absent (`STO-30`'s eighteen) is pinned
+      by a test that strips the key from the serialized type and re-reads it. Ten are:
       `Refusal.diagnostics` (PR #42, with the verbatim production error), `Move.gateway`,
       `Intent.evacuation_refusal`, `RefusalDiagnostics.{max_fee_bps, conflict_suppressed}`, and
       the three `Policy` fields, and `MoveMeta.fee_cap` / `MoveMeta.from`
-      (`wallet-fedimint/tests/move_meta.rs`). Four are not: the `Evacuate` defaults share one
-      bare-`Action` fixture that omits both keys at once (`F41`), and `MoveMeta.gateway` /
-      `MoveMeta.send_gateway` (`STO-33`, added for `OPS-20`; `F7`).
+      (`wallet-fedimint/tests/move_meta.rs`). Eight are not: the `Evacuate` defaults share one
+      bare-`Action` fixture that omits both keys at once (`F41`), `MoveMeta.gateway` /
+      `MoveMeta.send_gateway` (`STO-33`, added for `OPS-20`; `F7`), `OperationRecord.repaired`
+      / `WatchState.discover_rotation` (`F38`), and the hop's `MoveRecord.send_gateway` /
+      `Move.send_gateway` (`STO-11`, `STO-15`; `F3`).
 - [x] **CNF-33** The **downgrade** direction is pinned for `Policy`: a row written by the
       current shape decodes under the previous shape's rules, and the handler rejects an unknown
       key (`DEF-11`, PR #43, both red-first).

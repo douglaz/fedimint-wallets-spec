@@ -166,7 +166,7 @@ refusal?, evacuation_refusal?, evacuation_refusal_active?` when present; the per
 null-versus-omitted rules are the table in `API-33`, and the `refusal` /
 `evacuation_refusal` object schemas are `API-34`. `kind` ∈ `join, recover,
 receive, pay, direct-inflow, move, evacuation, refusal, probe, tick, discover, autojoin,
-approve` (`kind_and_amount`). `status` ∈ `started | awaiting | succeeded | failed`. `actor` is
+approve, reclaim` (`kind_and_amount`; `reclaim` is the `Reclaim` row of `STO-15`). `status` ∈ `started | awaiting | succeeded | failed`. `actor` is
 `"user"` or `"agent:<occurrence>"`. `reason` is the `reason_tag` vocabulary `ALC-51` owns
 (eleven snake_case tags), shared with `/v1/status`; every user-verb row is `user_initiated`. That tag is
 the snake_case form the `refuse:` key uses (`STO-6`); the **persisted** row stores
