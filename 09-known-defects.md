@@ -287,7 +287,7 @@ had an operator raise a knob that cannot bound an evacuation while retries conti
 Redacted at HEAD. The data remains in git history and in the edit history of a pull-request
 body.
 
-**Prohibition** — deployment identity MUST NOT appear in tracked files (`SEC-20`). The runbook
+**Prohibition** — deployment identity MUST NOT appear in tracked files. The runbook
 holds the location; everything else points at the runbook.
 
 *Provenance: `br-kcw` (the remediation decision is still open — `F21` in

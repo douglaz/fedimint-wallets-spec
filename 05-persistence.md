@@ -44,8 +44,9 @@ client-secret slot at the root of `client.db`: the `EncodedClientSecretKey` (cli
 prefix byte `0x28`), whose value is the fedimint consensus encoding of the entropy as a byte
 vector, written once and never overwritten (`FMI-7`). The root secret every client partition
 derives from is `FMI-7`'s derivation of those twelve words; a wallet that derives differently
-recovers different ecash from the same words. There is no mnemonic file. It is plaintext
-(`SEC-10`).
+recovers different ecash from the same words. There is no mnemonic file. The slot as described
+here is the **plaintext** form, which `SEC-10` forbids and re-encrypts once; the encrypted form
+the slot then holds is fixed with the key-source decision `SEC-10` leaves open.
 
 ## Journal key layout
 
