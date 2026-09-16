@@ -184,7 +184,7 @@ the wallet.
 
 **SEC-18** The crash killpoints and the forced-shutdown seam are compiled under
 `debug_assertions` and read from the environment. A **release** build ignores
-`WALLET_CLI_CRASH_AT` and `WALLET_CLI_FORCE_SHUTDOWN`; a debug binary does not (`ALC-50`). The
+`WALLET_CLI_CRASH_AT` and `WALLET_CLI_FORCE_SHUTDOWN`; a debug binary does not. The
 smokes run debug binaries for exactly this reason; nothing deployed should. Those are the only
 gated seams. A release build still reads `WALLETD_PERFORM_TIMEOUT_SECS` and
 `WALLETD_SETTLEMENT_STALL_SECS`, both of which change money-path timing, and a value that does

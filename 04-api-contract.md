@@ -184,7 +184,9 @@ not yet installed is reported as `started`, so a caller never observes "succeede
 **API-15** `GET /v1/status` is a dry run of the next scheduler tick against the stored policy
 at `occurrence + 1`. It returns `{spending_fed, standby_fed, decisions:[{operation_key, reason,
 action}], scored:[{id, gated_eligible}], deferred:[{dest, source, reason, want_msat, floor_msat,
-floor_source}]}`. Value domains: `spending_fed`, `standby_fed`, `deferred[].source` are
+floor_source}], suppressed:[{operation_key, reason, held_by}]}`, where `suppressed` is every
+conflict-withheld candidate with `held_by` the operation key of the intent whose goal holds it
+(`ALC-30`, `ALC-44`). Value domains: `spending_fed`, `standby_fed`, `deferred[].source` are
 64-character lower-hex federation ids or `null`; `scored[].id` and `deferred[].dest` are the
 same hex, never null (this is the one place a federation id is hex on the wire, `API-32`);
 `decisions[].reason` and `deferred[].reason` use the `reason_tag` vocabulary of `API-12`;

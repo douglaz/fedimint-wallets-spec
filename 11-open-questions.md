@@ -24,6 +24,15 @@ was open can see where it landed.
    the `ADR-0014` posture. Until answered, the set says what the standing instruction's
    parameters are (`OVR-8`) and nothing about which flow presents it.
 
+2. **Is the wallet's total balance capped?** `ADR-0018` caps each federation (`per_fed_cap`,
+   enforced by `OPS-7`), so the total a policy permits is that cap times the joined
+   federations and rises with every join. The allocator cannot raise the total — it moves
+   balance between federations (`ALC-9`) — so a ceiling would bind the inflows the user
+   initiates (`receive`, `direct-inflow`) and would be a new `Policy` parameter with a default
+   (`STO-13`, `API-20`). `ADR-0026` names a "willing-to-lose" pilot ceiling as an operator
+   practice, not a wallet rule. Until answered, the set enforces the per-federation cap and is
+   silent on an aggregate one.
+
 ## Answered
 
 *(none yet)*
