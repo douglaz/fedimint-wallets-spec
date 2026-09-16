@@ -283,7 +283,7 @@ is not recorded here.
 
 ```
 <data_dir>/              0700, re-asserted on every start, init and restore
-  client.db/             the federation clients' RocksDB, including the seed row (encrypted, SEC-10)
+  client.db/             the federation clients' RocksDB, including the seed row (encrypted, SEC-25)
   client.db.lock         the exclusivity anchor
   journal.db/            the app journal: intents, moves, ledger, registry, candidates, policy, watch state
   token                  0600, 64 hex characters

@@ -113,7 +113,10 @@ readable by the build before it (`STO-29`–`STO-31`, which own the reference en
 exception: `OperationKind` MAY gain a variant for a new kind of operation (`STO-15`), and a row
 of a kind a build does not know MUST be skipped by that build as an unreadable row and MUST
 fence nothing in it (`STO-22`: a row outside a scan's class never fences that scan), so a
-rollback past the variant's introduction still starts and runs.
+rollback past the variant's introduction still starts and runs. The one write exempt from this
+rule is the seed slot's one-time re-encryption (`SEC-25`), which `ADR-0026` decided as a
+migration rather than a compatibility layer: a rollback past it fails to start, and `SEC-25`
+requires that it fails rather than opening the store on another seed.
 
 ## What this document does not decide
 

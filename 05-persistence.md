@@ -45,8 +45,9 @@ prefix byte `0x28`), whose value is the fedimint consensus encoding of the entro
 vector, written once and never overwritten (`FMI-7`). The root secret every client partition
 derives from is `FMI-7`'s derivation of those twelve words; a wallet that derives differently
 recovers different ecash from the same words. There is no mnemonic file. The slot as described
-here is the **plaintext** form, which `SEC-10` forbids and re-encrypts once; the encrypted form
-the slot then holds is fixed with the key-source decision `SEC-10` leaves open.
+here is the **plaintext** form, which `SEC-25` forbids and re-encrypts once; the encrypted form
+the slot then holds is fixed with the key-source decision `SEC-25` leaves open, and is the one
+write exempt from `OVR-14`'s rollback rule.
 
 ## Journal key layout
 

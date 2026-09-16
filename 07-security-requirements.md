@@ -30,7 +30,7 @@ much the design defends against them:
    scored, the Sybil check requires three ids to agree, and nothing is funded before a
    sats-spending probe passes (`ALC-28`, `ALC-37`).
 5. **Another process on the same host, or a reader of a copy of the data directory.** Defended
-   as far as `SEC-10` reaches: the seed is not readable from the directory alone. Everything
+   as far as `SEC-25` reaches: the seed is not readable from the directory alone. Everything
    else in it — the ecash notes in the client store, which are spendable bearer instruments;
    the ledger; the bearer token — is protected by the operating-system user boundary (`SEC-1`)
    and nothing else. The operator's own controls (host disk encryption, a balance ceiling) are
@@ -69,10 +69,11 @@ owns those absences and the request bounds the set does require: `API-35`, `API-
 passive observer can replay it against every route. An operator who binds beyond loopback has
 extended the trust boundary to the network with a static bearer token; the only non-loopback
 exposure this set treats as safe is an authenticated tunnel in front of a loopback bind. A
-frontend sends the token to the daemon URL the operator configured (`API-25`); the set places
-no loopback or scheme restriction on that URL, because a tunnel's or overlay's local end is
-where a frontend legitimately reaches a remote daemon (`ADR-0028`: "via a private overlay
-(Tailscale/WireGuard) or their own reverse proxy").
+CLI frontend sends the token to the daemon URL the operator configured (`API-25`); the set
+places no loopback or scheme restriction on that URL, because a tunnel's or overlay's local
+end is where the CLI legitimately reaches a remote daemon (`ADR-0028`: "via a private overlay
+(Tailscale/WireGuard) or their own reverse proxy"). The browser sidecar is the exception and
+accepts a loopback IP literal only (`SEC-22`).
 
 **SEC-4** No route is reachable without the token, `/v1/health` included (`API-2`), and an
 authenticated `/v1/health` answers `200` whatever the wallet's readiness (`API-16`): an
@@ -96,7 +97,7 @@ which is why `API-37` forbids a frontend from showing that body to an untrusted 
 
 ## The seed
 
-**SEC-10** The seed MUST NOT be stored in plaintext. What the wallet persists is the twelve
+**SEC-25** The seed MUST NOT be stored in plaintext. What the wallet persists is the twelve
 words' entropy (`STO-4`) under an AEAD, keyed by a key that is not stored beside it — `ADR-0026`:
 "the seed must not be readable from the data directory alone. The key therefore has to come
 from **outside** the encrypted store". When the key source is unavailable at start the wallet
@@ -104,15 +105,22 @@ MUST fail closed — it MUST NOT serve, MUST NOT mint a seed (`SEC-11`) and MUST
 plaintext ("fail closed, do not fall back to plaintext"). `walletd mnemonic` and
 `restore-mnemonic` MUST keep working under encryption ("decrypt on demand"): export decrypts,
 restore stores the entropy encrypted (`SEC-11`). A store that holds the entropy in plaintext,
-from before this requirement, MUST be re-encrypted once, on the first start that has the key
-("A one-time re-encrypt of the existing plaintext store on upgrade"). Where the key comes from —
-an operator passphrase through a memory-hard KDF, or a key wrapped by an external key-management
-service — is `ADR-0026`'s *recommendation*, not its decision; this requirement is silent on it,
-and the encrypted form on disk is fixed with that decision. Whichever it is, the seed's
+from before this requirement, MUST be re-encrypted once, in one store transaction, on the
+first start that has the key ("A one-time re-encrypt of the existing plaintext store on
+upgrade"); the wallet MUST tell a plaintext slot from an encrypted one without the key, so
+that a start without it refuses rather than mints. That re-encryption is the one write this
+set exempts from `OVR-14`'s rollback rule — `ADR-0026`: "greenfield — a migration step, not
+a serde compat layer" — and the exemption is bounded: a build that predates this requirement
+MUST fail to start on a re-encrypted store, and MUST NOT open it as a wallet on a fresh or a
+wrongly derived seed. Where the key comes from — an operator passphrase through a memory-hard
+KDF, or a key wrapped by an external key-management service — is `ADR-0026`'s
+*recommendation*, not its decision; this requirement is silent on it, and the encrypted slot's
+layout (its discriminator, nonce and ciphertext, and where the key source's own parameters
+live) is fixed under a `STO` identifier with that decision. Whichever it is, the seed's
 protection reduces to the protection of the key source.
 
 **SEC-11** A wallet started to serve on a store with no seed MUST mint a fresh twelve-word seed,
-stored as `SEC-10` requires, and a seed once stored MUST never be overwritten (`STO-4`).
+stored as `SEC-25` requires, and a seed once stored MUST never be overwritten (`STO-4`).
 `restore-mnemonic` (`HST-5`) MUST refuse when a seed already exists, checked before the words
 are parsed; MUST read the words from stdin only, with all whitespace collapsed; MUST require a
 valid BIP-39 checksum and **exactly twelve words**; and MUST write nothing on any failure.
@@ -223,5 +231,5 @@ and `GET /healthz`; a rate-limited login compared in constant time; an `HttpOnly
 and their surface is `HST-26`'s to specify. Reaching the sidecar from beyond the host is the
 operator's overlay or reverse proxy ("Reaching it from a phone is the **operator's** job"), and
 behind a proxy the bind is not an authentication boundary: the password is. A sidecar in front
-of a wallet that does not meet `SEC-10` MUST NOT be exposed beyond loopback or a trusted
+of a wallet that does not meet `SEC-25` MUST NOT be exposed beyond loopback or a trusted
 overlay — `ADR-0028`: "Public-internet exposure should wait for ADR-0026".
