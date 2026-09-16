@@ -540,7 +540,7 @@ none).
 |---|---|
 | `balance` | `<hex>: <n> msat` per federation, or `<hex>: unavailable (failed to open)` when `balance` is null; then `total (<open>/<joined> federations): <n> msat`; exit 1 if `open < joined` (`API-9`) |
 | `list-feds` | `<hex> invite=<invite> joined_at=<secs>` |
-| `health` | one line, `actor_queue_depth=<n> inflight_drivers=<n> scheduler_alive=<true\|false> automation_ready=<true\|false\|unknown> automation_blocked=<none\|<reason>: <detail>>` — every field of `API-16`; `unknown` only for a body without `automation_ready` (`API-16`'s caller rule) |
+| `health` | one line, `actor_queue_depth=<n> inflight_drivers=<n> scheduler_alive=<true\|false> automation_ready=<true\|false\|unknown> automation_blocked=<none\|unknown\|<reason>: <detail>>` — every field of `API-16`; both read `unknown`, and only then, for a body without `automation_ready` (`API-16`'s caller rule) |
 | `reconcile` | `redriven=<n> awaiters_rehydrated=<n> executing_normalized=<n>` |
 | `status` | `spending_fed: <hex\|none>`, `standby_fed: <hex\|none>`, `<hex> gated_eligible=<bool>` per `scored`, `<hex>: unavailable (failed to open)` per federation whose `/v1/federations` balance is null (a second GET the verb makes), `decision: <key> reason=<reason> action=<action>` per decision, `deferred: <dest> source=<hex\|none> reason=<reason> want_msat=<n> floor_msat=<n> floor_source=<floor_source>` per `deferred`, `suppressed: <key> reason=<reason> held_by=<key>` per `suppressed` — every list of `API-15`; exit 1 if any unopened |
 | `approve <hex>` | `<hex>`; `key: <key>` on stderr |
