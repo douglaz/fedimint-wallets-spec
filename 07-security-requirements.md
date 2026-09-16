@@ -78,8 +78,8 @@ when it is absent; an existing directory keeps whatever mode it has and is only 
 **SEC-6** Nothing in the daemon, server or handler code logs the token, the seed, a full invoice,
 or a password. The one deliberate exception is `walletd mnemonic`, which prints the seed to stdout
 while the daemon is stopped. Three edges sit outside that claim: a storage fault is returned to
-the HTTP caller as a 500 whose message is the engine error's debug rendering and can carry
-filesystem paths (`API-37`); `wallet-web` logs its `daemon_url`, `public_origin` and `token_path`
+the HTTP caller as a 500 whose message is the storage fault's error text verbatim and can carry
+filesystem paths (`API-37` owns that body); `wallet-web` logs its `daemon_url`, `public_origin` and `token_path`
 at `info` on startup; and `wallet-cli pay <invoice>` takes the BOLT11 on the command line, where a
 process listing or shell history can read it, while the mnemonic path deliberately refuses
 arguments. `RUST_LOG` is honoured unconditionally by all three binaries, so what the SDK logs is

@@ -164,8 +164,9 @@ supersedes?, refusal?, evacuation_refusal?, evacuation_refusal_active?` when pre
 per-field types and null-versus-omitted rules are the table in `API-33`, and the `refusal` /
 `evacuation_refusal` object schemas are `API-34`. `kind` ∈ `join, recover, receive, pay,
 direct-inflow, move, evacuation, refusal, probe, tick, discover, autojoin, approve, reclaim` —
-the persisted `OperationKind` variants of `STO-15` in `kebab-case`, with a `Move` row whose
-`evacuation` flag is set rendered as `evacuation`. `status` ∈ `started | awaiting | succeeded |
+the persisted `OperationKind` variant names of `STO-15` lower-cased (`AutoJoin` → `autojoin`),
+with exactly two exceptions: `DirectInflow` → `direct-inflow`, and a `Move` row whose
+`evacuation` flag is set → `evacuation`. `status` ∈ `started | awaiting | succeeded |
 failed`. `actor` is `"user"` or `"agent:<occurrence>"`. `reason` is the `reason_tag`
 vocabulary `ALC-51` owns (eleven `snake_case` tags), shared with `/v1/status`; every user-verb
 row is `user_initiated`. On the wire `reason` is always the tag; the **persisted** row stores
@@ -352,8 +353,9 @@ unchanged where no flag named it — including keys this CLI build does not know
 the GET did not return, so an edit from an older CLI against a newer daemon never resets a
 field the CLI has no flag for, an edit from a newer CLI against an older daemon never adds a
 field that daemon refuses, and the daemon's unknown-key refusal (`API-20`) is the only thing
-that rejects a field. An implementation that round-trips the policy through a fixed field set
-fails this rule.
+that rejects a field. A flag naming a field the GET did not return is a usage error (exit 1,
+naming the field) before any PUT, so a requested edit is never silently dropped. An
+implementation that round-trips the policy through a fixed field set fails this rule.
 `--clear-spending-fed` and `--clear-standby-fed` conflict with their pin flags. Flag names are
 the field names with `_` → `-`; msat fields take unsigned integers; `--auto-join` and
 `--require-mainnet` take an explicit `true|false` value; `--max-fee-bps-of-move` is
@@ -421,7 +423,8 @@ field that carries one — `PayRequest.fed`, `MoveRequest.from/to`, `ReceiveRequ
 `RefusalDiagnostics.source` — and is **64-character lower-hex** only inside the `/v1/status`
 body (`API-15`); no route accepts hex in a request. `Msat` and `Occurrence` are bare unsigned
 integers (`STO-5`). The
-operation status, the error `kind` (`API-5`) and `refuse_reason` are `snake_case` strings;
+operation status, the error `kind` (`API-5`) and the nine unit refusal reasons are `snake_case`
+strings, and the one structured reason is the `sizing_conflict` object of `API-5`;
 `kind`, `actor`, `reason`, `source`, `state` and `structural` on the views are plain strings
 whose vocabularies `API-12` and `API-17` list. No wire object renames, flattens or nests a
 field other than as this chapter shows it.
@@ -501,8 +504,9 @@ spendable, `OPS-5`); a balance read that **fails** on an open federation is `503
 caps are not range-checked by the daemon (`0` is passed through to admission, `OPS-7`).
 
 **API-37** `5xx` bodies. A journal read or write fault anywhere in a request is `500`
-`{"kind":"failed"}` whose `message` is the fault's own text — it MAY contain storage paths and
-the data directory (`SEC-6`), and a frontend MUST NOT show it to an untrusted party. `503 failed`
+`{"kind":"failed"}` whose `message` is the storage fault's error text verbatim, as the wallet's
+storage layer reports it — informative, never parsed, and it MAY contain storage paths and the
+data directory (`SEC-6`), so a frontend MUST NOT show it to an untrusted party. `503 failed`
 messages are `wallet service is shutting down`, `wallet service actor stopped`, the
 destination-unavailable text of `OPS-38` for a fresh destination-side admission (`API-19`), the
 balance-read text of `API-36`, and the `/v1/status` fences of `API-15`. No 5xx carries a
