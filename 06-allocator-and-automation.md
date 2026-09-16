@@ -669,9 +669,11 @@ The reasons: `corrupt_federation_registry` (fence A, with the skipped-row count 
 `partial_federation_view` (fence B, naming the unopened federations), and `cycle_failed` for
 every other skip — a cycle error, the occurrence overflow (`ALC-33`), a storage fault `ALC-38`
 names, a tick row that could not be opened, or planning the reconcile did not authorize
-(`ALC-47`) — with a detail naming the step. A cycle that plans and commits MUST publish
-`automation_blocked: None`. Liveness is not readiness: `scheduler_alive` MUST NOT be read as
-`automation_ready`.
+(`ALC-47`) — with a detail naming the step. A cycle that plans, commits and then completes its
+remaining steps without a fault MUST publish `automation_blocked: None`; a fault after the
+commit (discovery, the deadlines, the watchdog) still publishes `cycle_failed`, because the
+signal describes the whole cycle. Liveness is not readiness: `scheduler_alive` MUST NOT be read
+as `automation_ready`.
 
 **ALC-46** Three planning surfaces MUST refuse a partial or corrupt world rather than plan from
 the healthy subset: the scheduler (fences A and B, `ALC-38`), `GET /v1/status` (503 before the
@@ -693,7 +695,8 @@ it would otherwise have done in a cycle MUST be observable at a boundary, as fol
 | Withheld | Observable |
 |---|---|
 | planning skipped for any reason — the fences, an unauthorized plan (`ALC-47`), the occurrence overflow, a tick row that could not be opened, a storage fault `ALC-38` names, a designation that could not be computed | `automation_blocked` with its reason and detail (`ALC-45`); a tick whose row could not be opened MUST NOT plan |
-| a fresh probe not admitted — the budget pre-filter, a refusal at admission (the budget exhausted or unreadable, `ALC-26`), or no source because the designation failed | the `watch-probe-skip:<candidate>:<spending>:<amount>:<bucket>` row of `ALC-26`, `Started` then `Failed`, whose `error` names the cause; a probe the admission check refused is not retried before `retry_backoff` (`ALC-52`) |
+| a fresh probe not admitted — the budget pre-filter, or a refusal at admission (the budget exhausted or unreadable, `ALC-26`) | the `watch-probe-skip:<candidate>:<spending>:<amount>:<bucket>` row of `ALC-26`, `Started` then `Failed`, whose `error` names the cause; a probe the admission check refused is not retried before `retry_backoff` (`ALC-52`) |
+| a fresh probe with no source, because no spending federation is designated (`ALC-52`) | `status` reports `spending_fed: null` (`API-15`); no row is written, since the key of `ALC-26` needs a source and there is nothing to probe from |
 | a federation dropped from the snapshot because its light probe errored (`FMI-25`), and therefore neither scored, funded nor evacuated that tick | in a cycle that plans: a `Refusal` row keyed `refuse:unhealthy:<fed>:<occurrence>` (`STO-6`), reason `Unhealthy`, status `Succeeded`, diagnostics default, `error` beginning `light probe failed: ` followed by the error — the prefix is what tells this row from `ALC-17`'s no-destination refusal under the same key shape; a non-money cycle reports through `ALC-47` instead |
 | a candidate whose candidate or probe record is unreadable, gated fail-closed (`ALC-37`) | `status` `scored[].gated_eligible = false` (`ALC-44`), and the `NotProbed` refusal row whenever funding it was wanted (`ALC-5`) |
 | a destination marked unavailable inside one plan (`ALC-32`) | the re-planned round's refusal rows for that destination; the mark MUST NOT outlive the plan, so the next cycle re-tests the route |

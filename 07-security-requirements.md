@@ -150,7 +150,8 @@ over-credit the wallet, and one that raises it cannot make it pay more than the 
 **SEC-9** No operation is admitted whose source cannot cover `amount + fee_cap` after
 reservations, and none whose destination would exceed the per-federation cap (`OPS-7`), except
 that an evacuation has no source check by design and is sized at perform time (`OPS-21`).
-There is no aggregate ceiling across federations (`F10`).
+Whether there is an aggregate ceiling across federations is open (`11-open-questions.md`,
+question 2); the set is silent on it.
 
 **SEC-13** A gateway that carries a move sees both legs and therefore learns the wallet's
 cross-federation movement pattern. The design prefers spreading across independent gateways and
