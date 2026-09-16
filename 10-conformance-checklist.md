@@ -202,7 +202,8 @@ by `docs/devimint-runbook.md` §1.
       and the key source available, *when* the wallet starts and is killed at each step of the
       one-time re-encryption, *then* on every restart the slot holds exactly one form of the
       same entropy — plaintext still, or encrypted — never neither, the wallet derives the same
-      root secret as before, and once encrypted the plaintext is not in the store. *Given* the
+      root secret as before, and once the wallet serves on the encrypted form the plaintext
+      entropy appears in no file of the data directory. *Given* the
       key source unavailable, *when* the wallet starts on that store or on an empty one, *then*
       it refuses to start, the slot is unchanged and no seed is minted. *Given* the
       re-encrypted store, *when* the build that predates `SEC-25` starts on it, *then* it fails

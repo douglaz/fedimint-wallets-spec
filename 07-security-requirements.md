@@ -111,7 +111,11 @@ restore stores the entropy encrypted (`SEC-11`). A store that holds the entropy 
 from before this requirement, MUST be re-encrypted once, in one store transaction, on the
 first start that has the key ("A one-time re-encrypt of the existing plaintext store on
 upgrade"); the wallet MUST tell a plaintext slot from an encrypted one without the key, so
-that a start without it refuses rather than mints. That re-encryption is the one write this
+that a start without it refuses rather than mints. Replacing the slot is not the whole
+migration: a store's write-ahead log and level files can keep a superseded value, so the
+migration is complete only when the plaintext entropy appears in **no file of the data
+directory** — the wallet MUST flush and compact the store as far as that takes before it
+serves, and how it does so is the implementation's. That re-encryption is the one write this
 set exempts from `OVR-14`'s rollback rule — `ADR-0026`: "greenfield — a migration step, not
 a serde compat layer" — and the exemption is bounded: a build that predates this requirement
 MUST fail to start on a re-encrypted store, and MUST NOT open it as a wallet on a fresh or a
