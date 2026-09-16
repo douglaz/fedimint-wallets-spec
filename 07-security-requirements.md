@@ -44,13 +44,13 @@ provenance is the code repository's concern.
 
 ## The trust boundary
 
-**SEC-1** The trust boundary is the operating-system user. The daemon MUST bind loopback by
-default (`SEC-3`) and MUST authenticate every request with one bearer token (`API-2`), which
-`init` writes to a file with mode `0600` (`API-3`, `HST-19`), by default inside the data
-directory, at the path `HST-4`'s precedence resolves. On every start the daemon MUST re-assert
-the data directory's `0700` mode (`HST-19`); the token file's protection is that directory's,
-and the wallet is not required to re-check the file's own mode when it reads it — an operator
-who configures a `token_path` outside the data directory owns its mode. Anything that can read
+**SEC-1** The trust boundary is the operating-system user. What holds it is owned elsewhere
+and cited here: the loopback default (`SEC-3`), one bearer token on every request (`API-2`),
+the token file written `0600` (`API-3`) at the path `HST-4` resolves, by default inside the
+data directory, and the directory's `0700` mode re-asserted on the starts `HST-19` names. The
+consequences are this requirement's: the token file's protection is the directory's, and the
+wallet is not required to re-check the file's own mode when it reads it — an operator who
+configures a `token_path` outside the data directory owns its mode; anything that can read
 the token file can do everything the wallet's API can; anything that can read the data
 directory holds the ecash notes, the ledger and, at the default location, the token — every
 asset but the seed (`SEC-25`) — and no requirement in this set defends against it.
