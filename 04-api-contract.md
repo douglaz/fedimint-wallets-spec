@@ -584,7 +584,8 @@ never the attempt's own `reclaim:` row key, which `history` lists (`STO-6`, `STO
 wallet holds the contract's notes after the call, whether this call or an earlier one claimed
 them; `not_claimable` when the contract is expired or was consumed by another claimant. The
 call is idempotent — repeating it returns the same outcome and never claims twice — and every
-attempt leaves a ledger row (`OVR-4`). It requires the bearer token like every route (`API-2`),
+attempt leaves a ledger row, written best-effort, so it "MAY be absent after a storage error
+and for no other reason" (`OVR-4`) and its absence never changes the response. It requires the bearer token like every route (`API-2`),
 and the break-glass gateway override is ignored on it, as on every verb that resolves no route
 (`ADR-0030`). The verb prints the outcome and exits 0 on `claimed`, 3 on `not_claimable` with
 the key in the message, and per `API-28` otherwise.
