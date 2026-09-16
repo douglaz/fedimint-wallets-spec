@@ -476,7 +476,7 @@ refused` with message `invalid JSON request body: <detail>` — a missing or
 non-`application/json` `Content-Type` header, a syntax error, a type mismatch, an unknown key
 (every request object rejects unknown fields), and a body over **2 MiB**. A request's optional
 fields MAY be omitted or sent as `null`; `null` for a required field is a type mismatch. `PUT
-/v1/policy`'s unknown-key and missing-field refusals are `API-20`'s messages, not this one. `POST /v1/reconcile` reads no body: the body is ignored whatever its
+/v1/policy`'s unknown-key and missing-field refusals are `API-20`'s messages, not this one. This rule applies to every route that takes a request body (`API-18`–`API-23`); `POST /v1/operations/{key}/reclaim` takes an empty body and decodes nothing (`API-42`), and `POST /v1/reconcile` reads no body: its body is ignored whatever its
 size or content type. Request order of keys is irrelevant everywhere, including the `unknown
 policy field(s)` listing, which is lexicographic (`API-20`).
 
@@ -506,8 +506,9 @@ spendable, `OPS-5`); a balance read that **fails** on an open federation is `503
 caps are not range-checked by the daemon (`0` is passed through to admission, `OPS-7`).
 
 **API-37** `5xx` bodies. A journal read or write fault anywhere in a request — except on the
-admission path, where `OPS-39` assigns the refusal `storage_error` and `API-6` answers `409`
-— is `500` `{"kind":"failed"}` whose `message` is the storage fault's error text verbatim, as the wallet's
+admission path, where `OPS-39` assigns the refusal `storage_error` and `API-6` answers `409`,
+and in the best-effort ledger repair after a reconcile pass, which `API-24` logs and answers
+`200` — is `500` `{"kind":"failed"}` whose `message` is the storage fault's error text verbatim, as the wallet's
 storage layer reports it — informative, never parsed, and it MAY contain storage paths and the
 data directory (`SEC-6`), so a frontend MUST NOT show it to an untrusted party. `503 failed`
 messages are `wallet service is shutting down`, `wallet service actor stopped`, the
