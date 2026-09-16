@@ -24,9 +24,9 @@ probe** are `DOM-14`'s.
 **ALC-1** The allocator's decision is a pure function of a **snapshot**, the **occurrence** it
 plans for and the **goal blockers** in force (`ALC-31`): it performs no IO, and two decisions
 over equal inputs MUST be identical (`OVR-6`). It yields the **decisions**, the **suppressed**
-candidates a blocker withheld (`ALC-30`) and the **deferred** funding goals (`ALC-10`); every
-one of the three is written (`ALC-34`) and reported (`ALC-44`), and producing the last two MUST
-NOT change the first. The snapshot carries: the joined, open federations whose light probe
+candidates a blocker withheld (`ALC-30`) and the **deferred** funding goals (`ALC-10`); a
+committing tick writes every one of the three (`ALC-34`), a dry run reports them (`ALC-44`), and
+producing the last two MUST NOT change the first. The snapshot carries: the joined, open federations whose light probe
 succeeded (`FMI-25`) in **ascending `FederationId`** order, byte-lexicographic over the 32
 bytes, each with its `spendable` balance (`FMI-27`), whether it is probed, its `shutdown_notice`
 (`FMI-26`), its `healthy` flag — `FMI-25`'s `quorum_live`, the threshold read that succeeded —
@@ -85,8 +85,8 @@ funding step the order is: the receive-blocker refusal (which ends the step) | t
 with a move, a cap refusal and a shortfall refusal yields `[Move, OverCap, SpendingBelowTarget]`
 and exactly those rows. The ledger `seq` order of one tick's rows follows this order (`ALC-34`).
 
-**ALC-5** Funding into one destination (`ALC-4` steps 2 and 3), evaluated in this order, the
-first matching row deciding:
+**ALC-5** Funding into one destination (`ALC-4` steps 2 and 3), evaluated in this order. A row
+whose outcome says "the step ends" is an early exit; every other row falls through to the next:
 
 | Condition | Outcome | What is visible |
 |---|---|---|
