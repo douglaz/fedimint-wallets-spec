@@ -51,8 +51,9 @@ directory, at the path `HST-4`'s precedence resolves. On every start the daemon 
 the data directory's `0700` mode (`HST-19`); the token file's protection is that directory's,
 and the wallet is not required to re-check the file's own mode when it reads it — an operator
 who configures a `token_path` outside the data directory owns its mode. Anything that can read
-the token file, or the data directory, can do everything the wallet can; no requirement in this
-set defends against it.
+the token file can do everything the wallet's API can; anything that can read the data
+directory holds the ecash notes, the ledger and, at the default location, the token — every
+asset but the seed (`SEC-25`) — and no requirement in this set defends against it.
 
 **SEC-2** The token MUST be 32 bytes from a cryptographically secure random source, rendered as
 64 lower-hex characters (`API-3`), written with mode `0600` (`HST-19` owns how it reaches
@@ -72,8 +73,10 @@ exposure this set treats as safe is an authenticated tunnel in front of a loopba
 CLI frontend sends the token to the daemon URL the operator configured (`API-25`); the set
 places no loopback or scheme restriction on that URL, because a tunnel's or overlay's local
 end is where the CLI legitimately reaches a remote daemon (`ADR-0028`: "via a private overlay
-(Tailscale/WireGuard) or their own reverse proxy"). The browser sidecar is the exception and
-accepts a loopback IP literal only (`SEC-22`).
+(Tailscale/WireGuard) or their own reverse proxy"), and it MAY honour the proxy its own
+environment configures, since the operator's environment is inside the trust boundary
+(`HST-2` lists the variables). The browser sidecar is the exception on both counts: a loopback
+IP literal only, and no proxy (`SEC-22`).
 
 **SEC-4** No route is reachable without the token, `/v1/health` included (`API-2`), and an
 authenticated `/v1/health` answers `200` whatever the wallet's readiness (`API-16`): an
@@ -222,7 +225,9 @@ bind `127.0.0.1` and offer no other bind ("The wallet ships no public listener, 
 certificates, and no renewal story"); MUST refuse to start without a configured Argon2id
 password hash validated at pinned minimum parameters ("There is no default credential and no
 first-load setup page"); MUST accept a `daemon_url` only when its host is a loopback IP
-literal, so a mistyped URL cannot ship the daemon's bearer token to a remote host; MUST apply
+literal, so a mistyped URL cannot ship the daemon's bearer token to a remote host, and MUST
+connect to it directly, ignoring any proxy configuration in its environment, so a proxy
+variable cannot ship it either; MUST apply
 `SEC-5`'s file and directory checks at every start; MUST bound sessions by an idle ceiling of
 4 h and an absolute ceiling of 24 h that configuration MAY only tighten; MUST canonicalize
 `public_origin` to the form a browser sends in `Origin` (`HST-27`); and MUST fail closed on any
