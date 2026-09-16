@@ -114,9 +114,10 @@ that a start without it refuses rather than mints. Replacing the slot is not the
 migration: a store's write-ahead log and level files can keep a superseded value, so the
 migration is complete only when the plaintext entropy appears in **no file of the data
 directory** — the wallet MUST flush and compact the store as far as that takes before it
-serves, and how it does so is the implementation's. That re-encryption is the one write this
-set exempts from `OVR-14`'s rollback rule — `ADR-0026`: "greenfield — a migration step, not
-a serde compat layer" — and the exemption is bounded: a build that predates this requirement
+serves, and how it does so is the implementation's. The encrypted slot — however it was first
+written: by that re-encryption, by a first serve (`SEC-11`) or by `restore-mnemonic` — is the
+one on-disk form this set exempts from `OVR-14`'s rollback rule — `ADR-0026`: "greenfield — a
+migration step, not a serde compat layer" — and the exemption is bounded: a build that predates this requirement
 MUST fail to start on a re-encrypted store, and MUST NOT open it as a wallet on a fresh or a
 wrongly derived seed. `CNF-47` demonstrates the migration, the refusal and the rollback. Where the key comes from — an operator passphrase through a memory-hard
 KDF, or a key wrapped by an external key-management service — is `ADR-0026`'s
@@ -231,11 +232,10 @@ password hash validated at pinned minimum parameters ("There is no default crede
 first-load setup page"); MUST accept a `daemon_url` only when its host is a loopback IP
 literal, so a mistyped URL cannot ship the daemon's bearer token to a remote host, and MUST
 connect to it directly, ignoring any proxy configuration in its environment, so a proxy
-variable cannot ship it either; MUST apply
-`SEC-5`'s file and directory checks at every start; MUST bound sessions by an idle ceiling of
-4 h and an absolute ceiling of 24 h that configuration MAY only tighten; MUST store
-`public_origin` in the canonical form `HST-27` defines, refusing what it refuses; and MUST fail
-closed on any configuration defect (`HST-26` owns the checks). The sidecar's request-time
+variable cannot ship it either; MUST apply `SEC-5`'s file and directory checks at every start;
+and MUST fail closed on every configuration defect `HST-26` and `HST-27` enumerate — the
+session ceilings and their tighten-only rule, and the origin's canonical form, are theirs and
+are not restated here. The sidecar's request-time
 surface — login, sessions, CSRF, `/healthz` — is `HST-26`'s to specify from `ADR-0028`, and
 until it does this set places no route-level requirement on the sidecar. Reaching the sidecar from beyond the host is the
 operator's overlay or reverse proxy ("Reaching it from a phone is the **operator's** job"), and
