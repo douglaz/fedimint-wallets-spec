@@ -244,8 +244,9 @@ distinguish the two from the status code.
 
 **API-18** `POST /v1/pay {invoice, amount?, fee_cap?, fed?}` (unknown fields rejected,
 `API-35`; `fed` is a federation-id array, `API-32`). Validation runs in this order, and the
-first failure is the response: the invoice is parsed (failure is `422` `invalid BOLT11 invoice:
-<error>`); the amount is reconciled; `fee_cap` and `fed` are resolved; the source balance is
+first failure is the response: the stored policy is read (a fault is `API-37`'s `5xx`); the
+invoice is parsed (failure is `422` `invalid BOLT11 invoice: <error>`); the amount is
+reconciled; `fee_cap` and `fed` are resolved; the source balance is
 sampled (`API-36`); the request is admitted. An amountless BOLT11 invoice is `422
 amount_required` **whether or not** `amount` is supplied (an lnv2 send carries no amount of its
 own; the invoice fixes it); a stated amount that disagrees with the invoice is `422 sizing_conflict{amount}`,
@@ -539,7 +540,7 @@ none).
 |---|---|
 | `balance` | `<hex>: <n> msat` per federation, or `<hex>: unavailable (failed to open)` when `balance` is null; then `total (<open>/<joined> federations): <n> msat`; exit 1 if `open < joined` (`API-9`) |
 | `list-feds` | `<hex> invite=<invite> joined_at=<secs>` |
-| `health` | one line, `actor_queue_depth=<n> inflight_drivers=<n> scheduler_alive=<true\|false> automation_ready=<true\|false> automation_blocked=<none\|<reason>: <detail>>` — every field of `API-16`; a body without `automation_ready` prints `automation_ready=unknown` |
+| `health` | one line, `actor_queue_depth=<n> inflight_drivers=<n> scheduler_alive=<true\|false> automation_ready=<true\|false\|unknown> automation_blocked=<none\|<reason>: <detail>>` — every field of `API-16`; `unknown` only for a body without `automation_ready` (`API-16`'s caller rule) |
 | `reconcile` | `redriven=<n> awaiters_rehydrated=<n> executing_normalized=<n>` |
 | `status` | `spending_fed: <hex\|none>`, `standby_fed: <hex\|none>`, `<hex> gated_eligible=<bool>` per `scored`, `<hex>: unavailable (failed to open)` per federation whose `/v1/federations` balance is null (a second GET the verb makes), `decision: <key> reason=<reason> action=<action>` per decision, `deferred: <dest> source=<hex\|none> reason=<reason> want_msat=<n> floor_msat=<n> floor_source=<floor_source>` per `deferred`, `suppressed: <key> reason=<reason> held_by=<key>` per `suppressed` — every list of `API-15`; exit 1 if any unopened |
 | `approve <hex>` | `<hex>`; `key: <key>` on stderr |
