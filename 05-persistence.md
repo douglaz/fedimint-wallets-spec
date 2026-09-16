@@ -42,7 +42,8 @@ reused and MUST never be collected automatically (`FMI-35`, `ADR-0025`).
 **STO-4** The seed is twelve BIP-39 words stored as their **16-byte entropy** in the SDK's own
 client-secret slot at the root of `client.db`: the `EncodedClientSecretKey` (client-store
 prefix byte `0x28`), whose value is the fedimint consensus encoding of the entropy as a byte
-vector, written once and never overwritten (`FMI-7`). The root secret every client partition
+vector; the entropy, once stored, is never replaced (`FMI-7`) — the one change the slot ever
+undergoes is `SEC-25`'s re-encryption, which changes its representation and not the entropy. The root secret every client partition
 derives from is `FMI-7`'s derivation of those twelve words; a wallet that derives differently
 recovers different ecash from the same words. There is no mnemonic file. The slot as described
 here is the **plaintext** form, which `SEC-25` forbids and re-encrypts once; the encrypted form

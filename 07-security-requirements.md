@@ -120,7 +120,8 @@ live) is fixed under a `STO` identifier with that decision. Whichever it is, the
 protection reduces to the protection of the key source.
 
 **SEC-11** A wallet started to serve on a store with no seed MUST mint a fresh twelve-word seed,
-stored as `SEC-25` requires, and a seed once stored MUST never be overwritten (`STO-4`).
+stored as `SEC-25` requires, and a seed once stored MUST never be replaced (`STO-4`; `SEC-25`'s
+re-encryption changes the slot's representation, never the entropy).
 `restore-mnemonic` (`HST-5`) MUST refuse when a seed already exists, checked before the words
 are parsed; MUST read the words from stdin only, with all whitespace collapsed; MUST require a
 valid BIP-39 checksum and **exactly twelve words**; and MUST write nothing on any failure.
@@ -173,8 +174,9 @@ question 2); the set is silent on it.
 
 **SEC-13** A gateway that carries a move sees both legs and therefore learns the wallet's
 cross-federation movement pattern. The set requires no gateway diversity and gives the
-operator's own gateway no preference: a gateway carries a move only on `FMI-14`'s terms
-(cheapest fitting, then first serving). Independence is claimed for nothing here, as
+operator's own gateway no standing preference: a gateway carries a move only in `FMI-14`'s
+precedence, where an operator's gateway appears solely as the break-glass armed for one
+intent. Independence is claimed for nothing here, as
 `ADR-0006` already holds for federations — "**best-effort diversification** across two
 distinct federations, NOT a verified-independent sudden-death guarantee".
 
