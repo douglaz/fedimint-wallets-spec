@@ -229,13 +229,11 @@ literal, so a mistyped URL cannot ship the daemon's bearer token to a remote hos
 connect to it directly, ignoring any proxy configuration in its environment, so a proxy
 variable cannot ship it either; MUST apply
 `SEC-5`'s file and directory checks at every start; MUST bound sessions by an idle ceiling of
-4 h and an absolute ceiling of 24 h that configuration MAY only tighten; MUST canonicalize
-`public_origin` to the form a browser sends in `Origin` (`HST-27`); and MUST fail closed on any
-configuration defect (`HST-26` owns the checks). Once it serves routes, the request-time
-controls are `ADR-0028`'s — an unauthenticated allowlist of exactly `GET /login`, `POST /login`
-and `GET /healthz`; a rate-limited login compared in constant time; an `HttpOnly`,
-`SameSite=Strict`, host-only session cookie; sessions held in memory only; no `/v1/recover` —
-and their surface is `HST-26`'s to specify. Reaching the sidecar from beyond the host is the
+4 h and an absolute ceiling of 24 h that configuration MAY only tighten; MUST store
+`public_origin` in the canonical form `HST-27` defines, refusing what it refuses; and MUST fail
+closed on any configuration defect (`HST-26` owns the checks). The sidecar's request-time
+surface — login, sessions, CSRF, `/healthz` — is `HST-26`'s to specify from `ADR-0028`, and
+until it does this set places no route-level requirement on the sidecar. Reaching the sidecar from beyond the host is the
 operator's overlay or reverse proxy ("Reaching it from a phone is the **operator's** job"), and
 behind a proxy the bind is not an authentication boundary: the password is. A sidecar in front
 of a wallet that does not meet `SEC-25` MUST NOT be exposed beyond loopback or a trusted
