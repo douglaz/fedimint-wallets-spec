@@ -65,11 +65,12 @@ ecash from the same twelve words:
 
 No device index is part of the path, and the wallet MUST hand the client the per-federation
 client secret, never a secret it has already tweaked with the federation id. The seed is stored
-as its 16-byte entropy in the client store's client-secret slot (`STO-4`) and MUST never be
-overwritten once written.
+as its 16-byte entropy in the client store's client-secret slot (`STO-4`, encrypted as
+`SEC-25` requires) and its entropy MUST never be replaced once written.
 
 A store with no seed: `walletd` serve and every standalone verb that needs a client MUST mint a
-fresh random twelve-word seed and persist it before use; a present seed MUST be reused; a
+fresh random twelve-word seed and persist it before use when the key source `SEC-25` requires
+is available, and MUST refuse to run, minting nothing, when it is not (`SEC-11`); a present seed MUST be reused; a
 present-but-undecodable one MUST abort, never be replaced. `walletd init` and the standalone
 journal-only verbs (`history`, `show`, `candidates`, `approve`) MUST NOT touch the seed. Only
 `recover` and `walletd mnemonic` MUST refuse to mint (`FMI-33`, `SEC-11`, `HST-5`). A fresh
