@@ -122,8 +122,9 @@ layout (its discriminator, nonce and ciphertext, and where the key source's own 
 live) is fixed under a `STO` identifier with that decision. Whichever it is, the seed's
 protection reduces to the protection of the key source.
 
-**SEC-11** A wallet started to serve on a store with no seed MUST mint a fresh twelve-word seed,
-stored as `SEC-25` requires, and a seed once stored MUST never be replaced (`STO-4`; `SEC-25`'s
+**SEC-11** A wallet started to serve on a store with no seed MUST mint a fresh twelve-word seed
+when the key source is available, stored as `SEC-25` requires — and MUST refuse to start,
+minting nothing, when it is not (`SEC-25`) — and a seed once stored MUST never be replaced (`STO-4`; `SEC-25`'s
 re-encryption changes the slot's representation, never the entropy).
 `restore-mnemonic` (`HST-5`) MUST refuse when a seed already exists, checked before the words
 are parsed; MUST read the words from stdin only, with all whitespace collapsed; MUST require a
