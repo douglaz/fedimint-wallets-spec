@@ -208,8 +208,9 @@ able to see a withheld funding goal and a conflict-suppressed candidate.
 
 **API-16** `GET /v1/health` always returns 200 when authenticated (`SEC-4`). Body:
 `{actor_queue_depth, inflight_drivers, scheduler_alive, automation_ready, automation_blocked?}`.
-`scheduler_alive` is `true` while the scheduler cycle of `ALC-38` is running and `false` once
-it has stopped; `automation_ready` and `automation_blocked` are the readiness signal `ALC-45`
+`scheduler_alive` is `true` for as long as the resident scheduler (`ALC-38`) is running —
+sleeping between cycles included — and `false` once it has stopped (`ALC-42`: "MUST read
+`false` from then on"); `automation_ready` and `automation_blocked` are the readiness signal `ALC-45`
 owns: `automation_ready` is `true` exactly when `automation_blocked` is `null`, and
 `automation_blocked` is `{reason, detail}` (two strings) with `reason` ∈ `cycle_failed |
 partial_federation_view | corrupt_federation_registry`. All five keys are always emitted;
@@ -503,8 +504,9 @@ spendable, `OPS-5`); a balance read that **fails** on an open federation is `503
 `reading balance for federation <hex> failed: <error>` and nothing is admitted. Amounts and fee
 caps are not range-checked by the daemon (`0` is passed through to admission, `OPS-7`).
 
-**API-37** `5xx` bodies. A journal read or write fault anywhere in a request is `500`
-`{"kind":"failed"}` whose `message` is the storage fault's error text verbatim, as the wallet's
+**API-37** `5xx` bodies. A journal read or write fault anywhere in a request — except on the
+admission path, where `OPS-39` assigns the refusal `storage_error` and `API-6` answers `409`
+— is `500` `{"kind":"failed"}` whose `message` is the storage fault's error text verbatim, as the wallet's
 storage layer reports it — informative, never parsed, and it MAY contain storage paths and the
 data directory (`SEC-6`), so a frontend MUST NOT show it to an untrusted party. `503 failed`
 messages are `wallet service is shutting down`, `wallet service actor stopped`, the
