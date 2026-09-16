@@ -115,7 +115,7 @@ that a start without it refuses rather than mints. That re-encryption is the one
 set exempts from `OVR-14`'s rollback rule — `ADR-0026`: "greenfield — a migration step, not
 a serde compat layer" — and the exemption is bounded: a build that predates this requirement
 MUST fail to start on a re-encrypted store, and MUST NOT open it as a wallet on a fresh or a
-wrongly derived seed. Where the key comes from — an operator passphrase through a memory-hard
+wrongly derived seed. `CNF-47` demonstrates the migration, the refusal and the rollback. Where the key comes from — an operator passphrase through a memory-hard
 KDF, or a key wrapped by an external key-management service — is `ADR-0026`'s
 *recommendation*, not its decision; this requirement is silent on it, and the encrypted slot's
 layout (its discriminator, nonce and ciphertext, and where the key source's own parameters

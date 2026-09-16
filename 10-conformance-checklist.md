@@ -198,7 +198,15 @@ by `docs/devimint-runbook.md` §1.
       (`HST-24`).
 - [ ] **CNF-45** A human reading of the four supersession money-path boundaries (`F26`).
 - [ ] **CNF-46** The browser sidecar's route manifest and live gate (`F27`).
-- [ ] **CNF-47** A crash-safe seed re-encryption with injected failures at each step (`F11`).
+- [ ] **CNF-47** Seed at rest (`SEC-25`, `SEC-11`). *Given* a store holding the plaintext seed
+      and the key source available, *when* the wallet starts and is killed at each step of the
+      one-time re-encryption, *then* on every restart the slot holds exactly one form of the
+      same entropy — plaintext still, or encrypted — never neither, the wallet derives the same
+      root secret as before, and once encrypted the plaintext is not in the store. *Given* the
+      key source unavailable, *when* the wallet starts on that store or on an empty one, *then*
+      it refuses to start, the slot is unchanged and no seed is minted. *Given* the
+      re-encrypted store, *when* the build that predates `SEC-25` starts on it, *then* it fails
+      to start and mints nothing.
 - [ ] **CNF-49** The readiness poller running from a schedule and paging on a transition (`F14`).
 - [ ] **CNF-50** A failed `ReconcileDecide` reported as `automation_blocked` (`F32`).
 - [x] **CNF-51** A malformed value under a well-formed registry key fences the scheduler with

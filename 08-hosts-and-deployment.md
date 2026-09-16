@@ -62,7 +62,8 @@ accepted silently — the contents are whitespace-trimmed, and an empty file fai
 
 **HST-5** `walletd restore-mnemonic` reads twelve BIP-39 words from stdin only, refuses if a
 seed already exists, and stores the entropy. The documented order is `init → restore-mnemonic →
-serve`, because serving on a store with no seed **mints a random one** (`SEC-11`). `walletd
+serve`, because serving on a store with no seed **mints a random one** when the key source is
+available, and refuses to start when it is not (`SEC-11`). `walletd
 mnemonic` prints the twelve words to stdout while the daemon is stopped.
 
 **HST-6** Serve sequence, in order: load config → tracing to stderr → chmod the data directory
