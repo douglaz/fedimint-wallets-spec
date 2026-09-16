@@ -505,9 +505,10 @@ spendable, `OPS-5`); a balance read that **fails** on an open federation is `503
 `reading balance for federation <hex> failed: <error>` and nothing is admitted. Amounts and fee
 caps are not range-checked by the daemon (`0` is passed through to admission, `OPS-7`).
 
-**API-37** `5xx` bodies. A journal read or write fault anywhere in a request — except on the
-admission path, where `OPS-39` assigns the refusal `storage_error` and `API-6` answers `409`,
-and in the best-effort ledger repair after a reconcile pass, which `API-24` logs and answers
+**API-37** `5xx` bodies. A journal read or write fault anywhere in a request — except the
+three admission reads `OPS-39` names (the key read, the goal-blocker scan, a probe-record
+read), where it is the refusal `storage_error` and `API-6` answers `409` with nothing
+journaled, and the best-effort ledger repair after a reconcile pass, which `API-24` logs and answers
 `200` — is `500` `{"kind":"failed"}` whose `message` is the storage fault's error text verbatim, as the wallet's
 storage layer reports it — informative, never parsed, and it MAY contain storage paths and the
 data directory (`SEC-6`), so a frontend MUST NOT show it to an untrusted party. `503 failed`
