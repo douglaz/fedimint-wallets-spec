@@ -30,7 +30,7 @@ scheme, a length mismatch or a wrong token all return `401` with the body
 bearer token"}` and **no** `WWW-Authenticate` header.
 
 **API-3** The token is 32 random bytes, lower-hex (64 characters), written `0600` by `walletd
-init`, which rotates it (`SEC-2`). Re-running `init` while the daemon runs MUST block on the
+init`, which rotates it (its entropy and comparison are `SEC-2`). Re-running `init` while the daemon runs MUST block on the
 store lock rather than rotate the token underneath a running daemon.
 
 **API-4** The bind address defaults to `127.0.0.1:9736`. It is a free-form string in

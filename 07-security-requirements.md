@@ -1,7 +1,10 @@
 # 07 — Security requirements
 
-What the code enforces, what it assumes, and what it does not defend. Descriptive: a requirement
-here is a control that exists, and a gap is stated as a gap with its finding.
+The threat model the wallet is built against, and the controls a compliant wallet MUST hold
+against it. Each control is a behaviour observable at a boundary — the data directory, the
+daemon's listener, what leaves the host for a federation or gateway — and cites the requirement
+that owns its mechanics. Where the set decides *not* to defend against something, the decision
+and its ADR are named here rather than left implicit.
 
 ## Threat model
 
@@ -11,139 +14,163 @@ much the design defends against them:
 
 1. **A network adversary between the wallet and a gateway or guardian.** Defended by the
    protocol: blind signatures, hash-locked legs, guardian-verified preimages. The wallet adds
-   the never-over check (`OPS-23`) and validates every gateway's `routing_info` at each end.
+   the never-over check (`OPS-23`) and validates every gateway's `routing_info` at each end
+   (`FMI-13`).
 2. **A misbehaving or malicious gateway.** It sees both legs of every move (`SEC-13`) and can
-   quote without performing; the wallet bounds the loss to one operation's amount and terminalizes
-   honestly (`FMI-23`). It cannot strand a move alone and cannot open the preimage (`DEF-20`).
+   quote without performing; the wallet bounds the loss to one operation's amount and
+   terminalizes honestly (`FMI-23`). A move it carries strands only when its send settles and
+   the receive reaches a terminal non-claim (`FMI-23`, `OPS-27`).
 3. **A malicious or misconfigured guardian.** Cannot place a gateway in the vetted list on its
    own (`SEC-17`, `FMI-10`); with enough colluding guardians can list any URL, so the wallet
-   restricts where a gateway request may go — loopback, link-local, RFC1918, cloud metadata
-   (`FMI-40`); can serve a false shutdown notice through the overridable
-   meta field (the wallet requires corroboration, `FMI-26`), cannot forge the authenticated config.
-4. **A poisoned discovery feed.** Every candidate's config is re-fetched and structurally scored,
-   the Sybil check requires three ids to agree, and nothing is funded before a sats-spending
-   probe passes (`ALC-28`, `ALC-37`).
-5. **Another process on the same host, or a reader of a backup.** **Not defended.** See
-   `SEC-10`, `SEC-12`.
+   restricts where a gateway request may go — loopback, link-local, RFC 1918, cloud metadata
+   (`FMI-40`); can serve a false shutdown notice through the overridable meta field, which the
+   wallet requires corroborated (`FMI-26`); cannot forge the authenticated config the wallet
+   re-fetches (`FMI-28`).
+4. **A poisoned discovery feed.** Every candidate's config is re-fetched and structurally
+   scored, the Sybil check requires three ids to agree, and nothing is funded before a
+   sats-spending probe passes (`ALC-28`, `ALC-37`).
+5. **Another process on the same host, or a reader of a copy of the data directory.** Defended
+   as far as `SEC-25` reaches: the seed is not readable from the directory alone. Everything
+   else in it — the ecash notes in the client store, which are spendable bearer instruments;
+   the ledger; the bearer token — is protected by the operating-system user boundary (`SEC-1`)
+   and nothing else. The operator's own controls (host disk encryption, a balance ceiling) are
+   outside this set.
 
-Explicitly not defended against: a compromised operating-system user, a compromised host, an
-adversary with the data directory, network-level deanonymization (no Tor, `ADR-0002`), and a
-compromised SDK pin.
+Explicitly not defended against: a compromised operating-system user; a compromised host,
+including the memory of the running process (the wallet is not required to wipe secrets from
+memory); a copy of the data directory run as a second wallet (`SEC-23`); network-level
+deanonymization (no Tor, `ADR-0002`, `SEC-19`); and a compromised build or dependency, whose
+provenance is the code repository's concern.
 
 ## The trust boundary
 
-**SEC-1** The trust boundary is the operating-system user. The daemon binds loopback by default
-and authenticates with one bearer token that `init` writes as a `0600` file, by default in the
-data directory. The file's location follows the precedence in `HST-4` (environment, then config,
-then `<data_dir>/token`), and its mode is **not** re-checked when the daemon reads it — a token
-file made world-readable after `init` is accepted silently. Anything that can read that file, or
-the data directory, can do everything — the code says so in `server.rs`.
+**SEC-1** The trust boundary is the operating-system user. What holds it is owned elsewhere
+and cited here: the loopback default (`SEC-3`), one bearer token on every request (`API-2`),
+the token file written `0600` (`API-3`) at the path `HST-4` resolves, by default inside the
+data directory, and the directory's `0700` mode re-asserted on the starts `HST-19` names. The
+consequences are this requirement's: the token file's protection is the directory's, and the
+wallet is not required to re-check the file's own mode when it reads it — an operator who
+configures a `token_path` outside the data directory owns its mode; anything that can read
+the token file can do everything the wallet's API can; anything that can read the data
+directory holds the ecash notes, the ledger and, at the default location, the token — every
+asset but the seed (`SEC-25`) — and no requirement in this set defends against it.
 
-**SEC-2** The token is 32 random bytes rendered as lowercase hex, written atomically with mode
-`0600` (`HST-19`), never logged, and rotated only by re-running `init` while the daemon is stopped
-(`API-3`) — with the caveat that `WALLETD_TOKEN_PATH` is read per process, so an `init` and a
-`serve` given different environments rotate and read different files (`HST-4`). The header form
-and the 401 envelope are `API-2`. The comparison is constant-time over the **content** after an
-early return on a length mismatch: the token's length is observable, its bytes are not. It never
-expires.
+**SEC-2** The token MUST come from a cryptographically secure random source with at least
+256 bits of entropy, and the daemon MUST compare a presented token in constant time over its
+content after an early return on a length mismatch — the token's length is observable, its
+bytes are not. It never expires and is never logged (`SEC-6`). Its length and rendering, its
+`0600` write and its `init`-only rotation that blocks on the store lock are `API-3`'s; how it
+reaches disk is `HST-19`'s; the `401` on every failed comparison is `API-2`'s.
 
-**SEC-3** The bind address is configuration, not an invariant: `address` in `walletd.toml`
-accepts `0.0.0.0`. There is no TLS, so on any non-loopback bind the bearer token crosses the
-network in cleartext and a passive observer can replay it against every route — the only safe
-deployments are the loopback default or an authenticated tunnel in front of it (the runbook's
-posture); the daemon does not enforce either. There is no rate limiting, no CORS handling (`API-1`), and the daemon
-installs no request timeout or connection cap of its own — the 2 MiB request body limit
-(`API-35`) and the two request deadlines (invoice mint, `API-21`; await long-poll, `API-11`)
-are the only bounds. An operator who binds beyond loopback has extended the trust boundary to the network with
-a static bearer token. Two clients extend it further on their own: `wallet-cli` sends the token to
-whatever URL its pointer file or `--url` names, with no loopback or scheme check (the check
-`SEC-22` describes exists only in `wallet-web`), and `ops/walletd-watch.py` accepts the token
-from the `WALLETD_TOKEN` environment variable and posts the wallet's balance to whatever
-`--webhook` URL it is given, any scheme (`HST-22`).
+**SEC-3** The daemon MUST bind `127.0.0.1` unless configured otherwise (`HST-3`, `address`). The
+wallet provides no transport security — no TLS, no rate limiting, no CORS handling (`API-1`
+owns those absences and the request bounds the set does require: `API-35`, `API-11`,
+`API-21`) — so on a non-loopback bind the bearer token crosses the network in cleartext and a
+passive observer can replay it against every route. An operator who binds beyond loopback has
+extended the trust boundary to the network with a static bearer token; the only non-loopback
+exposure this set treats as safe is an authenticated tunnel in front of a loopback bind. A
+CLI frontend sends the token to the daemon URL the operator configured (`API-25`); the set
+places no loopback or scheme restriction on that URL, because a tunnel's or overlay's local
+end is where the CLI legitimately reaches a remote daemon (`ADR-0028`: "via a private overlay
+(Tailscale/WireGuard) or their own reverse proxy"), and it MAY honour the proxy its own
+environment configures, since the operator's environment is inside the trust boundary
+(`HST-2` lists the variables). The browser sidecar is the exception on both counts: a loopback
+IP literal only, and no proxy (`SEC-22`).
 
-**SEC-4** `/v1/health` requires the token and returns 200 whenever authenticated, so an
-unauthenticated uptime probe cannot use it, and an authenticated one that trusts the status code
-learns nothing (`API-16`).
+**SEC-4** No route is reachable without the token, `/v1/health` included (`API-2`), and an
+authenticated `/v1/health` answers `200` whatever the wallet's readiness (`API-16`): an
+unauthenticated uptime probe cannot use it, and an authenticated one learns nothing from the
+status code alone.
 
-**SEC-5** `walletd.toml` holds no secrets, only paths. The CLI's pointer file holds the token's
-**path**, not the token. Both are written with the ambient umask, so the token's path and the
-daemon URL are ordinarily readable by every local account (`HST-19`); only the token file itself
-is `0600`. `wallet-web.toml` holds an Argon2id password hash; `init` writes it `0600`, and every
-startup requires that its group and other bits are all clear (`0600`, `0400` and `0700` pass
-alike) and that its directory is owned by the running uid and not group- or other-writable
-unless sticky — a `0755` directory passes. `wallet-web init` creates that directory `0700` only
-when it is absent; an existing directory keeps whatever mode it has and is only checked
-(`HST-26`).
+**SEC-5** Configuration files MUST hold no secret. `walletd.toml` holds paths and the bind
+(`HST-3`); the CLI's pointer file holds the token's **path**, never the token (`HST-4`); both
+MAY be written under the ambient umask. The one exception is the sidecar's `wallet-web.toml`,
+which holds an Argon2id password hash and MUST therefore be written `0600` (`HST-19`) and
+MUST be refused at every start unless its mode and its directory's ownership and mode pass
+`HST-26`'s checks.
 
-**SEC-6** Nothing in the daemon, server or handler code logs the token, the seed, a full invoice,
-or a password. The one deliberate exception is `walletd mnemonic`, which prints the seed to stdout
-while the daemon is stopped. Three edges sit outside that claim: a storage fault is returned to
-the HTTP caller as a 500 whose message is the storage fault's error text verbatim and can carry
-filesystem paths (`API-37` owns that body); `wallet-web` logs its `daemon_url`, `public_origin` and `token_path`
-at `info` on startup; and `wallet-cli pay <invoice>` takes the BOLT11 on the command line, where a
-process listing or shell history can read it, while the mnemonic path deliberately refuses
-arguments. `RUST_LOG` is honoured unconditionally by all three binaries, so what the SDK logs is
-outside the claim's scope.
+**SEC-6** The wallet MUST NOT write the seed, the bearer token or a password to any log line
+at any level, nor into any error returned to a caller, and MUST NOT log a full invoice at its
+default log level. The one exception is `walletd mnemonic`, which prints the twelve words to
+stdout while the daemon is stopped (`HST-5`); `restore-mnemonic` takes them from stdin only
+(`SEC-11`), never from an argument. A `500` body carries the storage fault's text verbatim and
+MAY contain filesystem paths and the data directory — paths are not secrets under `SEC-1`,
+which is why `API-37` forbids a frontend from showing that body to an untrusted party.
 
 ## The seed
 
-**SEC-10** The seed is **plaintext**: twelve BIP-39 words stored as entropy in the SDK's
-client-secret slot in `client.db`, protected only by the data directory's `0700` mode — no mode
-is ever set on `client.db` or `journal.db` themselves. Anyone who can read the directory owns
-every satoshi in every federation. The wallet's own crates apply no memory hygiene: the mnemonic,
-its entropy, the bearer token and the sidecar password are plain `String`/`Vec<u8>` values that
-are dropped without being wiped (the SDK's own `zeroize` use does not extend to them). `ADR-0026`
-accepted a passphrase-derived key and deferred the build; the implementation has not started
-(`F11`). The runbook's balance ceiling and host full-disk encryption are the only controls, and
-both are outside the code.
+**SEC-25** The seed MUST NOT be stored in plaintext. What the wallet persists is the twelve
+words' entropy (`STO-4`) under an AEAD, keyed by a key that is not stored beside it — `ADR-0026`:
+"the seed must not be readable from the data directory alone. The key therefore has to come
+from **outside** the encrypted store". When the key source is unavailable at start the wallet
+MUST fail closed — it MUST NOT serve, MUST NOT mint a seed (`SEC-11`) and MUST NOT fall back to
+plaintext ("fail closed, do not fall back to plaintext"). `walletd mnemonic` and
+`restore-mnemonic` MUST keep working under encryption ("decrypt on demand"): export decrypts,
+restore stores the entropy encrypted (`SEC-11`). A store that holds the entropy in plaintext,
+from before this requirement, MUST be re-encrypted once, in one store transaction, on the
+first start that has the key ("A one-time re-encrypt of the existing plaintext store on
+upgrade"); the wallet MUST tell a plaintext slot from an encrypted one without the key, so
+that a start without it refuses rather than mints. Replacing the slot is not the whole
+migration: a store's write-ahead log and level files can keep a superseded value, so the
+migration is complete only when the plaintext entropy appears in **no file of the data
+directory** — the wallet MUST flush and compact the store as far as that takes before it
+serves, and how it does so is the implementation's. The encrypted slot — however it was first
+written: by that re-encryption, by a first serve (`SEC-11`) or by `restore-mnemonic` — is the
+one on-disk form this set exempts from `OVR-14`'s rollback rule — `ADR-0026`: "greenfield — a
+migration step, not a serde compat layer" — and the exemption is bounded: a build that predates this requirement
+MUST fail to start on a re-encrypted store, and MUST NOT open it as a wallet on a fresh or a
+wrongly derived seed. `CNF-47` demonstrates the migration, the refusal and the rollback. Where the key comes from — an operator passphrase through a memory-hard
+KDF, or a key wrapped by an external key-management service — is `ADR-0026`'s
+*recommendation*, not its decision; this requirement is silent on it, and the encrypted slot's
+layout (its discriminator, nonce and ciphertext, and where the key source's own parameters
+live) is fixed under a `STO` identifier with that decision. Whichever it is, the seed's
+protection reduces to the protection of the key source.
 
-**SEC-11** A daemon started on a store with no seed **mints one**. The documented order is
-`init → restore-mnemonic → serve`; reversing it produces a wallet on a fresh seed whose
-recovery target is the old one (`HST-5`). `restore-mnemonic` refuses to overwrite an existing
-seed (checked before the words are parsed), reads only from stdin with all whitespace collapsed,
-requires a valid BIP-39 checksum and **exactly twelve words**, and writes nothing on any failure.
-It re-asserts the `0700` data directory before opening the store, as `init` and `serve` do;
-`walletd mnemonic` is the one seed path that does not.
+**SEC-11** A wallet started to serve on a store with no seed MUST mint a fresh twelve-word seed
+when the key source is available, stored as `SEC-25` requires — and MUST refuse to start,
+minting nothing, when it is not (`SEC-25`) — and a seed once stored MUST never be replaced (`STO-4`; `SEC-25`'s
+re-encryption changes the slot's representation, never the entropy).
+`restore-mnemonic` (`HST-5`) MUST refuse when a seed already exists, checked before the words
+are parsed; MUST read the words from stdin only, with all whitespace collapsed; MUST require a
+valid BIP-39 checksum and **exactly twelve words**; and MUST write nothing on any failure.
+Because serving mints, the order is `init → restore-mnemonic → serve`; reversed, the wallet
+serves on a fresh seed and the restore is refused.
 
-**SEC-12** Loss of `client.db` loses the seed and the send-dedup state. Loss of `journal.db`
-loses the federation list and the ledger. Seed recovery rebuilds balances, not dedup, not
-history (`FMI-32`, `STO-28`). None is required of either (`STO-28`); what the operator must hold
-instead is `SEC-24`.
+**SEC-12** What a lost store costs — `client.db` the seed and the send-dedup state,
+`journal.db` the federation list and the ledger — and that no backup of either is required of
+the wallet, is `STO-28`. What the operator holds instead is `SEC-24`.
 
-**SEC-23** One seed, one live `client.db`, one process. The store lock is the file
-`<data_dir>/client.db.lock`, so it excludes only a second process opening **that same
-directory**: a second `walletd` blocks on it and `wallet-cli --standalone` refuses (`HST-9`). It
-does not make the host, let alone the seed, safe: a restored backup, a cloned volume or a copy of
-the data directory mounted at any other path — on this host or another — carries its own lock
-file and runs concurrently as a **second spender of the same notes**. The federation lets exactly
-one of them win each spend, both processes' bookkeeping is then false, and a send re-driven from
-the copy misses the original's dedup state (`FMI-32`). Nothing in the code detects or defends
-against this; the invariant is the operator's to hold, and the runbook's stranded-move procedure
-is built around hunting for its violation. This is a money-loss rule, not a confidentiality one.
+**SEC-23** One seed, one live client store, one process — `ADR-0025`: "there is one seed, one
+live client store, one daemon". The wallet MUST hold an exclusive lock on its data directory
+while any process has the stores open, so a second process on the same directory blocks or is
+refused (`HST-9`). The lock excludes only that directory: a restored copy of the stores, a
+cloned volume or a copy of the directory at any other path — on this host or another — carries its own lock and
+runs as a **second spender of the same notes**. The federation lets exactly one of them win
+each spend, both processes' bookkeeping is then false, and a send re-driven from the copy
+misses the original's dedup state (`FMI-32`). The wallet is not required to detect this; the
+invariant is the operator's to hold, and the stranded-move procedure in the code repository's
+runbook assumes it. This is a money-loss rule, not a confidentiality one.
 
 **SEC-24** The recovery unit the operator MUST hold outside the wallet is the twelve-word seed
 (`walletd mnemonic`, daemon stopped, `SEC-6`) **plus the invite code of every joined
 federation** (`wallet-cli list-feds`), re-recorded after every join. Recovery (`FMI-30`) takes
 the seed and one invite per federation and nothing else; the seed alone recovers ecash only in
 federations whose invites the operator still has. An invite is not secret **unless it carries
-the optional `api_secret` part** (`InviteCodePart::ApiSecret`), which the SDK sends as guardian
-API authentication: such an invite is a live credential and MUST be stored and shared as one.
-`journal.db` is
-bookkeeping and is not part of the unit (`ADR-0025`).
+the optional `api_secret` part**, which the SDK sends as guardian API authentication: such an
+invite is a live credential and MUST be stored and shared as one. `journal.db` is bookkeeping
+and is not part of the unit (`ADR-0025`).
 
 ## Money-path controls
 
 **SEC-7** Every fee cap that binds **on the amount** is the wallet's own (`OPS-29`). The
 protocol's limits on a gateway's posted fee schedule are `FMI-19`'s — compared component-wise,
-an admission filter on the schedule, not a bound on what a payment costs. That check runs
-**after** the wallet's own selection, not before it: the wallet quotes the candidates, keeps the
-cheapest that fits its cap, and the schedule limit is then applied to the **already-selected**
-gateway, so a gateway over the limit fails the attempt rather than being skipped in favour of
-the next candidate (`Permanent` for a send, `Retryable` for a receive: `FMI-17`, `FMI-16`,
-`OPS-17`, `OPS-18`). A move is refused before minting if the receive leg alone exceeds the cap,
-and again before paying if both legs do.
+an admission filter on the schedule, not a bound on what a payment costs — and the class each
+refusal takes is `FMI-16`'s and `FMI-17`'s. The wallet selects by its own cap (`FMI-14`),
+and a selected gateway whose schedule is over the protocol's limit fails the attempt in that
+class rather than being skipped for the next candidate. A move MUST be refused before minting
+if the receive leg alone exceeds the cap, and again before paying if both legs do (`OPS-29`).
 
-**SEC-8** A committed receive whose contract differs from the quote is refused before the
+**SEC-8** A committed receive whose contract differs from the quote MUST be refused before the
 invoice is surfaced (`OPS-23`); a gateway that lowers its fee between quote and mint cannot
 over-credit the wallet, and one that raises it cannot make it pay more than the cap.
 
@@ -154,9 +181,12 @@ Whether there is an aggregate ceiling across federations is open (`11-open-quest
 question 2); the set is silent on it.
 
 **SEC-13** A gateway that carries a move sees both legs and therefore learns the wallet's
-cross-federation movement pattern. The design prefers spreading across independent gateways and
-federations over routing everything through one the operator runs (`docs/roadmap-to-v1.md`
-"Non-goals"); the code does nothing to enforce either.
+cross-federation movement pattern. The set requires no gateway diversity and gives the
+operator's own gateway no standing preference: a gateway carries a move only in `FMI-14`'s
+precedence, where an operator's gateway appears solely as the break-glass armed for one
+intent. Independence is claimed for nothing here, as
+`ADR-0006` already holds for federations — "**best-effort diversification** across two
+distinct federations, NOT a verified-independent sudden-death guarantee".
 
 **SEC-14** Shutdown signals are trusted only when corroborated: the merged meta expiry (which a
 federation's override host can serve) never triggers an evacuation alone; the at-join consensus
@@ -168,52 +198,47 @@ reaches a scoring or funding decision without a re-fetched, authenticated config
 
 **SEC-16** A federation the agent joined is fundable only after a sustained window of real
 round-trip probes, and a pin does not bypass that gate (`ALC-37`). A user's own `join` is
-trusted as the user's decision — **except** over a federation the agent already auto-joined, whose
-candidate row stays agent-owned and probe-gated until the audited `approve` verb releases it
-(`OPS-42`; seed recovery cannot, since it refuses a registered federation, `FMI-31`).
+trusted as the user's decision — **except** over a federation the agent already auto-joined,
+whose candidate row stays agent-owned and probe-gated until the audited `approve` verb releases
+it (`OPS-42`; seed recovery cannot, since it refuses a registered federation, `FMI-31`).
 
 **SEC-17** The vetted gateway list is the threshold-vetted, per-guardian list `FMI-10` defines,
 so no single Byzantine or misconfigured guardian can place a gateway in the automated candidate
 set, and a gateway serves a route only while it is on both federations' lists at resolution
 time (`FMI-13`). The list's order among equally vetted gateways is the implementation's and is
 stable within one resolution (`FMI-10`); where the wallet takes "the first that validates"
-(`FMI-14`), the fee cap, not gateway identity, is the money backstop. No requirement bounds how
-many URLs one guardian's response may contribute; `FMI-40` bounds where any of them may send
-the wallet.
+(`FMI-14`), the fee cap, not gateway identity, is the money backstop. Where any listed URL may
+send the wallet is `FMI-40`.
 
-## Build and environment
+## Builds
 
-**SEC-18** The crash killpoints and the forced-shutdown seam are compiled under
-`debug_assertions` and read from the environment. A **release** build ignores
-`WALLET_CLI_CRASH_AT` and `WALLET_CLI_FORCE_SHUTDOWN`; a debug binary does not. The
-smokes run debug binaries for exactly this reason; nothing deployed should. Those are the only
-gated seams. A release build still reads `WALLETD_PERFORM_TIMEOUT_SECS` and
-`WALLETD_SETTLEMENT_STALL_SECS`, both of which change money-path timing, and a value that does
-not parse falls back to the default silently rather than failing startup (`HST-2`).
+**SEC-18** A release build MUST honour no fault-injection input. The crash killpoints `OPS-28`
+demonstrates and the forced shutdown `FMI-26`'s scenarios use MAY be reachable in a debug build
+through `WALLET_CLI_CRASH_AT` and `WALLET_CLI_FORCE_SHUTDOWN`; those two are the complete set
+(`HST-2` owns the release environment surface), and a release build MUST ignore both. The
+conformance scenarios that use them run debug wallet binaries (`CNF-14`).
+
+## Network privacy
 
 **SEC-19** No Tor and no network-level anonymity (`ADR-0002`). Receiving is private (the
 gateway cannot tie funds to an identity); sending leaks the destination to the gateway.
 
-**SEC-20** Deployment identity — hosting provider, cluster, namespace, pod, image digest,
-uptime, balance — MUST NOT appear in tracked files (`DEF-22`). The runbook holds the location;
-everything else points at the runbook. The historical leak is `F21`.
-
-**SEC-21** The dependency is a personal fork at a fixed revision (`FMI-1`). Its provenance is
-the operator's own; there is no reproducible-build attestation and no signature check on the
-image (`docs/roadmap-to-v1.md` Phase 8).
-
 ## The browser sidecar
 
-**SEC-22** `wallet-web` as built enforces its posture before it serves anything: hardcoded
-loopback bind, an Argon2id PHC hash validated at pinned minimum parameters, a `daemon_url` that
-must be a loopback IP literal (so a typo cannot ship the daemon's bearer token to a remote host),
-the config-file and directory checks of `SEC-5` at every start, session idle and absolute
-ceilings of 4 h and 24 h that configuration may only tighten, a `public_origin` canonicalized to
-the form a browser is *expected* to send (`HST-27`; that equivalence is unmeasured, and it
-becomes a security boundary the day a route compares `Origin`), and fail-closed on any config
-defect (`HST-26`). It serves no
-routes, so the request-time half of `ADR-0028` — sessions, CSRF, security headers, rate
-limiting — does not exist; only the configuration those will consume does. It validates its
-`token_path` but never reads or mode-checks the daemon's token. It MUST NOT be documented for
-exposure beyond loopback or a trusted overlay until `SEC-10` is closed; `ADR-0028` makes that the
-condition.
+**SEC-22** The sidecar MUST enforce its posture before it serves anything (`ADR-0028`). It MUST
+bind `127.0.0.1` and offer no other bind ("The wallet ships no public listener, no
+certificates, and no renewal story"); MUST refuse to start without a configured Argon2id
+password hash validated at pinned minimum parameters ("There is no default credential and no
+first-load setup page"); MUST accept a `daemon_url` only when its host is a loopback IP
+literal, so a mistyped URL cannot ship the daemon's bearer token to a remote host, and MUST
+connect to it directly, ignoring any proxy configuration in its environment, so a proxy
+variable cannot ship it either; MUST apply `SEC-5`'s file and directory checks at every start;
+and MUST fail closed on every configuration defect `HST-26` and `HST-27` enumerate — the
+session ceilings and their tighten-only rule, and the origin's canonical form, are theirs and
+are not restated here. The sidecar's request-time
+surface — login, sessions, CSRF, `/healthz` — is `HST-26`'s to specify from `ADR-0028`, and
+until it does this set places no route-level requirement on the sidecar. Reaching the sidecar from beyond the host is the
+operator's overlay or reverse proxy ("Reaching it from a phone is the **operator's** job"), and
+behind a proxy the bind is not an authentication boundary: the password is. A sidecar in front
+of a wallet that does not meet `SEC-25` MUST NOT be exposed beyond loopback or a trusted
+overlay — `ADR-0028`: "Public-internet exposure should wait for ADR-0026".

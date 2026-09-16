@@ -62,7 +62,8 @@ accepted silently — the contents are whitespace-trimmed, and an empty file fai
 
 **HST-5** `walletd restore-mnemonic` reads twelve BIP-39 words from stdin only, refuses if a
 seed already exists, and stores the entropy. The documented order is `init → restore-mnemonic →
-serve`, because serving on a store with no seed **mints a random one** (`SEC-10`). `walletd
+serve`, because serving on a store with no seed **mints a random one** when the key source is
+available, and refuses to start when it is not (`SEC-11`). `walletd
 mnemonic` prints the twelve words to stdout while the daemon is stopped.
 
 **HST-6** Serve sequence, in order: load config → tracing to stderr → chmod the data directory
@@ -274,7 +275,7 @@ whose mode drifted is re-tightened by the next start, not by a read-only export;
 existing one's mode alone (`HST-26`). Nothing chmods RocksDB's own files.
 
 **HST-20** There is **no Kubernetes manifest in this repository**, and no deployment
-configuration is tracked (`SEC-20`, `DEF-22`). The only tracked unit
+configuration is tracked (`DEF-22`). The only tracked unit
 (`wallet-daemon/deploy/walletd.service`) has the perform-timeout environment line commented out
 at the default 600; what the long-running deployment actually runs with is held elsewhere and
 is not recorded here.
@@ -283,7 +284,7 @@ is not recorded here.
 
 ```
 <data_dir>/              0700, re-asserted on every start, init and restore
-  client.db/             the federation clients' RocksDB, including the seed row (plaintext, SEC-10)
+  client.db/             the federation clients' RocksDB, including the seed row (encrypted, SEC-25)
   client.db.lock         the exclusivity anchor
   journal.db/            the app journal: intents, moves, ledger, registry, candidates, policy, watch state
   token                  0600, 64 hex characters
@@ -326,7 +327,7 @@ http://127.0.0.1:1` → exit **0**, stdout `note  webhook delivery failed: <urlo
 holding a small real-sats balance across two mainnet federations, with real receive, pay, move
 and join history. It is a **test deployment**, not production; the operator has said so, and
 this set describes it accordingly. Its location, namespace, image digest and balance are
-deliberately not recorded in tracked files (`SEC-20`, `DEF-22`).
+deliberately not recorded in tracked files (`DEF-22`).
 
 **HST-24** `main` (`7225114`) is 240 commits past that build (`git rev-list --count
 b5f46de..7225114`). Everything in `09-known-defects.md` from

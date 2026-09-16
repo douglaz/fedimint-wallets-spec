@@ -7,7 +7,7 @@
 04-api-contract.md 0
 05-persistence.md 0
 06-allocator-and-automation.md 0
-07-security-requirements.md 2
+07-security-requirements.md 0
 08-hosts-and-deployment.md 15
 09-known-defects.md 29
 10-conformance-checklist.md 9
