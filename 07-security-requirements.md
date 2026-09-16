@@ -55,13 +55,12 @@ the token file can do everything the wallet's API can; anything that can read th
 directory holds the ecash notes, the ledger and, at the default location, the token — every
 asset but the seed (`SEC-25`) — and no requirement in this set defends against it.
 
-**SEC-2** The token MUST be 32 bytes from a cryptographically secure random source, rendered as
-64 lower-hex characters (`API-3`), written with mode `0600` (`HST-19` owns how it reaches
-disk), and never logged (`SEC-6`). It never expires and is rotated only by re-running `init`
-while the daemon is stopped; `init` against a running daemon MUST block on the store lock
-rather than rotate the token underneath it (`API-3`). The daemon MUST compare a presented token in constant time over its content
-after an early return on a length mismatch — the token's length is observable, its bytes are
-not — and MUST answer every failure with `API-2`'s `401`.
+**SEC-2** The token MUST come from a cryptographically secure random source with at least
+256 bits of entropy, and the daemon MUST compare a presented token in constant time over its
+content after an early return on a length mismatch — the token's length is observable, its
+bytes are not. It never expires and is never logged (`SEC-6`). Its length and rendering, its
+`0600` write and its `init`-only rotation that blocks on the store lock are `API-3`'s; how it
+reaches disk is `HST-19`'s; the `401` on every failed comparison is `API-2`'s.
 
 **SEC-3** The daemon MUST bind `127.0.0.1` unless configured otherwise (`HST-3`, `address`). The
 wallet provides no transport security — no TLS, no rate limiting, no CORS handling (`API-1`
