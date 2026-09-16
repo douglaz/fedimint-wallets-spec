@@ -76,8 +76,9 @@ by `docs/devimint-runbook.md` §1.
       (`wallet-cli/tests/cli_client.rs`). `join`, `recover`, `move`, `direct-inflow`,
       `approve` and `list-feds` have no mock-server test; their wire shapes are covered only by
       the live daemon smokes (`CNF-19`, `CNF-20`). Not yet demonstrated: the `health` readiness
-      fields and the `status` `deferred`/`suppressed` lines `API-39` requires, `show`'s
-      `fee_cap_msat` line (`F35`, `F9`), and `policy set`'s preservation of keys it has no flag
+      fields and the `status` `deferred`/`suppressed` lines `API-39` requires, the `fee_cap`
+      field of `OperationView` in `history --json`/`show --json` and `show`'s `fee_cap_msat`
+      line (`API-33`, `F35`, `F9`), and `policy set`'s preservation of keys it has no flag
       for and refusal of a flag for a field the GET did not return (`API-27`, `F40`).
 
 ## Live gates — the harness

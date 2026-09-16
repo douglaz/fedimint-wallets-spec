@@ -523,7 +523,7 @@ carry neither.
 **API-38** The await verbs. `await-receive <key>`, `await-send <key>` and `await-move <key>`
 take `--timeout <secs>` (default **600**) and poll `GET /v1/operations/{key}?wait=true` until
 terminal: a `2xx` with a terminal `status` ends the wait; a `2xx` that is not terminal, or a
-`504`, is re-polled no sooner than 200 ms later; any other non-`2xx` is mapped by `API-28` and **not** retried (a dead
+`504`, is re-polled after 200 ms; any other non-`2xx` is mapped by `API-28` and **not** retried (a dead
 daemon fails fast); when `--timeout` elapses the exit is 4 with `await timed out after <n>s
 waiting for operation <key> to terminalize`. Before printing, the verb checks the row's `kind`:
 `await-receive` accepts only `receive`, `await-send` only `pay`, `await-move` accepts `move`,
