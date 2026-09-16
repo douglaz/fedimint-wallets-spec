@@ -82,7 +82,7 @@ refused. Otherwise the config is previewed under the 60-second bound (`FMI-21`),
 allocates a fresh partition (`STO-3`), joins into it with the per-federation client secret
 (`FMI-7`), verifies that the joined federation's id equals the invite's, writes the registry
 row, and only then makes the client live; a failed join MUST leave no registry row and MUST NOT
-reuse the partition (best-effort removal of it is permitted; `FMI-35`). A join MUST invalidate
+reuse the partition, which is an orphan from then on (`FMI-35`: never collected automatically). A join MUST invalidate
 any allocator plan computed over the world before it (`ALC-32`). A user `join` carries no bound
 but the preview's. **Auto-join** — and only auto-join — runs under the remaining budget of the discovery pass that
 called it (`FMI-22`, `ALC-28`): the preview and the join are each bounded by whichever of that

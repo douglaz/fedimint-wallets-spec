@@ -44,14 +44,10 @@ by `docs/devimint-runbook.md` §1.
       and test steps.
 - [x] **CNF-7** `nix build` produces `walletd`, `wallet-cli` and a non-empty OCI image, and both
       binaries answer `--help` (`HST-16`).
-- [ ] **CNF-18** Every persisted field that carries `serde(default)` (`STO-30`) is pinned by a
-      test that strips the key from the serialized type and re-reads it. Ten of fourteen are:
-      `Refusal.diagnostics` (PR #42, with the verbatim production error), `Move.gateway`,
-      `Intent.evacuation_refusal`, `RefusalDiagnostics.{max_fee_bps, conflict_suppressed}`, and
-      the three `Policy` fields, and `MoveMeta.fee_cap` / `MoveMeta.from`
-      (`wallet-fedimint/tests/move_meta.rs`). Four are not: the `Evacuate` defaults share one
-      bare-`Action` fixture that omits both keys at once (`F41`), and `MoveMeta.gateway` /
-      `MoveMeta.send_gateway` (`STO-33`, added for `OPS-20`; `F7`).
+- [ ] **CNF-18** Every persisted field that decodes when absent (`STO-30` lists the eighteen)
+      is pinned by a test that strips the key from the serialized row, alone, and re-reads it,
+      asserting the value `STO-30` names; a fixture that omits several keys at once pins none
+      of them. Which fields an implementation has pinned is the code repository's result.
 - [x] **CNF-33** The **downgrade** direction is pinned for `Policy`: a row written by the
       current shape decodes under the previous shape's rules, and the handler rejects an unknown
       key (`DEF-11`, PR #43, both red-first).
@@ -199,8 +195,6 @@ by `docs/devimint-runbook.md` §1.
 - [ ] **CNF-45** A human reading of the four supersession money-path boundaries (`F26`).
 - [ ] **CNF-46** The browser sidecar's route manifest and live gate (`F27`).
 - [ ] **CNF-47** A crash-safe seed re-encryption with injected failures at each step (`F11`).
-- [ ] **CNF-48** A restore drill from an app-state snapshot plus seed with in-flight operations
-      explained (`F12`).
 - [ ] **CNF-49** The readiness poller running from a schedule and paging on a transition (`F14`).
 - [ ] **CNF-50** A failed `ReconcileDecide` reported as `automation_blocked` (`F32`).
 - [x] **CNF-51** A malformed value under a well-formed registry key fences the scheduler with

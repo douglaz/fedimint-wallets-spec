@@ -5,12 +5,12 @@
 02-fedimint-integration.md 0
 03-operation-lifecycle.md 0
 04-api-contract.md 18
-05-persistence.md 43
+05-persistence.md 0
 06-allocator-and-automation.md 22
 07-security-requirements.md 2
 08-hosts-and-deployment.md 15
 09-known-defects.md 29
-10-conformance-checklist.md 11
+10-conformance-checklist.md 9
 11-open-questions.md 0
 CONTEXT.md 0
 executive-summary.md 0

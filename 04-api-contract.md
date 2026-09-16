@@ -136,9 +136,10 @@ check for nulls (the CLI does, and exits 1).
 **API-10** `GET /v1/history` reads exactly two query parameters: `limit` (unsigned integer,
 default 50, values above 500 are silently capped to 500 by `capped_history_limit`) and
 `before_seq` (unsigned integer). `before_seq` is **exclusive**: the page holds rows with
-`seq < before_seq`, newest first (`STO-19`). `next_before_seq` is the `seq` of the last row when
-the page is full (`rows.len() == limit && limit > 0`), else `null`; pass it back as `before_seq`
-for the next page. `limit=0` returns `{"operations":[],"next_before_seq":null}`. A
+`seq < before_seq`, newest first (`STO-19`). `next_before_seq` is the `seq` of the last row the
+page **reached** — returned or skipped as unreadable (`STO-19`, `OVR-14`), so a skipped row
+never strands the rows older than it — when `limit > 0` and the scan stopped before the
+ledger's first row, else `null`; pass it back as `before_seq` for the next page. `limit=0` returns `{"operations":[],"next_before_seq":null}`. A
 non-integer or negative value for either parameter is `422` `invalid query parameters: …`
 (`API-6`). `HistoryQuery` does not deny unknown fields: **any other query parameter
 (`status`, `actor`, `fed`, `kind`, …) is silently ignored and the page is unfiltered** — a
@@ -166,7 +167,7 @@ refusal?, evacuation_refusal?, evacuation_refusal_active?` when present; the per
 null-versus-omitted rules are the table in `API-33`, and the `refusal` /
 `evacuation_refusal` object schemas are `API-34`. `kind` ∈ `join, recover,
 receive, pay, direct-inflow, move, evacuation, refusal, probe, tick, discover, autojoin,
-approve` (`kind_and_amount`). `status` ∈ `started | awaiting | succeeded | failed`. `actor` is
+approve, reclaim` (`kind_and_amount`; `reclaim` is the `Reclaim` row of `STO-15`). `status` ∈ `started | awaiting | succeeded | failed`. `actor` is
 `"user"` or `"agent:<occurrence>"`. `reason` is the `reason_tag` vocabulary `ALC-51` owns
 (eleven snake_case tags), shared with `/v1/status`; every user-verb row is `user_initiated`. That tag is
 the snake_case form the `refuse:` key uses (`STO-6`); the **persisted** row stores
@@ -565,7 +566,9 @@ incoming contract reached a terminal non-claim — a `receive` whose state is `E
 `Failed`, or a `direct-inflow`, `move` or `evacuation` whose receive leg did, a `Stranded` move
 included (`OPS-27`); an unknown key is `404 not_found`, and any other operation is `422 refused`
 with nothing attempted (`API-6`). The wallet attempts the claim synchronously; the response is
-`200 {operation_key, outcome}` with `outcome ∈ claimed, not_claimable`: `claimed` when the
+`200 {operation_key, outcome}`, where `operation_key` is `{key}` — the reclaimed operation's,
+never the attempt's own `reclaim:` row key, which `history` lists (`STO-6`, `STO-15`) — and
+`outcome ∈ claimed, not_claimable`: `claimed` when the
 wallet holds the contract's notes after the call, whether this call or an earlier one claimed
 them; `not_claimable` when the contract is expired or was consumed by another claimant. The
 call is idempotent — repeating it returns the same outcome and never claims twice — and every

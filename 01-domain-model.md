@@ -36,7 +36,8 @@ pinned federation is not in the auto-designated set.
 **DOM-5** An **operation** is the user-facing unit of activity, identified by its **operation
 key** (a correlation key, `STO-6`) and listed by `history` (`API-10`). Every operation has
 exactly one current ledger row (`STO-20`). Operation kinds: `join, recover, receive, pay,
-direct-inflow, move, evacuation, refusal, probe, tick, discover, autojoin, approve` (`STO-15`).
+direct-inflow, move, evacuation, refusal, probe, tick, discover, autojoin, approve, reclaim`
+(`STO-15`).
 
 **DOM-6** An **intent** is the durable record that drives an *executable* operation: the money
 verbs, `join` and `recover`. It carries an `Action` (`DOM-7`), an attempt counter, a status
