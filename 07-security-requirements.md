@@ -150,7 +150,8 @@ over-credit the wallet, and one that raises it cannot make it pay more than the 
 **SEC-9** No operation is admitted whose source cannot cover `amount + fee_cap` after
 reservations, and none whose destination would exceed the per-federation cap (`OPS-7`), except
 that an evacuation has no source check by design and is sized at perform time (`OPS-21`).
-There is no aggregate ceiling across federations (`F10`).
+Whether there is an aggregate ceiling across federations is open (`11-open-questions.md`,
+question 2); the set is silent on it.
 
 **SEC-13** A gateway that carries a move sees both legs and therefore learns the wallet's
 cross-federation movement pattern. The design prefers spreading across independent gateways and
@@ -184,7 +185,7 @@ the wallet.
 
 **SEC-18** The crash killpoints and the forced-shutdown seam are compiled under
 `debug_assertions` and read from the environment. A **release** build ignores
-`WALLET_CLI_CRASH_AT` and `WALLET_CLI_FORCE_SHUTDOWN`; a debug binary does not (`ALC-50`). The
+`WALLET_CLI_CRASH_AT` and `WALLET_CLI_FORCE_SHUTDOWN`; a debug binary does not. The
 smokes run debug binaries for exactly this reason; nothing deployed should. Those are the only
 gated seams. A release build still reads `WALLETD_PERFORM_TIMEOUT_SECS` and
 `WALLETD_SETTLEMENT_STALL_SECS`, both of which change money-path timing, and a value that does
