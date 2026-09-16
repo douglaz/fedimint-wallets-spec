@@ -199,13 +199,16 @@ by `docs/devimint-runbook.md` §1.
 - [ ] **CNF-45** A human reading of the four supersession money-path boundaries (`F26`).
 - [ ] **CNF-46** The browser sidecar's route manifest and live gate (`F27`).
 - [ ] **CNF-47** Seed at rest (`SEC-25`, `SEC-11`). *Given* a store holding the plaintext seed
-      and the key source available, *when* the wallet starts and is killed at each step of the
-      one-time re-encryption, *then* on every restart the slot holds exactly one form of the
-      same entropy — plaintext still, or encrypted — never neither, the wallet derives the same
-      root secret as before, and once the wallet serves on the encrypted form the plaintext
-      entropy appears in no file of the data directory. *Given* the
-      key source unavailable, *when* the wallet starts on that store or on an empty one, *then*
-      it refuses to start, the slot is unchanged and no seed is minted. *Given* the
+      and the key source available, *when* the wallet starts and is killed at each of three
+      boundaries of the one-time re-encryption — before the slot commit; after the commit
+      while the plaintext still sits in a superseded store file; after the store is clean but
+      before the wallet serves — *then* on the restart that follows each: the slot holds
+      exactly one form of the same entropy (plaintext after the first, encrypted after the
+      other two), never neither; the wallet completes the migration before it serves; it
+      derives the same root secret as before; and once it serves, the plaintext entropy
+      appears in no file of the data directory. *Given* the key source unavailable, *when* the
+      wallet starts on the plaintext store, on the re-encrypted store or on an empty one,
+      *then* it refuses to start, the slot is unchanged and no seed is minted. *Given* the
       re-encrypted store, *when* the build that predates `SEC-25` starts on it, *then* it fails
       to start and mints nothing.
 - [ ] **CNF-49** The readiness poller running from a schedule and paging on a transition (`F14`).
