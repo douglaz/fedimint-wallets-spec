@@ -52,9 +52,9 @@ accepts `0.0.0.0`. There is no TLS, so on any non-loopback bind the bearer token
 network in cleartext and a passive observer can replay it against every route — the only safe
 deployments are the loopback default or an authenticated tunnel in front of it (the runbook's
 posture); the daemon does not enforce either. There is no rate limiting, no CORS handling (`API-1`), and the daemon
-installs no request timeout, body limit or connection cap of its own — the JSON extractor's
-default body limit and the two handler deadlines (invoice mint, await long-poll) are the only
-bounds. An operator who binds beyond loopback has extended the trust boundary to the network with
+installs no request timeout or connection cap of its own — the 2 MiB request body limit
+(`API-35`) and the two request deadlines (invoice mint, `API-21`; await long-poll, `API-11`)
+are the only bounds. An operator who binds beyond loopback has extended the trust boundary to the network with
 a static bearer token. Two clients extend it further on their own: `wallet-cli` sends the token to
 whatever URL its pointer file or `--url` names, with no loopback or scheme check (the check
 `SEC-22` describes exists only in `wallet-web`), and `ops/walletd-watch.py` accepts the token
@@ -78,8 +78,8 @@ when it is absent; an existing directory keeps whatever mode it has and is only 
 **SEC-6** Nothing in the daemon, server or handler code logs the token, the seed, a full invoice,
 or a password. The one deliberate exception is `walletd mnemonic`, which prints the seed to stdout
 while the daemon is stopped. Three edges sit outside that claim: a storage fault is returned to
-the HTTP caller as a 500 whose message is the engine error's debug rendering and can carry
-filesystem paths (`API-37`); `wallet-web` logs its `daemon_url`, `public_origin` and `token_path`
+the HTTP caller as a 500 whose message is the storage fault's error text verbatim and can carry
+filesystem paths (`API-37` owns that body); `wallet-web` logs its `daemon_url`, `public_origin` and `token_path`
 at `info` on startup; and `wallet-cli pay <invoice>` takes the BOLT11 on the command line, where a
 process listing or shell history can read it, while the mnemonic path deliberately refuses
 arguments. `RUST_LOG` is honoured unconditionally by all three binaries, so what the SDK logs is
