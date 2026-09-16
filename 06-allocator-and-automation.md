@@ -29,7 +29,8 @@ one of the three is written (`ALC-34`) and reported (`ALC-44`), and producing th
 NOT change the first. The snapshot carries: the joined, open federations whose light probe
 succeeded (`FMI-25`) in **ascending `FederationId`** order, byte-lexicographic over the 32
 bytes, each with its `spendable` balance (`FMI-27`), whether it is probed, its `shutdown_notice`
-and `healthy` facts (`FMI-26`, `FMI-25`) and its `eligible_to_fund` (`ALC-15`); the designated
+(`FMI-26`), its `healthy` flag — `FMI-25`'s `quorum_live`, the threshold read that succeeded —
+and its `eligible_to_fund` (`ALC-15`); the designated
 spending and standby federations (`ALC-16`); from the stored `Policy` (`STO-13`) `per_fed_cap`,
 `spending_target`, `standby_target`, `max_fee_bps_of_move`, the evacuation cap components
 (`ALC-20`) and the two pins; `min_move`, the lnv2 minimum incoming contract of 5 000 msat
@@ -45,11 +46,10 @@ occurrence, not the time, is a decision's epoch.
 tick, `GET /v1/status`, and the standalone `tick`, `status` and `probe` verbs — MUST run under
 the stored `Policy` (`STO-13`, `OVR-8`): its targets and caps, its probe amount and leg fee cap
 (`max_fee`, `DOM-15`), its probe budget and its cadences. A one-shot standalone verb MAY apply
-flag overrides to those values for that invocation; an override MUST be validated as a stored
-policy is (`API-20`) and MUST NOT be persisted (`OPS-7`, `HST-10`). No compile-time or test
-default MAY govern a planning, probing or money path, and the active-probe verdict (`ALC-25`)
-MUST be computed under the stored `probe_amount` and `max_fee`, so an attempt made through any
-entry point qualifies on the same terms.
+flag overrides to those values for that invocation under `OPS-7`'s rule — an override "MUST be
+validated and MUST NOT be persisted" (`HST-10` lists the flags). The active-probe verdict
+(`ALC-25`) MUST be computed under the stored `probe_amount` and `max_fee`, so an attempt made
+through any entry point qualifies on the same terms.
 
 **ALC-4** The procedure, in order:
 
@@ -123,8 +123,9 @@ and `Evacuate` deliveries into the target (`OPS-9`); an external `Receive` or `D
 flight does not reduce the shortfall.
 
 **ALC-7** A funding move's fee cap is **proportional**: `move_fee_cap(amount, bps) = floor(amount
-× max_fee_bps_of_move / 10 000)` in 128-bit arithmetic, stamped on the `Move` (`DEF-1`). The
-policy rejects `0` and values above 10 000 (`API-20`).
+× max_fee_bps_of_move / 10 000)` in 128-bit arithmetic, stamped on the `Move` (`DEF-1`). A
+`max_fee_bps_of_move` of `0` or above 10 000 is an invalid policy (`DOM-15`); this rule owns
+that range.
 
 **ALC-8** Sizing reserves `amount + cap(amount)` from the source, never a flat cap:
 `max_fundable(budget, bps) = ((budget + 1) × 10 000 − 1) / (10 000 + bps)` in 128-bit
@@ -137,15 +138,14 @@ evacuation amount; an evacuation destination needs `cap_room > 0`; a federation 
 cap gets the advisory refusal of `ALC-4`; `want > cap_room` gets an `OverCap` refusal with
 figures. The cap is re-checked with fresh balances at commit (`ALC-53`, `OPS-7`) and again
 before minting (`OPS-22`). The allocator moves balance between federations and never raises the
-wallet's total; whether that total is capped is a product question nobody has answered
-(`11-open-questions.md`, question 2), and this set is silent on it.
+wallet's total; whether that total is capped is open (`11-open-questions.md`, question 2).
 
 ## Route economics
 
 **ALC-10** The funding floor is `max(route.min_viable_amount, min_move)` when the pair is
 `Routable`, else `min_move`. `Unroutable` and `UneconomicAtAnySize` force the amount to zero. A
-shortfall below the floor is **deferred**, not refused, with `floor_source = RouteMinViable` iff
-`floor > min_move`, else `ProtocolMinMove`; a shortfall at or above the floor whose clamped
+shortfall below the floor is **deferred**, not refused, with `floor_source = route_min_viable`
+iff `floor > min_move`, else `protocol_min_move` (`API-15`); a shortfall at or above the floor whose clamped
 amount falls below it is zeroed and **refused** (the crumb rule, `ALC-5`). Over-blocking
 self-heals as the shortfall grows, while under-blocking churns forever, so the floor is an
 explicit upper bound on what may be withheld and MUST be recomputed every tick, never cached. A
@@ -236,9 +236,11 @@ policy-tunable). Discovery applies the same floor (`ALC-28`).
 light probe, which spends nothing (`DOM-14`): the floor is `ALC-14`, `quorum_live` is `FMI-25`'s
 threshold read, and `gateway_available` is true when some gateway on the federation's vetted
 list serves it (`FMI-14`; an empty list is a valid list, `FMI-10`). No reputation, rating or
-third-party prior is an input to eligibility: no requirement in this set produces one (`FMI-28`:
-"nothing the Observer says is load-bearing"; `FMI-43`), so the `LowReputation` reason
-(`DOM-11`, `ALC-51`) is persisted vocabulary that no requirement in this set emits. The
+third-party prior is an input to eligibility or rank: `ADR-0017` and `ADR-0020` permit such an
+input only to demote ("may rank or demote among already-probe-passed federations; it may NEVER
+fund or block"), and no requirement in this set produces one (`FMI-28`: "nothing the Observer
+says is load-bearing"; `FMI-43`), so the `LowReputation` reason (`DOM-11`, `ALC-51`) is
+persisted vocabulary that no requirement in this set emits. The
 snapshot's final eligibility is `(eligible_to_fund || pinned) && probe_gate_ok` (`ALC-37`,
 `DOM-3`): a pin overrides the scorer; nothing overrides the probe gate.
 
@@ -271,27 +273,26 @@ delivered net (`OPS-21`). `CNF-14` and `CNF-20` demonstrate the drain.
 **ALC-18** Route economics MUST NOT gate an evacuation: no `min_move`, no route status, no fee
 pre-reservation on the source (`DEF-3`), and no requirement that a gateway serve both ends. A
 dying federation is drained even when the route prices badly; the cap, not the floor, is the
-backstop. When no shared gateway serves the attempt the evacuation MUST fall through to a
-**hop** over two gateways on different Lightning nodes, each leg chosen from its own
-federation's vetted list (`OVR-13`; `ADR-0029`: "swap first, hop only when no shared gateway
-serves THIS attempt"), at fresh sizing inside the same attempt (`FMI-14`, `OPS-21`); the
-allocator therefore emits the evacuation whenever a destination exists (`ALC-17`), and the
-route-revision loop's preference for a destination with a shared gateway (`ALC-32`) MUST never
-suppress it.
+backstop. `OVR-13` owns the fall-through — "when no gateway serves both federations, an
+evacuation MUST fall through to a hop over two gateways on different Lightning nodes, each leg
+chosen from its own federation's vetted list" — and `FMI-14` and `OPS-21` place it at fresh
+sizing inside the same attempt; what this rule adds is the allocator's half: the evacuation is
+emitted whenever a destination exists (`ALC-17`), and the route-revision loop's preference for
+a destination with a shared gateway (`ALC-32`) MUST never suppress it.
 
-**ALC-19** Two leads, distinct by name. The **trigger lead** is 24 hours: a corroborated expiry
-within it schedules an evacuation (`FMI-26`, which owns the corroboration rule and the
-combination of signals). It is a constant of the wallet, not a policy parameter. The **wake
-lead** is the runtime-mutable `Policy.evacuation_lead_secs` (default one hour, `STO-13`): the
+**ALC-19** Two leads, distinct by name. The **trigger lead** is 24 hours — this rule owns the
+number; `FMI-26` owns the corroboration rule and the combination of signals that schedules an
+evacuation within it. It is a constant of the wallet, not a policy parameter. The **wake
+lead** is the runtime-mutable `Policy.evacuation_lead_secs` (`STO-13`): the
 scheduler sleeps until `expiry − wake lead` and, once inside that window, re-wakes every
 `min(min_interval, expiry − now)` — at the minimum interval, but never past the expiry itself
 (`ALC-39`). The wake lead never triggers an evacuation, and the trigger lead never governs
 the sleep.
 
 **ALC-20** The evacuation cap is `EvacFeeCap {base_msat, bps}.at(net) = base + floor(net × bps /
-10 000)`, computed in 128-bit arithmetic and saturated to `u64` (`DOM-19`). Defaults 200 000
-msat and 300 bps. Policy rejects `bps` above 10 000 and the pair `(0, 0)`; `bps = 0` alone (a
-base-only cap) is legal (`DEF-3`).
+10 000)`, computed in 128-bit arithmetic and saturated to `u64` (`DOM-19`); the defaults are
+`STO-13`'s. A `bps` above 10 000, or the pair `(0, 0)`, is an invalid policy (`DOM-15`; this
+rule owns the range); `bps = 0` alone (a base-only cap) is legal (`DEF-3`).
 
 **ALC-21** Every enforced evacuation cap is computed from the **delivered net** — `invoice −
 receive_quote`, what the destination is actually credited — never from the sized ask
@@ -327,17 +328,17 @@ evidence**).
 ## Probes and discovery
 
 **ALC-25** The active-probe **verdict** (`DOM-13`) over a candidate's `attempts` (`STO-26`), a
-source federation, `now` and the stored policy (`ALC-3`): no attempts → `NeverProbed`; sort by
-`at_ms` (stable); the window is the attempts with `now − at_ms ≤ ttl` (`probe_ttl_secs`, 7
-days; the boundary is in-window); an empty window → `Expired` if any attempt ever qualified,
+source federation, `now` and the stored policy (`ALC-3`; the defaults are `STO-13`'s): no
+attempts → `NeverProbed`; sort by `at_ms` (stable); the window is the attempts with `now −
+at_ms ≤ ttl` (`probe_ttl_secs`; the boundary is in-window); an empty window → `Expired` if any attempt ever qualified,
 else `NeverProbed`; the suffix is the successes strictly after the most recent in-window
 failure; an empty suffix → `FailedSinceLastPass` if any contiguous success run before that
 failure qualifies (count and span), else `Failed`; **qualifying** = `ok && same source &&
 amount_msat ≥ probe_amount && leg_fee_cap_msat ≤ max_fee`; `Passed` iff the qualifying suffix
-holds `≥ probe_min_successes` (3) and `newest.at_ms − oldest.at_ms ≥ probe_min_span_secs`
-(24 h), else `Insufficient`. Failures count regardless of source; successes only from the same
-source. The verdict is computed, never stored (`STO-27`), over the retained history, which
-`STO-26` prunes on every outcome write.
+holds `≥ probe_min_successes` and `newest.at_ms − oldest.at_ms ≥ probe_min_span_secs`, else
+`Insufficient`. Failures count regardless of source; successes only from the same source. The
+verdict is computed, never stored (`DOM-13`), over the retained history, which `STO-26` prunes
+on every outcome write.
 
 **ALC-26** Two budget checks guard a probe, both over the rolling 7-day window measured from a
 row's `max(created_at_ms, updated_at_ms)`:
@@ -345,10 +346,9 @@ row's `max(created_at_ms, updated_at_ms)`:
 - The scheduler's **pre-filter**: `attempts < max_probe_attempts_per_week && spend <
   max_probe_spend_per_week`, counting agent `Probe` rows with a recorded `cost_msat`; its reset
   time is the earliest such row's effective time + 7 d. A fresh probe that fails it is skipped
-  with a `watch-probe-skip:<candidate>:<spending>:<amount>:<bucket>` row (`STO-6`; `bucket` =
-  the reset time, or `floor(now / 7 d) × 7 d` when no costed row exists) written `Started` then
-  `Failed` under `StandingInstruction` with the reason as its `error`, and the deadline wakes at
-  the reset (`ALC-52`).
+  with a `watch-probe-skip:<candidate>:<spending>:<amount>:<bucket>` row (`STO-6` owns the
+  shape and the `bucket` encoding) written `Started` then `Failed` under `StandingInstruction`
+  with the reason as its `error`, and the deadline wakes at the reset (`ALC-52`).
 - The **admission check**, which is what refuses (`OPS-39`: `budget_exhausted`): with
   `reservation(a, c) = max(a + c, 2 × c)` for an amount `a` and leg cap `c`, entries retained
   while `active || age < 7 d`, `attempts` = costed entries, `active` = uncosted non-terminal
@@ -461,9 +461,9 @@ re-scan is what is load-bearing (`OPS-13`, `ADR-0031`).
 **ALC-32** A resident host's tick has two halves: **planning**, which performs network IO and
 writes nothing but the tick row (`ALC-34`), and **commit**, which admits the planned batch
 through the admission point (`OPS-11`, `OPS-13`) and performs no network IO. Planning, in
-order: build the snapshot twice — a preliminary pass with no active-probe verdicts to pick the
-spending federation, then with every probe-gated member's verdict evaluated against that source
-(the spending federation itself omitted); project reservations (`ALC-35`); price routes
+order: build the snapshot, with every probe-gated member's verdict (`ALC-25`) evaluated against
+the spending federation the same facts designate before any verdict is applied (the spending
+federation itself is not verdict-gated); project reservations (`ALC-35`); price routes
 (`ALC-13`), then drop from the snapshot any pair this plan has invalidated (below); decide
 (`ALC-1`); then the **route-revision loop**:
 
@@ -544,7 +544,7 @@ plan.
 
 **ALC-36** The standalone tick (`OPS-12`, `HST-9`), in order: refuse an occurrence equal to the
 largest representable value (`DOM-16`); record the occurrence as the floor (`STO-12`); open the
-tick row; plan with the same planner (`ALC-32`); refuse a plan carrying both a replacement and
+tick row; plan as `ALC-32` plans; refuse a plan carrying both a replacement and
 a marker disposition (`Failed` row); re-scan the live intents for blockers and write
 `tick-drop` rows for newly suppressed decisions (`ALC-34`); validate the pins (bail with a
 `Failed` tick row); **bail** with a `Failed` row if any executable decision's key already maps
@@ -564,8 +564,8 @@ cycle in a loop, a wake-driven host runs it once per wake (`OVR-10`).
    intent (`OPS-14`): once per cycle, with one exception — a re-drive requested while a driver
    owns the key is honoured by that driver when it leaves the intent `Pending` at the same
    attempt, without waiting for the cycle (`OPS-14`). The cycle interval is the sleep `ALC-39`
-   computes — at most `base_interval_secs` (600 s), at least `min_interval_secs` (30 s),
-   earlier on an expiry or probe deadline, a policy change, or an expiry wake.
+   computes — at most `base_interval_secs`, at least `min_interval_secs` (`STO-13`), earlier
+   on an expiry or probe deadline, a policy change, or an expiry wake.
 2. Ledger repair (`OPS-37`).
 3. List the federation registry (`STO-14`) — **fence A**: any skipped row → a recovery-only
    reconcile pass (**re-drive without planner**, `OPS-35`), and the cycle returns blocked
@@ -594,17 +594,21 @@ cycle in a loop, a wake-driven host runs it once per wake (`OVR-10`).
     a failed pass records `now` and clears the backlog).
 14. The deadlines (`ALC-52`, `ALC-39`).
 
-A **storage fault** at any step fails the cycle (`cycle_failed`, `ALC-45`). A federation or
-gateway fault from step 8 onward is warned and the cycle continues: a federation whose light
-probe errors is dropped for the cycle (`FMI-25`, `ALC-48`), a discovery source that fails is
-recorded (`ALC-28`). The cycle is a **noop** iff nothing failed, the reconcile was idle, zero
+A storage fault in the reconcile's scan (step 1 or 5; `OPS-35`: "a scan fault fails the pass"),
+the occurrence (step 6), the watch state, the policy, discovery or the deadlines fails the cycle
+(`cycle_failed`, `ALC-45`); so does a read fault in the watchdog or the sleep computation
+(`ALC-39`, `ALC-40`). A ledger-repair fault (step 2) and a federation or gateway fault from step
+8 onward are warned and the cycle continues: a federation whose light probe errors is dropped
+for the cycle (`FMI-25`, `ALC-48`), a discovery source that fails is recorded (`ALC-28`). The
+cycle is a **noop** iff nothing failed, the reconcile was idle, zero
 decisions were planned, the commit accepted and refused nothing, no probe was attempted and the
 discovery watch state is unchanged (`ALC-39`). `CNF-20` demonstrates the cycle end to end;
 `CNF-21` that a probe held in flight never delays a user verb (`OVR-3`).
 
 **ALC-39** The sleep after a cycle, all in ms: `discover_delay = min_interval` when the discovery
 backlog is set, else `last_discover + discover_every − now` (saturating); `routine =
-clamp(min(base, discover_delay), min_interval, base)` (defaults 600 s / 30 s / 6 h). Each expiry
+clamp(min(base, discover_delay), min_interval, base)` (`base_interval_secs`,
+`min_interval_secs`, `discover_every_secs`; `STO-13`). Each expiry
 deadline yields `evac_point = expiry − wake lead` (`ALC-19`): `evac_point − now` when that is
 positive, else `min(min_interval, expiry − now)`. Each probe deadline yields `max(due − now,
 1 000)` (the busy-spin floor). The sleep is `routine` capped by the minimum of every expiry and
@@ -631,20 +635,21 @@ is its artifact; it writes no ledger row. A journal or record read fault disarms
 for that cycle only and is reported as a cycle fault (`ALC-48`).
 
 **ALC-41** `PUT /v1/policy` (`API-20`) validates, stores, applies the new caps to every later
-sizing, bumps the policy generation (`STO-27`) and the probe-policy version, and wakes the
-scheduler at once (`ALC-39`). A round planned under the old generation MUST be refused whole at
+sizing, bumps the policy generation (`STO-27`) and wakes the scheduler at once (`ALC-39`). A
+round planned under the old generation MUST be refused whole at
 commit (`OPS-11`: `policy_superseded`) and its tick row terminalized `Failed`; a fresh probe
 planned under the old snapshot MUST be refused the same way.
 
-**ALC-42** Shutdown aborts the cycle at its next await point; a scheduler that stops or panics
-MUST be fatal to the host (`HST-7`), and the host's liveness flag `scheduler_alive` (`API-16`)
-MUST read `false` from then on.
+**ALC-42** Once shutdown begins the cycle issues no further request to any federation or
+gateway and admits no further agent work (`HST-7` owns the sequence); a scheduler that stops
+for any other reason MUST be fatal to the host, and the host's liveness flag `scheduler_alive`
+(`API-16`) MUST read `false` from then on.
 
-**ALC-43** The occurrence floor: `WatchState.occurrence` is raised in the same transaction as
-every agent ledger append (`STO-21`), seeded from the ledger when absent (`STO-23`), advanced by
-a checked increment, and rejected at the largest representable value before any write
-(`STO-12`). No admission path MAY leave it below the highest agent occurrence the ledger holds
-(`DOM-16`).
+**ALC-43** The occurrence floor is `DOM-16`'s ("never decreases, is raised in the same
+transaction as any agent ledger append (`STO-21`), and is fail-closed at the largest
+representable value"), seeded from the ledger when absent (`STO-23`). What this chapter adds:
+no admission path this chapter describes — the tick commit, the standalone tick, a probe leg
+— MAY leave it below the highest agent occurrence the ledger holds.
 
 **ALC-44** `GET /v1/status` (`API-15`) and the standalone `status` verb run the planner dry
 against the stored policy at `occurrence + 1`: routes are priced and the concrete preflight runs
@@ -662,11 +667,11 @@ for a floor-deferred shortfall.
 the cycle sleeps (`DEF-9`), and `automation_ready` on `/v1/health` is its negation (`API-16`).
 The reasons: `corrupt_federation_registry` (fence A, with the skipped-row count as the detail),
 `partial_federation_view` (fence B, naming the unopened federations), and `cycle_failed` for
-every other skip — a cycle error, the occurrence overflow (`ALC-33`), a storage fault at any
-step (`ALC-38`), a tick row that could not be opened, or planning the reconcile did not
-authorize (`ALC-47`) — with a detail naming the step. A cycle that plans and commits MUST
-publish `automation_blocked: None`. Liveness is not readiness: `scheduler_alive` MUST NOT be
-read as `automation_ready` (`CNF-49`).
+every other skip — a cycle error, the occurrence overflow (`ALC-33`), a storage fault `ALC-38`
+names, a tick row that could not be opened, or planning the reconcile did not authorize
+(`ALC-47`) — with a detail naming the step. A cycle that plans and commits MUST publish
+`automation_blocked: None`. Liveness is not readiness: `scheduler_alive` MUST NOT be read as
+`automation_ready`.
 
 **ALC-46** Three planning surfaces MUST refuse a partial or corrupt world rather than plan from
 the healthy subset: the scheduler (fences A and B, `ALC-38`), `GET /v1/status` (503 before the
@@ -677,28 +682,30 @@ not an absent federation: its funds may be part of the world the allocator would
 
 **ALC-47** When the planner's reconcile pass (`ALC-38` step 5) does not authorize planning, the
 cycle MUST run as a **non-money** cycle: no tick row, no route pricing, no commit and no fresh
-probe, while ledger repair, retained probe sessions, discovery and the deadlines still run. The
-cycle MUST report it — `automation_blocked {cycle_failed, detail}` (`ALC-45`) — and MUST NOT
-publish `automation_blocked: None`: a wallet that skips its whole automated cycle every pass is
-not ready, and a warning in a log is not a signal (`DEF-9`, `CNF-50`).
+probe, while ledger repair, retained probe sessions, discovery and the deadlines still run. It
+is a planning skip, and `ALC-45` applies to it — reason `cycle_failed`, the detail naming the
+reconcile — because a wallet that skips its whole automated cycle every pass is not ready, and a
+warning in a log is not a signal (`DEF-9`).
 
 **ALC-48** A wallet MUST NOT withhold agent work silently. Every path on which it declines work
 it would otherwise have done in a cycle MUST be observable at a boundary, as follows:
 
 | Withheld | Observable |
 |---|---|
-| planning skipped for any reason — the fences, an unauthorized plan (`ALC-47`), the occurrence overflow, a tick row that could not be opened, a storage fault at any step, a designation that could not be computed | `automation_blocked` with its reason and detail (`ALC-45`); a tick whose row could not be opened MUST NOT plan |
+| planning skipped for any reason — the fences, an unauthorized plan (`ALC-47`), the occurrence overflow, a tick row that could not be opened, a storage fault `ALC-38` names, a designation that could not be computed | `automation_blocked` with its reason and detail (`ALC-45`); a tick whose row could not be opened MUST NOT plan |
 | a fresh probe not admitted — the budget pre-filter, a refusal at admission (the budget exhausted or unreadable, `ALC-26`), or no source because the designation failed | the `watch-probe-skip:<candidate>:<spending>:<amount>:<bucket>` row of `ALC-26`, `Started` then `Failed`, whose `error` names the cause; a probe the admission check refused is not retried before `retry_backoff` (`ALC-52`) |
-| a federation dropped from the snapshot because its light probe errored (`FMI-25`), and therefore neither scored, funded nor evacuated that tick | a `Refusal` row keyed `refuse:unhealthy:<fed>:<occurrence>` (`STO-6`), reason `Unhealthy`, status `Succeeded`, diagnostics default, `error` = the probe error |
+| a federation dropped from the snapshot because its light probe errored (`FMI-25`), and therefore neither scored, funded nor evacuated that tick | in a cycle that plans: a `Refusal` row keyed `refuse:unhealthy:<fed>:<occurrence>` (`STO-6`), reason `Unhealthy`, status `Succeeded`, diagnostics default, `error` beginning `light probe failed: ` followed by the error — the prefix is what tells this row from `ALC-17`'s no-destination refusal under the same key shape; a non-money cycle reports through `ALC-47` instead |
 | a candidate whose candidate or probe record is unreadable, gated fail-closed (`ALC-37`) | `status` `scored[].gated_eligible = false` (`ALC-44`), and the `NotProbed` refusal row whenever funding it was wanted (`ALC-5`) |
 | a destination marked unavailable inside one plan (`ALC-32`) | the re-planned round's refusal rows for that destination; the mark MUST NOT outlive the plan, so the next cycle re-tests the route |
 | the settlement-stall watchdog disarmed by a read fault (`ALC-40`) | `automation_blocked {cycle_failed}` for that cycle |
 
 **ALC-49** The light probe runs **once** per federation per cycle (`ALC-38` step 8): one
-threshold read, one gateway validation pass and one read of the shutdown signals per
-federation, whose facts planning, designation and the deadlines all reuse. Only balances are
-re-read before commit (`ALC-53`), because commit requires them fresh (`OPS-11`); a second
-threshold read or gateway validation in the same cycle is not permitted.
+threshold read, one pass over the vetted list for `gateway_available` and one read of the
+shutdown signals per federation, whose facts planning, designation and the deadlines all
+reuse. Only balances are re-read before commit (`ALC-53`), because commit requires them fresh
+(`OPS-11`); a second light probe of the same federation in the same cycle is not permitted. The
+`routing_info` reads of route pricing (`ALC-13`), the preflight (`ALC-32`) and the active
+probe (`ALC-27`) are not light probes and are bounded by their own budgets.
 
 **ALC-51** The `<reason>` component of the `refuse:` and `conflict-suppressed:` key shapes in
 `STO-6` is the **tag** of the `ReasonCode` (`DOM-11`); this rule owns that mapping, and the wire
