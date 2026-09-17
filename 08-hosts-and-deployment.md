@@ -165,7 +165,9 @@ that is then held until both stores are closed (`STO-2`) — the probe is the ac
 check released before the open; contention MUST exit 1 with `another process owns the wallet
 store (walletd?); stop it, or use client mode (drop --standalone)` before an existing
 directory's mode or anything else is touched, never an indefinite wait (`HST-29`). Holding the
-lock, it asserts the directory `0700` (`HST-19`) and opens the stores.
+lock, it asserts the directory `0700` (`HST-19`), verifies that `client.db.lock` still names
+the inode it locked — a directory that was writable by another user until that moment could
+have had the entry replaced — failing otherwise (`HST-29`), and opens the stores.
 
 **HST-10** The standalone-only verb shapes and flags are the set `API-25` enumerates (client
 mode refuses exactly those with exit 1). The break-glass `--gateway` (`ADR-0030` owns its
@@ -207,7 +209,8 @@ configuration, and `HST-31` its request-time surface.
 `--session-idle-timeout` (default `4h`), `--session-absolute-timeout` (default `24h`), and the
 global `--config` (default `$XDG_CONFIG_HOME/wallet-web/wallet-web.toml`, else
 `~/.config/wallet-web/wallet-web.toml`). It MUST refuse to run if the config file already
-exists (`sidecar config <path> already exists; …`), checked before any prompt: rotating the
+exists (`sidecar config <path> already exists; …`), checked before any prompt, and if
+`--config` and `--token-path` resolve to the same file (`HST-29`): rotating the
 password is delete-then-init. It MUST prompt for the password twice on the controlling
 terminal with echo disabled, never read it from stdin or an argument (`SEC-6`); the two
 entries MUST match, and a mismatch or an abort at the prompt MUST exit non-zero with nothing
