@@ -279,7 +279,9 @@ the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment): each su
 be exposed under the sidecar's own `/v1/` prefix with the daemon's path, query string, method, status
 code, request and response bodies unchanged (`04-api-contract.md`), the sidecar swapping the session
 for the bearer token, forwarding the request's `Content-Type` (`API-35` requires it), the
-response's `Content-Type` and `Allow` (`API-5`'s `405` carries it), and nothing else, and answering `502` with no wallet data when
+response's `Content-Type` and `Allow` (`API-5`'s `405` carries it), and nothing else, and
+setting `Cache-Control: no-store` on every response to an authenticated request, page or
+forwarded route, so a shared cache in front of the sidecar never replays wallet data, and answering `502` with no wallet data when
 it has no daemon response to forward (the token unreadable, the daemon unreachable, or its
 answer not received within 90 s, `API-25`'s client bound), and the HTML pages, on paths outside `/v1/`, are
 views over those forwarded routes and expose no wallet data the routes do not; verbs with no daemon
@@ -355,11 +357,12 @@ directory if missing, refuse one not owned by the running user (`HST-29`; a mode
 re-asserted, an owner cannot), and re-assert `0700` on it at the start of `serve`, `init` and
 `restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is
 re-tightened by the next start (the directory's own existence and mode hold no wallet content
-and are not a write in `SEC-11`'s "MUST write nothing on any failure"); the standalone process asserts it likewise (`HST-9`); the daemon's config directories — the actual parent of `walletd.toml` and the actual parent
-of `client.toml`, one directory or two when `--config` points elsewhere — are created `0700`
-by `init` when missing and MUST, at every start of `init` and serve (the commands that write
-or read the pointer, `HST-4`, `HST-33`) and at every client-mode CLI invocation that reads it,
-each be owned by the running user and writable by no other, else the command fails (`HST-29`) — a
+and are not a write in `SEC-11`'s "MUST write nothing on any failure"); the standalone process asserts it likewise (`HST-9`); the daemon's config directories — the actual parent of `walletd.toml`, checked at the start
+of every subcommand, and the actual parent of `client.toml`, checked at the start of `init`
+and serve (the commands that write or read the pointer, `HST-4`, `HST-33`) and at every
+client-mode CLI invocation that reads it; one directory or two when `--config` points
+elsewhere — are created `0700` by `init` when missing and MUST each be owned by the running
+user and writable by no other, else the command fails (`HST-29`) — a
 writable directory lets another user replace the pointer whatever the file's own mode;
 `wallet-web init` creates a missing config directory `0700` and leaves an existing one's mode
 alone (`HST-26`). Nothing changes the mode of the stores' own files.
