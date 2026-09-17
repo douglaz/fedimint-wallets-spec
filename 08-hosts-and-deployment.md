@@ -208,7 +208,12 @@ balance"); `/healthz` answers `200` with the JSON object `{"sidecar_alive": true
 "daemon_reachable": <bool>}` — exactly those two keys, `daemon_reachable` `true` only when
 `GET /v1/health` on `daemon_url` answered `200` with the configured token — and no wallet
 data; the daemon check behind `daemon_reachable` is bounded by 5 s in total, and a check
-that has not answered by then reports `false`. Login verifies the password against the stored hash in constant time and MUST be
+that has not answered by then reports `false`. `POST /login` takes an
+`application/x-www-form-urlencoded` body with the one field `password`; a body of any other
+type, or without that field, is `400` and is not an attempt. Login verifies the password against
+the stored hash in constant time; a wrong password is `401`, re-rendering the login page with no
+hint beyond that the login failed, and is one failed attempt; a correct one answers `303` to
+`/` with the session cookie `session` (its attributes below). Login MUST be
 rate-limited (`ADR-0028`: "Rate limiting is required, not optional"): after 5 consecutive
 failed attempts the sidecar MUST answer every login attempt `429` for the next 60 s, counted
 across the whole listener — behind the reverse proxy `ADR-0028` contemplates every request
@@ -218,8 +223,8 @@ password is read, and does not count as an attempt. A session is an opaque token
 source with at least 256 bits of entropy (the bar `SEC-2` sets for the bearer token), held in
 memory only — no signing key at rest,
 no session survives a restart, so restarting the sidecar is the one "revoke all sessions" —
-carried by an `HttpOnly`, `SameSite=Strict`, host-only cookie whose `Secure` flag is set
-exactly when `public_origin`'s scheme is `https`. A session expires after the configured idle
+carried by the `HttpOnly`, `SameSite=Strict`, host-only, `Path=/` cookie `session`, whose
+`Secure` flag is set exactly when `public_origin`'s scheme is `https`. A session expires after the configured idle
 timeout without a non-polling request, and unconditionally at the absolute timeout; a
 polling request — one the page issues on its own timer rather than on a user action, which
 the page marks with the request header `X-Polling: 1`, and which the sidecar classifies by that
