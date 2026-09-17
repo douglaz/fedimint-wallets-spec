@@ -54,7 +54,7 @@ either path is resolved, so a link cannot place one file in two stores, and a di
 rather than any descendant, so a store nested inside another's directory cannot share its
 token — so the token file belongs to exactly one store and its rotation is serialised by that
 store's lock (`HST-4`, `HST-33`) — and MUST NOT name `client.db`, `client.db.lock`,
-`journal.db` (`HST-21`) or the config or pointer file, so a token write can never replace a
+`journal.db` (`HST-21`), the config or pointer file, or `client.toml.lock` (`HST-4`), so a token write can never replace a
 store, lock or configuration entry; a path
 elsewhere fails startup (`HST-29`). `address`
 is not validated: a bare IPv6 literal is bracketed wherever it is rendered into a URL or a
@@ -71,8 +71,9 @@ and, because two stores may share a config home, it MUST also hold an exclusive 
 stores serialise on the pointer too;
 write every config key back canonicalised; seed the default policy row if absent (`STO-13`); mint and write the token `0600`
 (`API-3`); and write the CLI's pointer file `client.toml` `{url, token_path}` under the config
-home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve fails it with nothing
-written (`HST-29`). It prints six stdout lines: `initialized walletd`, then `  host config:`,
+home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve, or a host config path that resolves to the pointer's own path, fails
+it with nothing written (`HST-29`) — the two files have different schemas and cannot share an
+entry. It prints six stdout lines: `initialized walletd`, then `  host config:`,
 `  data dir:`, `  token (0600):`, `  client pointer:`, `  api url:` each followed by the
 resolved value.
 Token path precedence, for every subcommand, is `WALLETD_TOKEN_PATH` (when set and non-empty)
