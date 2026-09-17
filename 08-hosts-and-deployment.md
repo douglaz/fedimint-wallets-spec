@@ -44,7 +44,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 |---|---|
 | `data_dir` | `$XDG_DATA_HOME/walletd`, else `~/.local/share/walletd` |
 | `address` | `127.0.0.1` |
-| `port` | `9736` |
+| `port` | `9736`; 1 to 65535, `0` failing startup (`HST-29`) — an ephemeral port is one no pointer can name |
 | `token_path` | env `WALLETD_TOKEN_PATH`, else the key, else `<data_dir>/token` |
 | `log_level` | `info`; one of the five bare levels the `RUST_LOG` row of `HST-2` orders, with the same threshold meaning, anything else failing startup (`HST-29`); `RUST_LOG` overrides it |
 
