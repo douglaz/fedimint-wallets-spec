@@ -195,8 +195,8 @@ one whose authenticated config carries the announced id and passes `ALC-14`'s st
 floor, and whose vetted list holds G, which serves it — and `auto_join` on, *when* a discovery pass runs, *then* the federation is discovered, previewed with
 the Sybil check, auto-joined and marked `AutoJoined`, with the discover, auto-join and agent join
 rows in `history`; *when* the operator pins it as standby in place of B and a tick runs, *then* it is refused
-funding with a `NotProbed` refusal row: a pin does not bypass the gate — A holding a surplus
-above its spending target that covers the shortfall plus its cap; *when*
+funding with a `NotProbed` refusal row: a pin does not bypass the gate — A holding, after the probes' fees, a surplus above its
+spending target that covers the shortfall plus its cap; *when*
 `probe_min_successes` probes have passed over `probe_min_span_secs` and a later tick runs,
 *then* that tick funds it. Demonstrates
 `ALC-28`, `ALC-29`, `ALC-37`, `FMI-28`, `SEC-16`, `OVR-5`.
@@ -291,7 +291,10 @@ appears in no file of the data directory. *Given* the key source unavailable, *w
 wallet starts on the plaintext store, on the re-encrypted store or on an empty one,
 *then* it refuses to start, the slot is unchanged and no seed is minted. *Given* the
 re-encrypted store, *when* the build that predates `SEC-25` starts on it, *then* it fails
-to start and mints nothing. Demonstrates `SEC-25`, `SEC-11`, `STO-4`.
+to start and mints nothing. *Given* the key source available, *when* the wallet first serves on
+an empty store, and separately when `restore-mnemonic` stores twelve words on one, *then* each
+slot is encrypted, the plaintext entropy appears in no file of the data directory, and
+`walletd mnemonic` exports the same twelve words from it. Demonstrates `SEC-25`, `SEC-11`, `STO-4`.
 
 ## Frontends
 
@@ -313,9 +316,10 @@ in mixed states, `candidates --state` prints only the selected state, newest fir
 gives it; the stdout of every
 verb whose shape `API-29` or `API-39` fixes is that shape — `health` printing all five fields of
 `API-16`, `status` rendering `deferred` and `suppressed`, `show` printing `fee_cap_msat`,
-`history --json` and `show --json` carrying `fee_cap`; and `policy set` of one field PUTs every
-key the GET returned, unchanged where no flag named it, and refuses as a usage error a flag for
-a field the GET did not return; and `reclaim <key>` on an operation whose incoming contract
+`history --json` and `show --json` carrying `fee_cap`; and `policy set` of each of the twenty-eight flags in turn PUTs every key the GET returned,
+unchanged where no flag named it, refuses as a usage error a flag for a field the GET did
+not return, a pin flag with its clear flag, a boolean flag without an explicit value, and a
+bps flag outside its range before any PUT; and `reclaim <key>` on an operation whose incoming contract
 reached a terminal non-claim prints the outcome and exits 0 on `claimed` and 3 on
 `not_claimable`, a repeat of the same `reclaim` returns the same outcome with the balance
 unchanged and one more `reclaim:` ledger row, while on any other operation it exits as
