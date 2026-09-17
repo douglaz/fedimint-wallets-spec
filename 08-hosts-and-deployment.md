@@ -358,7 +358,7 @@ re-asserted, an owner cannot), and re-assert `0700` on it at the start of `serve
 `restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is
 re-tightened by the next start (the directory's own existence and mode hold no wallet content
 and are not a write in `SEC-11`'s "MUST write nothing on any failure"); the standalone process asserts it likewise (`HST-9`); the daemon's config directories — the actual parent of `walletd.toml`, checked at the start
-of every subcommand, and the actual parent of `client.toml`, checked at the start of `init`
+of every subcommand and by a standalone invocation that consults the file (`HST-9`), and the actual parent of `client.toml`, checked at the start of `init`
 and serve (the commands that write or read the pointer, `HST-4`, `HST-33`) and at every
 client-mode CLI invocation that reads it; one directory or two when `--config` points
 elsewhere — are created `0700` by `init` when missing and MUST each be owned by the running
