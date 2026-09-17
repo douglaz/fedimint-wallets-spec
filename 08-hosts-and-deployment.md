@@ -72,7 +72,8 @@ stores serialise on the pointer too;
 write every config key back canonicalised; seed the default policy row if absent (`STO-13`); mint and write the token `0600`
 (`API-3`); and write the CLI's pointer file `client.toml` `{url, token_path}` under the config
 home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve, or a host config path that resolves to the pointer's own path, to
-either lock file (`client.db.lock`, `client.toml.lock`) or to a store entry (`HST-21`), fails
+either lock file (`client.db.lock`, `client.toml.lock`) or to a store entry or anything inside
+either store directory (`HST-21`), fails
 it with nothing written (`HST-29`) — a config write can never replace a pointer, lock or store
 entry. It prints six stdout lines: `initialized walletd`, then `  host config:`,
 `  data dir:`, `  token (0600):`, `  client pointer:`, `  api url:` each followed by the
@@ -222,8 +223,9 @@ writable by no one else.
 password_hash, session_idle_timeout, session_absolute_timeout, public_origin`, every one
 required; there is no bind-address key (the bind is `127.0.0.1`, `SEC-22`) and no log-level key
 (`RUST_LOG`, `HST-2`). Timeouts are the grammar `<unsigned integer><s|m|h>` (no sign); `0s` is accepted —
-immediate expiry is the fail-closed direction. Startup MUST refuse: a config file not owned by the
-running user or with any group or other permission bit; a config directory not owned by the running user or writable
+immediate expiry is the fail-closed direction. Startup MUST refuse: a config file that is not a regular
+file (a link included), not owned by the running user, or with any group or other permission
+bit; a config directory not owned by the running user or writable
 by another; a parse error (reported by position and message only — the offending line is
 never quoted, so the hash cannot reach a log, `SEC-6`); a missing, empty or malformed PHC
 hash; a hash that is not `argon2id`, does not declare `v=19`, has a salt under 16 bytes, has an
