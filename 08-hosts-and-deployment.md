@@ -75,7 +75,8 @@ write every config key back canonicalised; seed the default policy row if absent
 home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve, or a host config path that resolves to the pointer's own path, to
 either lock file (`client.db.lock`, `client.toml.lock`) or to a store entry or anything inside
 either store directory (`HST-21`), or a `data_dir` that equals, lies inside or contains the
-host config or pointer path, fails it with nothing written (`HST-29`) — a config write can never replace a pointer, lock or store
+host config path, the pointer path or the pointer lock path (`client.toml.lock`), fails it
+with nothing written (`HST-29`) — a config write can never replace a pointer, lock or store
 entry. It prints six stdout lines: `initialized walletd`, then `  host config:`,
 `  data dir:`, `  token (0600):`, `  client pointer:`, `  api url:` each followed by the
 resolved value.
