@@ -52,7 +52,7 @@ validating gateway paid a dearer route whenever it happened to be listed first.
 
 ## Liveness and suppression
 
-### DEF-6 — One federation's stuck work MUST NOT suppress decisions for another
+### DEF-6 — One federation's stuck work MUST NOT suppress an independent decision for another
 
 Suppression MUST be scoped to the allocator goal that conflicts with live work, never to a
 wallet-wide count (`ALC-30`): a stuck intent on federation A MUST NOT suppress an independent
