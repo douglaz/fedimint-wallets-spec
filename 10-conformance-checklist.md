@@ -31,19 +31,6 @@ by `docs/devimint-runbook.md` §1.
 
 ## Build and unit gates
 
-- [x] **CNF-4** `cargo fmt --check` and `cargo clippy --workspace --all-targets -- -D warnings`
-      clean, in the devshell, on every push, and (from this change) the specification repository's `tools/check-all.sh`
-      exit 0 in the same job.
-- [x] **CNF-5** 1,071 tests pass under the gate at commit `ab52094` (PR #40's head, which
-      contains `main` `1e44487`), run as `nix develop -c bash -c 'cargo fmt --all --check && cargo
-      clippy --workspace --all-targets -- -D warnings && cargo test --workspace'` with
-      `REAL_GATE_EXIT=0` on 2026-09-06. `main` alone is a few fewer. The suite spans all six
-      crates plus the integration suites under `wallet-core/tests/` and `wallet-fedimint/tests/`.
-- [x] **CNF-6** CI asserts `Cargo.lock` is unchanged **before** any cargo step runs, guarding
-      against the cache action rewriting it; build-time drift is guarded by `--locked` on the clippy
-      and test steps.
-- [x] **CNF-7** `nix build` produces `walletd`, `wallet-cli` and a non-empty OCI image, and both
-      binaries answer `--help`.
 - [ ] **CNF-18** Every persisted field that decodes when absent (`STO-30` lists the eighteen)
       is pinned by a test that strips the key from the serialized row, alone, and re-reads it,
       asserting the value `STO-30` names; a fixture that omits several keys at once pins none

@@ -247,9 +247,11 @@ was not credited" (`OPS-27`) stay in the journal unchanged by stranding and by e
 cycle; standalone `show <key>` (`API-30`) reads the operation record offline — the leg
 operation ids, the gateway, the error detail, and the timestamps that date the move's window —
 while the invoice and the preimage survive only in the move record (`STO-11`) and no verb is
-required to display them; and the destination federation's client state, which holds the funded contract `FMI-41` can
-still claim, stays in the client store, where a running daemon keeps transacting on it — which
-is why the operator's procedure begins with stopping the daemon. The data directory is then
+required to display them; and the destination federation's client state — what a re-claim (`FMI-41`) reads to learn
+whether the incoming contract is still funded and claimable or already consumed (`FMI-37`:
+after some failures its position is unknown) — stays in the client store, where a running
+daemon keeps transacting on it, which is why the operator's procedure begins with stopping the
+daemon. The data directory is then
 the whole of the evidence, and a copy of it run elsewhere is a second spender (`SEC-23`). The
 procedure itself — the runbook — is the code repository's.
 
