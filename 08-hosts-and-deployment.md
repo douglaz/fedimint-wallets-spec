@@ -292,7 +292,8 @@ stable storage; and what an interrupted earlier write left behind MUST NOT block
 plainly under the ambient umask (`SEC-5`). **Directories**: the daemon MUST create the data
 directory if missing and re-assert `0700` on it at the start of `serve`, `init` and
 `restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is
-re-tightened by the next start; the standalone process asserts it likewise (`HST-9`);
+re-tightened by the next start (the directory's own existence and mode hold no wallet content
+and are not a write in `SEC-11`'s "MUST write nothing on any failure"); the standalone process asserts it likewise (`HST-9`);
 `wallet-web init` creates a missing config directory `0700` and leaves an existing one's mode
 alone (`HST-26`). Nothing changes the mode of the stores' own files.
 
