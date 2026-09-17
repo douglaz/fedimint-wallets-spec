@@ -23,7 +23,7 @@ by `docs/devimint-runbook.md` §1.
       refusal is deterministic; the evacuation smoke does **not** yet discriminate the cap basis
       (`CNF-43`, unchecked below).
 - [x] **CNF-40** A runbook claim about what a procedure does is re-run from a clean shell before
-      it is called correct (`DEF-15`). The failure signature is recorded verbatim.
+      it is called correct. The failure signature is recorded verbatim.
 - [ ] **CNF-39** Every smoke header records its complete launch block and its last green run with
       the figures observed. As built only `smoke_evacuate_supersede_devimint.sh` does; the other
       sixteen carry a launch block and no run record, and their last green runs live in issue
@@ -178,7 +178,7 @@ by `docs/devimint-runbook.md` §1.
 - [ ] **CNF-43** The evacuation smoke discriminating the cap **basis**: its flat cap is far above
       the fee it asserts, so a return to sizing off `max_fee` would pass; and the delivered-net
       basis is unpinned at the pre-mint gate and the post-receive recompute because the test route
-      cannot produce `delivered ≠ ask` (`F22`, `F23`).
+      cannot produce `delivered ≠ ask` (`ALC-20`, `ALC-21`, `OPS-25`; `F22`, `F23`).
 - [ ] **CNF-45** A human reading of the four supersession money-path boundaries (`F26`).
 - [ ] **CNF-46** The browser sidecar's route manifest and live gate (`F27`).
 - [ ] **CNF-47** Seed at rest (`SEC-25`, `SEC-11`). *Given* a store holding the plaintext seed

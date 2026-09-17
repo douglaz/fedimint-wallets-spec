@@ -119,12 +119,12 @@ type embedded in one; a type is on that list because the wallet writes it, not b
 remembered to add it. A hand-maintained list that named the policy, the actions and the move
 records but not the ledger rows is how `DEF-10` shipped.
 
-### DEF-14 — A compare-and-swap write MUST NOT surface a write conflict to its caller
+### DEF-14 — A transient write conflict MUST NOT fail a guarded write
 
-A write whose guard is read inside its own transaction MUST be retried until it commits or its
-guard fails (`STO-8`); a plain write reports a conflict as `Retryable` and leaves the retry to
-its caller (`STO-7`). The recovery commit once lacked the retry every other guarded write had,
-so a transient conflict at the one moment a recovery becomes durable would have failed it.
+A write whose guard is read inside its own transaction MUST end either committed or with its
+guard found false, never failed for a write conflict (`STO-8`). The recovery commit once lacked
+the retry every other guarded write had, so a transient conflict at the one moment a recovery
+becomes durable would have failed the recovery.
 
 ## Federation clients and recovery
 
