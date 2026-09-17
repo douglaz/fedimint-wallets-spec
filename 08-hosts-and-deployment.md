@@ -61,7 +61,10 @@ bind string, and a hostname is resolved by the bind. Environment knobs are the t
 `0700`; take the lock and open both stores (`STO-2`: blocking while a resident host holds it, so
 the token is never rotated under a running daemon, `API-3`) — and hold it for every write that
 follows, the config file included, so two concurrent `init`s serialise as wholes and the
-config, token and pointer a daemon and a frontend later read were written by one of them;
+config, token and pointer a daemon and a frontend later read were written by one of them —
+and, because two stores may share a config home, it MUST also hold an exclusive lock on
+`client.toml.lock` beside the pointer for the whole of the same span, so `init`s of different
+stores serialise on the pointer too;
 write every config key back canonicalised; seed the default policy row if absent (`STO-13`); mint and write the token `0600`
 (`API-3`); and write the CLI's pointer file `client.toml` `{url, token_path}` under the config
 home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve fails it with nothing
@@ -340,10 +343,11 @@ frontend's token at an address of their choosing. **Directories**: the daemon MU
 directory if missing and re-assert `0700` on it at the start of `serve`, `init` and
 `restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is
 re-tightened by the next start (the directory's own existence and mode hold no wallet content
-and are not a write in `SEC-11`'s "MUST write nothing on any failure"); the standalone process asserts it likewise (`HST-9`); the daemon's config directory (the parent
-of `walletd.toml` and `client.toml`) is created `0700` by `init` when missing and MUST, at every
-start of any subcommand and at every client-mode CLI invocation that reads the pointer, be
-owned by the running user and writable by no other, else the command fails (`HST-29`) — a
+and are not a write in `SEC-11`'s "MUST write nothing on any failure"); the standalone process asserts it likewise (`HST-9`); the daemon's config directories — the actual parent of `walletd.toml` and the actual parent
+of `client.toml`, one directory or two when `--config` points elsewhere — are created `0700`
+by `init` when missing and MUST, at every
+start of any subcommand and at every client-mode CLI invocation that reads the pointer, each
+be owned by the running user and writable by no other, else the command fails (`HST-29`) — a
 writable directory lets another user replace the pointer whatever the file's own mode;
 `wallet-web init` creates a missing config directory `0700` and leaves an existing one's mode
 alone (`HST-26`). Nothing changes the mode of the stores' own files.
