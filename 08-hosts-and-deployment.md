@@ -214,7 +214,9 @@ no session survives a restart, so restarting the sidecar is the one "revoke all 
 carried by an `HttpOnly`, `SameSite=Strict`, host-only cookie whose `Secure` flag is set
 exactly when `public_origin`'s scheme is `https`. A session expires after the configured idle
 timeout without a non-polling request, and unconditionally at the absolute timeout; a
-polling request MUST NOT extend the idle timer. Every state-changing request MUST be refused
+polling request — one the page issues on its own timer rather than on a user action, which
+the page marks with the request header `X-Polling: 1`, and which the sidecar classifies by that
+header alone — MUST NOT extend the idle timer. Every state-changing request MUST be refused
 unless its `Origin` header equals `public_origin` (`HST-27`'s form); every one but
 `POST /login` — the request that creates the session, so it has no token yet — MUST also carry
 the session's CSRF token: a second value minted with the session from the same source and
