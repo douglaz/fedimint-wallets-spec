@@ -158,8 +158,9 @@ source, and the wallet holds exactly one executable evacuation for it. Demonstra
 
 ## The automated cycle
 
-**CNF-13** *Given* the environment with B below its standby target and A above its spending
-target by more than the shortfall plus `move_fee_cap(shortfall, bps)`, *when* one tick runs, *then* it probes, scores, snapshots,
+**CNF-13** *Given* the environment with B below its standby target by more than `ALC-10`'s
+funding floor for the route, and A above its spending target by more than that shortfall plus
+`move_fee_cap(shortfall, bps)`, *when* one tick runs, *then* it probes, scores, snapshots,
 decides and commits a funding `Move` from A into B sized to the shortfall and not over, chosen
 by the allocator and named by no one, carrying `ALC-7`'s proportional cap and not the flat
 `max_fee` — the two differing at that amount — with the `Tick` row opened before sensing
@@ -168,7 +169,8 @@ and terminalized after, as `ALC-34` requires, and B rises by the move's amount. 
 
 **CNF-20** *Given* the environment with `auto_join` on and a discovery source announcing a
 third federation **C** that passes `ALC-14`'s floor under its announced id and lists G, which
-serves it, on its vetted list, *when* the resident scheduler runs for as long as the policy's probe
+serves it, on its vetted list, and A holding, after the probes' fees, a surplus above its
+spending target that covers C's standby shortfall plus its cap, *when* the resident scheduler runs for as long as the policy's probe
 span requires and the operator's only action is to pin C as standby in place of B once C is
 joined, *then*, in order: C is auto-joined and probe-gated, and the pin does not bypass the
 gate; scheduled probes run on C until its verdict is `Passed`; an
@@ -191,7 +193,8 @@ one whose authenticated config carries the announced id and passes `ALC-14`'s st
 floor, and whose vetted list holds G, which serves it — and `auto_join` on, *when* a discovery pass runs, *then* the federation is discovered, previewed with
 the Sybil check, auto-joined and marked `AutoJoined`, with the discover, auto-join and agent join
 rows in `history`; *when* the operator pins it as standby in place of B and a tick runs, *then* it is refused
-funding with a `NotProbed` refusal row: a pin does not bypass the gate; *when*
+funding with a `NotProbed` refusal row: a pin does not bypass the gate — A holding a surplus
+above its spending target that covers the shortfall plus its cap; *when*
 `probe_min_successes` probes have passed over `probe_min_span_secs` and a later tick runs,
 *then* that tick funds it. Demonstrates
 `ALC-28`, `ALC-29`, `ALC-37`, `FMI-28`, `SEC-16`, `OVR-5`.
@@ -350,5 +353,9 @@ through the sidecar, *then* it is not reachable by any route or page; *when* the
 while the sidecar keeps running, *then* the sidecar's next forwarded request uses the new
 token; and *when* the sidecar is started on a config with no password hash, a non-loopback
 `daemon_url`, a world-readable config file, or a config directory owned by or writable by
-another user, *then* it refuses to start and serves nothing.
-Demonstrates `HST-26`, `HST-31`, `HST-27`, `SEC-22`, `SEC-5`.
+another user, *then* it refuses to start and serves nothing. The steps above are the shape
+of the scenario, not its extent: every other refusal `HST-26` enumerates at provisioning and
+at start — a hash of the wrong variant, version or sub-minimum parameters among them — and
+every other response `HST-31` fixes at request time — the lockout under a concurrent burst,
+`Cache-Control: no-store` on an authenticated page among them — is exercised on its own and
+answered as its owner requires. Demonstrates `HST-26`, `HST-31`, `HST-27`, `SEC-22`, `SEC-5`.
