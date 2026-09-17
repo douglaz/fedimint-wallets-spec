@@ -236,8 +236,7 @@ variable cannot ship it either; MUST apply `SEC-5`'s file and directory checks a
 and MUST fail closed on every configuration defect `HST-26` and `HST-27` enumerate — the
 session ceilings and their tighten-only rule, and the origin's canonical form, are theirs and
 are not restated here. The sidecar's request-time
-surface — login, sessions, CSRF, `/healthz` — is `HST-26`'s to specify from `ADR-0028`, and
-until it does this set places no route-level requirement on the sidecar. Reaching the sidecar from beyond the host is the
+surface — login, sessions, CSRF, `/healthz` — is `HST-26`'s. Reaching the sidecar from beyond the host is the
 operator's overlay or reverse proxy ("Reaching it from a phone is the **operator's** job"), and
 behind a proxy the bind is not an authentication boundary: the password is. A sidecar in front
 of a wallet that does not meet `SEC-25` MUST NOT be exposed beyond loopback or a trusted

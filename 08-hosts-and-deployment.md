@@ -10,33 +10,33 @@ implementation is built, tested and run in one place is the code repository's.
 ## The daemon
 
 **HST-1** `walletd` is the only resident host on a server. One process MUST own both stores
-under the exclusive lock (`STO-2`); every other process is a client of its HTTP API
+under the exclusive lock (`STO-2`); every other process reaches it through its HTTP API
 (`04-api-contract.md`).
 
 **HST-2** Subcommands: none (serve), `init`, `mnemonic`, `restore-mnemonic`. The host config
 file is `$XDG_CONFIG_HOME/walletd/walletd.toml`, else `~/.config/walletd/walletd.toml`;
 `--config` overrides. This rule owns the complete environment-variable surface the wallet's
 binaries read in a release build (variables the language runtime or a library beneath the
-wallet reads are not the wallet's, and the code repository documents them). None of it is
-gated at release. A variable that is set to a non-empty value the wallet cannot parse MUST fail
-startup with an error naming it — a bad value is a misconfiguration, and `HST-3` fails loudly
-on one — never fall back silently to a default. Two further variables exist only in debug
-builds and are compiled out of release: the fault-injection seams `WALLET_CLI_CRASH_AT`
-(`OPS-28`) and `WALLET_CLI_FORCE_SHUTDOWN` (`FMI-26`), owned by `SEC-18`.
+wallet reads are not the wallet's, and the code repository documents them). Every variable
+in the table is read in a release build. A variable set to a non-empty value the wallet cannot
+parse fails startup (`HST-29`), never falls back silently to a default. Two further variables
+exist only in debug builds and are compiled out of release: the fault-injection seams
+`WALLET_CLI_CRASH_AT` (`OPS-28`) and `WALLET_CLI_FORCE_SHUTDOWN` (`FMI-26`), owned by
+`SEC-18`.
 
 | Variable | Read by | Effect | Empty / invalid |
 |---|---|---|---|
 | `WALLETD_TOKEN_PATH` | `walletd` (all subcommands) | token file, over `walletd.toml` (`HST-4`) | empty = unset; a relative path fails startup |
-| `WALLETD_PERFORM_TIMEOUT_SECS` | `walletd` serve | the per-intent perform deadline `OPS-15` bounds (`FMI-22`) | unparseable fails startup |
-| `WALLETD_SETTLEMENT_STALL_SECS` | `walletd` serve (the standalone mode runs no scheduler) | the settlement-stall deadline `ALC-40` owns, default 300 s; `0` is a zero-second deadline | unparseable fails startup |
-| `RUST_LOG` | all three binaries | overrides the log level (`HST-8`) | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup |
+| `WALLETD_PERFORM_TIMEOUT_SECS` | `walletd` serve | the per-intent perform deadline `OPS-15` bounds (`FMI-22`) | unparseable fails startup (`HST-29`) |
+| `WALLETD_SETTLEMENT_STALL_SECS` | `walletd` serve (the standalone mode runs no scheduler) | the settlement-stall deadline `ALC-40` owns, with `ALC-40`'s default; `0` is a zero-second deadline | unparseable fails startup (`HST-29`) |
+| `RUST_LOG` | all three binaries | overrides the log level (`HST-8`) | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup (`HST-29`) |
 | `XDG_CONFIG_HOME` | all three | config home | empty or relative → ignored, `~/.config` (the XDG base-directory rule) |
 | `XDG_DATA_HOME` | `walletd`, standalone `wallet-cli` | default `data_dir` | empty or relative → ignored, `~/.local/share` (the same rule) |
-| `HOME` | all three | `~` expansion and the XDG fallbacks | read only when a path actually falls back to it; unset or empty then fails startup, before any file is written (`HST-4`); never read when every path the command touches is absolute (`XDG_CONFIG_HOME` and `XDG_DATA_HOME` absolute, an explicit `--config` whose paths are absolute, standalone `--data-dir`, or client-mode `--url` with `--token-path`, `API-25`) |
-| `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` (and lowercase), `NO_PROXY` | `walletd`, `wallet-cli` | every outgoing HTTP connection the two make — the CLI's connection to the daemon, gateway `routing_info` (`FMI-11`), the Observer (`FMI-28`) — with the conventional semantics: the proxy for the scheme, `NO_PROXY` the exemptions, and no destination exempt that `NO_PROXY` does not name, loopback included, so an operator who sets a proxy owns the exemption for the daemon's own address (`SEC-3`). The sidecar is the exception and ignores them (`SEC-22`) | a proxy URL that does not parse fails startup |
+| `HOME` | all three | `~` expansion and the XDG fallbacks | read only when a path actually falls back to it; unset or empty then fails startup, before any file is written (`HST-29`); never read when every path the command touches is absolute (`XDG_CONFIG_HOME` and `XDG_DATA_HOME` absolute, an explicit `--config` whose paths are absolute, standalone `--data-dir`, or client-mode `--url` with `--token-path`, `API-25`) |
+| `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` (and lowercase), `NO_PROXY` | `walletd`, `wallet-cli` | every outgoing HTTP connection the two make — the CLI's connection to the daemon, gateway `routing_info` (`FMI-11`), the Observer (`FMI-28`) — with the conventional semantics: the proxy for the scheme, `NO_PROXY` the exemptions, and no destination exempt that `NO_PROXY` does not name, loopback included, so an operator who sets a proxy owns the exemption for the daemon's own address (`SEC-3`). The sidecar is the exception and ignores them (`SEC-22`) | a proxy URL that does not parse fails startup (`HST-29`) |
 
 **HST-3** `walletd.toml` has five keys and MUST reject any other — including the retired
-`gateway` pin, so a file from the pinned era fails startup loudly (`ADR-0030`):
+`gateway` key (`ADR-0030`), so a file that still carries it fails startup loudly:
 
 | key | default |
 |---|---|
@@ -56,10 +56,10 @@ canonicalised; create the data directory `0700`; open both stores under the lock
 blocking while a resident host holds it, so the token is never rotated under a running daemon,
 `API-3`); seed the default policy row if absent (`STO-13`); mint and write the token `0600`
 (`API-3`); and write the CLI's pointer file `client.toml` `{url, token_path}` under the config
-home. It does **not** mint a seed (`SEC-11`). It MUST resolve every path it will write before
-it writes any, so a path that cannot be resolved (`HST-2`, `HOME`) fails with nothing mutated.
-It prints six stdout lines: `initialized walletd`, then `  host config:`, `  data dir:`,
-`  token (0600):`, `  client pointer:`, `  api url:` each followed by the resolved value.
+home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve fails it with nothing
+written (`HST-29`). It prints six stdout lines: `initialized walletd`, then `  host config:`,
+`  data dir:`, `  token (0600):`, `  client pointer:`, `  api url:` each followed by the
+resolved value.
 Token path precedence, for every subcommand, is `WALLETD_TOKEN_PATH` (when set and non-empty)
 > `walletd.toml` `token_path` > `<data_dir>/token`. On serve the token file's contents are
 whitespace-trimmed and an empty file fails startup (`bearer token file <path> is empty`); the
@@ -93,6 +93,17 @@ restart on failure restarts it; a clean shutdown on a signal exits zero.
 `log_level` or `RUST_LOG` selects. Redaction is `SEC-6`'s: no code path logs the token, the
 seed or a password. `walletd mnemonic` prints the seed to stdout by design.
 
+**HST-29** A misconfiguration fails loudly and leaves nothing behind. Every host MUST refuse
+to start — exit non-zero with an error naming the cause, before any file, store row or
+network request — on: an environment variable set to a non-empty value it cannot parse
+(`HST-2`); a config key it does not know or cannot parse (`HST-3`, `HST-26`); a path it cannot
+resolve to an absolute one (`HST-3`, `HST-4`); and a store lock a resident host holds when a
+one-shot process needs it (`HST-9`), whether found at the probe or taken between the probe and
+the open. It MUST NOT substitute a default for a value it could not parse, and MUST NOT leave
+a partial `init` behind: every path `init` writes is resolved before the first write. The
+reason is `HST-3`'s: a stale key fails "loudly", and a knob that falls back silently is a
+misconfiguration nobody sees.
+
 ## The standalone mode
 
 **HST-9** `wallet-cli --standalone` is a one-shot process that takes the exclusive lock and
@@ -107,13 +118,12 @@ behind); the environment variable is not read by the CLI. It resolves `data_dir`
 `gateway` key fails here too, `HST-3`), else the default; then asserts the directory `0700`
 (`HST-19`). The lock: open-or-create `<data_dir>/client.db.lock` and attempt a non-blocking
 exclusive lock; contention MUST exit 1 with `another process owns the wallet store (walletd?);
-stop it, or use client mode (drop --standalone)`. A resident host that takes the lock between
-that probe and the store open MUST produce an exit-1 error naming the lock, not an indefinite
-wait.
+stop it, or use client mode (drop --standalone)`, and a lock taken between that probe and the
+store open is an exit-1 error too, never an indefinite wait (`HST-29`).
 
 **HST-10** The standalone-only verb shapes and flags are the set `API-25` enumerates (client
-mode refuses exactly those with exit 1); this rule owns the break-glass. `--gateway` is
-accepted on `pay`, `receive`, `move`, `direct-inflow` and the three await verbs, where it is
+mode refuses exactly those with exit 1). The break-glass `--gateway` (`ADR-0030` owns its
+dispatch) is accepted on `pay`, `receive`, `move`, `direct-inflow` and the three await verbs, where it is
 armed for that ONE operation's key; it is a usage error on `tick`, `probe`, `discover`,
 `status` and `reconcile`; it is ignored on verbs that resolve no route (`ADR-0030`). Standalone
 `tick` and `status` accept ephemeral policy overrides (`--per-fed-cap`, `--evac-fee-*`,
@@ -191,8 +201,7 @@ the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment); verbs w
 endpoint (`API-25`'s standalone-only set) are not offered. Every operation it admits is
 `actor: User` (`OPS-5`). It holds no in-flight state: outstanding operations are rebuilt from
 the daemon's history (`API-10`) on every load and polled through `GET /v1/operations/{key}`
-(`API-11`) while on screen. The implementation the set describes today serves none of this
-surface; that is the code repository's `F27`.
+(`API-11`) while on screen.
 
 **HST-27** `public_origin` is stored in the canonical form a browser sends in `Origin` — the
 WHATWG URL origin serialisation — so that a request's `Origin` header can be compared with it
@@ -212,19 +221,21 @@ on its own output.
 ## What a stranded move leaves for the operator
 
 **HST-28** A `Stranded` move (`DOM-10`; the transition is `OPS-27`) is terminal: nothing
-re-drives it (`OPS-35` re-drives `pending()` only) and the wallet MUST NOT admit a second send
+re-drives it (`OPS-35` re-drives `Pending` and `Executing` intents only, and a `Stranded` move
+is neither) and the wallet MUST NOT admit a second send
 for the same key — the executor's dedup on the existing key (`OPS-43`) is what stands between
 the operator and a double send. The only recovery is the explicit re-claim `FMI-41` requires,
 and the operator's response before it is **evidence preservation**: the preimage is not a
 recovery procedure (`DEF-20`). What the wallet MUST guarantee for that response: the move
-record with both leg operation ids, the invoice, the gateway and the preimage (`STO-11`), the
-receive leg's error detail anchored on "send settled but receive was not credited" (`OPS-27`),
-and the destination federation's complete client state all remain in the data directory,
-unchanged by stranding and by every later cycle, and are readable offline through standalone
-`show <key>` (`API-30`), whose timestamps date the move's window. The data directory is
-therefore the whole of the evidence, and a copy of it run elsewhere is a second spender
-(`SEC-23`), which is why the operator's procedure begins with stopping the daemon. That
-procedure — the runbook — is the code repository's; this requirement is `F20`'s owner.
+record with both leg operation ids, the invoice, the gateway and the preimage (`STO-11`) and
+the receive leg's error detail anchored on "send settled but receive was not credited"
+(`OPS-27`) stay in the journal unchanged by stranding and by every later cycle, readable
+offline through standalone `show <key>` (`API-30`), whose timestamps date the move's window;
+and the destination federation's client state, which holds the funded contract `FMI-41` can
+still claim, stays in the client store, where a running daemon keeps transacting on it — which
+is why the operator's procedure begins with stopping the daemon. The data directory is then
+the whole of the evidence, and a copy of it run elsewhere is a second spender (`SEC-23`). The
+procedure itself — the runbook — is the code repository's.
 
 ## Files on disk
 
@@ -260,7 +271,7 @@ alone (`HST-26`). Nothing changes the mode of the stores' own files.
 is the deployment's. A probe an implementation does ship MUST read `GET /v1/health`
 (`API-16`) with the token and MUST report not-ready — a non-zero exit, or its platform's
 failing check — when the daemon is unreachable, when `scheduler_alive` is `false`, and when
-`automation_ready` is `false` or absent (`API-16`: absent "MUST [be treated] as unknown, not
-healthy"), carrying `automation_blocked`'s `reason` and `detail` in its report; a probe that
-reads only the status code is not a readiness probe (`ALC-45`: "Liveness is not readiness").
-It MUST NOT forward the token or wallet balances anywhere the operator did not name.
+`automation_ready` is `false` or absent (`API-16`: a caller "MUST treat readiness as unknown,
+not healthy"), carrying `automation_blocked`'s `reason` and `detail` in its report; a probe
+that reads only the status code is not a readiness probe (`ALC-45`: "Liveness is not
+readiness").

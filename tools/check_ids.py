@@ -137,7 +137,7 @@ GATED = re.compile(r"^(\d\d-.*|CONTEXT|executive-summary)\.md$")
 CODEBASE_REF = re.compile(
     r"\b[A-Za-z_]\w*::[A-Za-z_]\w*"          # Type::method, module::item, backticked or bare
     r"|\b[a-z_][a-z0-9_]*\.rs\b"             # source files, with or without :line
-    r"|(?<![/])\bwallet-(?:core|fedimint|api|cli|web)/"  # crate directories, not a config path under ~/.config/wallet-web/
+    r"|(?<!\.config/)(?<!_HOME/)\bwallet-(?:core|fedimint|api|cli|web)/"  # crate directories; not the config path ~/.config/wallet-web/ or $XDG_CONFIG_HOME/wallet-web/
     r"|\bPR #\d+"                            # pull requests
     r"|`br-[a-z0-9][a-z0-9.-]*`"             # issue ids
 )
