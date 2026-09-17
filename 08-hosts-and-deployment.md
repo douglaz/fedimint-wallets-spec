@@ -31,7 +31,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | `WALLETD_TOKEN_PATH` | `walletd` (all subcommands) | token file, over `walletd.toml` (`HST-4`) | empty = unset; a relative path fails startup |
 | `WALLETD_PERFORM_TIMEOUT_SECS` | `walletd` serve | the per-intent perform deadline `OPS-15` bounds (`FMI-22`); unset or empty → 600 s, `0` disables it, as for the standalone flag (`HST-9`) | unparseable fails startup (`HST-29`) |
 | `WALLETD_SETTLEMENT_STALL_SECS` | `walletd` serve (the standalone mode runs no scheduler) | the settlement-stall deadline `ALC-40` owns, with `ALC-40`'s default; `0` is a zero-second deadline | unparseable fails startup (`HST-29`) |
-| `RUST_LOG` | all three binaries | overrides the log level (`HST-8`); the grammar, shared with `walletd.toml` `log_level`, is a level `error`, `warn`, `info`, `debug` or `trace`, or a comma-separated list of `<target>=<level>` directives with at most one bare level among them, a target being one or more segments of letters, digits, `_` and `-` joined by a double colon; a target matches itself and every longer target that begins with its segments, the longest matching target decides a line's level, the last of two equal targets wins, and where no target matches the bare level applies, or, with no bare level in the list, the level the variable would otherwise override (`walletd.toml` `log_level`, `warn`, `info`); a well-formed target that matches nothing the wallet emits is accepted and has no effect | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup (`HST-29`) |
+| `RUST_LOG` | all three binaries | overrides the log level (`HST-8`); the grammar, shared with `walletd.toml` `log_level`, is a level `error`, `warn`, `info`, `debug` or `trace`, or a comma-separated list of `<target>=<level>` directives with at most one bare level among them, a target being one or more segments of letters, digits, `_` and `-` joined by a double colon; a target matches itself and every longer target that begins with its segments, the longest matching target decides a line's level, the last of two equal targets wins, and where no target matches the bare level applies, or, with no bare level in the list, the level the variable would otherwise override (`walletd.toml` `log_level` — which, being that fallback, MUST itself carry a bare level or be a bare level, else startup fails, `HST-29` — `warn`, `info`); a well-formed target that matches nothing the wallet emits is accepted and has no effect | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup (`HST-29`) |
 | `XDG_CONFIG_HOME` | all three | config home | empty or relative → ignored, `~/.config` (the XDG base-directory rule) |
 | `XDG_DATA_HOME` | `walletd`, standalone `wallet-cli` | default `data_dir` | empty or relative → ignored, `~/.local/share` (the same rule) |
 | `HOME` | all three | `~` expansion and the XDG fallbacks | read only when a path actually falls back to it; unset or empty then fails startup, before any file is written (`HST-29`); never read when every path the command touches is absolute (`XDG_CONFIG_HOME` and `XDG_DATA_HOME` absolute, an explicit `--config` whose paths are absolute for every subcommand but `init`, which also writes the pointer under the config home (`HST-4`) and so needs an absolute `XDG_CONFIG_HOME` as well; standalone `--data-dir`; or client-mode `--url` with `--token-path`, `API-25`) |
@@ -97,7 +97,9 @@ restart on failure restarts it; a clean shutdown on a signal exits zero.
 **HST-33** The daemon MUST read the token only while it holds the store lock. `init` rotates
 the token only under that lock (`API-3`), so a daemon that reads it there serves with the
 token the last completed `init` wrote, and an `init` racing a start cannot leave the daemon
-holding a token no frontend has.
+holding a token no frontend has. The daemon MUST refuse to start when the token path it
+resolves (`HST-4`'s precedence, in its own environment) differs from the `token_path` the CLI
+pointer names, since every frontend would then present a different file's token.
 
 **HST-8** The daemon MUST log to stderr and to nothing else, at the level `HST-3`'s
 `log_level` or `RUST_LOG` selects. Redaction is `SEC-6`'s: no code path logs the token, the
@@ -200,7 +202,9 @@ never quoted, so the hash cannot reach a log, `SEC-6`); a missing, empty or malf
 hash; a hash that is not `argon2id`, does not declare `v=19`, has a salt under 16 bytes, has an
 output under 32 bytes, or has `m`, `t` or `p` below the minimums above; port 0; a `daemon_url` that is
 not `http://` + a loopback IP **literal** + port with at most a bare trailing `/` (`localhost`
-is refused because it resolves but can be repointed; `::1` is the only IPv6 form; the stored
+is refused because it resolves but can be repointed; an IPv4 literal MUST be a canonical
+dotted quad, so `127.1` and `0x7f.0.0.1` are refused as `HST-27` refuses them; `::1` is the
+only IPv6 form; the stored
 value is the parsed socket re-rendered, so `[0:0::1]` becomes `[::1]` and the trailing `/` is
 dropped); a `token_path` that does not resolve to an absolute path (`~/` expands as `walletd`'s
 does); an idle timeout above 4h or an absolute timeout above 24h, or either unparseable; a
@@ -242,7 +246,8 @@ the session's CSRF token: a second value minted with the session from the same s
 entropy as the session token, bound to that session for its lifetime, delivered only inside
 the HTML the sidecar renders (never in a cookie or a response header), and presented back in
 the form field `csrf_token` or the request header `X-CSRF-Token`; a request whose token is
-missing or is not the presenting session's is refused. A dedicated origin is required for
+missing or is not the presenting session's, or whose `Origin` fails the check, is refused
+`403` with no wallet data and no change to the session. A dedicated origin is required for
 that reason (`ADR-0028`: "same-origin neighbours can read the CSRF token out of the page"). One login gates the whole UI: there is
 no step-up before spending. The surface is every daemon route **except `/v1/recover`**, which
 the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment); verbs with no daemon
