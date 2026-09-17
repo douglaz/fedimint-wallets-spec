@@ -252,7 +252,9 @@ WHATWG URL origin serialisation — so that a request's `Origin` header can be c
 byte for byte (`HST-31`). An accepted input is **normalised** by the rules below and only the
 listed ambiguous or unsafe forms are refused, so `https://Wallet.EXAMPLE:443` starts and is
 stored as `https://wallet.example`.
-Refused: any `#`; a scheme other than `http`/`https`; userinfo; a non-`/` path or a query; an
+Refused: any `#`; a scheme other than `http`/`https`; userinfo; a host with any character
+outside ASCII letters, digits, `-`, `.`, `[`, `]` and `:` (an internationalised name MUST be
+given in the ASCII form a browser sends); a non-`/` path or a query; an
 empty host; a port that is not a `u16` or is `0`; an IPv4-mapped IPv6 host (`[::ffff:…]`, which
 implementations serialise differently); a host ending in `.`; a host whose last label is all
 digits or `0x`+hex that is not already a canonical dotted quad (`127.1`, `0x7f.0.0.1`,
@@ -293,7 +295,8 @@ MUST be written atomically, by whatever primitive the platform offers: at every 
 crashes included, a reader at the target path finds either the previous complete file or the
 new complete one — or, on the file's first creation, nothing — never a partial one; the new file has mode `0600` from the first instant it
 is visible at that path, whatever the umask; once the write returns the contents are on
-stable storage; and what an interrupted earlier write left behind MUST NOT block the next. **Non-secret files** — `walletd.toml`, `client.toml` — MAY be written
+stable storage; and a temporary an interrupted earlier write had not yet published MUST NOT
+block the next (a target it had published is the file, and `HST-26`'s refuse-if-exists applies). **Non-secret files** — `walletd.toml`, `client.toml` — MAY be written
 plainly under the ambient umask (`SEC-5`). **Directories**: the daemon MUST create the data
 directory if missing and re-assert `0700` on it at the start of `serve`, `init` and
 `restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is
