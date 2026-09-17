@@ -345,7 +345,8 @@ guarantee, so an interrupted `init` never leaves a truncated config for the next
 refuse, and MAY take their mode from the ambient umask (`SEC-5`) but MUST, at every read, be owned by
 the running user and not writable by another user whatever the umask is, else the read fails: a writable `client.toml` lets that user point every
 frontend's token at an address of their choosing. **Directories**: the daemon MUST create the data
-directory if missing and re-assert `0700` on it at the start of `serve`, `init` and
+directory if missing, refuse one not owned by the running user (`HST-29`; a mode can be
+re-asserted, an owner cannot), and re-assert `0700` on it at the start of `serve`, `init` and
 `restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is
 re-tightened by the next start (the directory's own existence and mode hold no wallet content
 and are not a write in `SEC-11`'s "MUST write nothing on any failure"); the standalone process asserts it likewise (`HST-9`); the daemon's config directories — the actual parent of `walletd.toml` and the actual parent
