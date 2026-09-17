@@ -169,8 +169,8 @@ that observes state or drives the automated lanes. Exactly four: `pay`, `receive
 `direct-inflow`. These are the only verbs that INITIATE movement, and the
 **break-glass gateway override** is accepted on them. The await verbs (`await-receive`, `await-send`, `await-move`) also accept it — what it then
 applies to is a dispatch rule owned by [ADR-0030](docs/adr/0030-automated-routing-is-never-pinned.md),
-not by this glossary. `direct-inflow` is the one an implementer is most likely to misclassify — it reads like plumbing, but it funds a federation and most devimint
-smokes fund through it, so classifying it as rejected or ignored breaks the funding step.
+not by this glossary. `direct-inflow` is the one an implementer is most likely to misclassify — it reads like plumbing, but it funds a federation and most conformance
+scenarios fund through it, so classifying it as rejected or ignored breaks the funding step.
 `--standalone probe` also moves real sats (a 20-sat inbound leg, then a smaller return leg sized from what arrived minus a 1,000 msat margin) but is an
 agent-lane verb, not a money verb: it drives the automated machinery on the operator's behalf,
 resolves its route from the vetted list only, and rejects the override (ADR-0030).

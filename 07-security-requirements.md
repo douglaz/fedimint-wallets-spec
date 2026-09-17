@@ -214,8 +214,9 @@ send the wallet is `FMI-40`.
 **SEC-18** A release build MUST honour no fault-injection input. The crash killpoints `OPS-28`
 demonstrates and the forced shutdown `FMI-26`'s scenarios use MAY be reachable in a debug build
 through `WALLET_CLI_CRASH_AT` and `WALLET_CLI_FORCE_SHUTDOWN`; those two are the complete set
-(`HST-2` owns the release environment surface), and a release build MUST ignore both. The
-conformance scenarios that use them run debug wallet binaries (`CNF-14`).
+(`HST-2` owns the release environment surface), and a release build MUST ignore both. A
+conformance scenario states the crash or the signal as part of its environment (`CNF-12`,
+`CNF-14`), never the seam; which build an implementation runs a scenario on is its own.
 
 ## Network privacy
 
