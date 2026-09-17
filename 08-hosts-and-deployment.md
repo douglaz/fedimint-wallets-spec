@@ -52,7 +52,10 @@ Paths MUST be absolute once `~` and `~/…` are expanded; anything else fails st
 `token_path` MUST resolve to a direct child of `data_dir` — after every filesystem link in
 either path is resolved, so a link cannot place one file in two stores, and a direct child
 rather than any descendant, so a store nested inside another's directory cannot share its
-token — so the token file belongs to exactly one store and its rotation is serialised by that store's lock (`HST-4`, `HST-33`); a path
+token — so the token file belongs to exactly one store and its rotation is serialised by that
+store's lock (`HST-4`, `HST-33`) — and MUST NOT name `client.db`, `client.db.lock`,
+`journal.db` (`HST-21`) or the config or pointer file, so a token write can never replace a
+store, lock or configuration entry; a path
 elsewhere fails startup (`HST-29`). `address`
 is not validated: a bare IPv6 literal is bracketed wherever it is rendered into a URL or a
 bind string, and a hostname is resolved by the bind. Environment knobs are the table in
