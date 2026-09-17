@@ -218,8 +218,9 @@ hint beyond that the login failed, and is one failed attempt; a correct one answ
 rate-limited (`ADR-0028`: "Rate limiting is required, not optional"): after 5 consecutive
 failed attempts the sidecar MUST answer every login attempt `429` for the next 60 s, counted
 across the whole listener — behind the reverse proxy `ADR-0028` contemplates every request
-arrives from `127.0.0.1`, so a per-address key would exempt exactly the exposed case — and a
-successful login resets the count. A login body above 4 KiB MUST be refused `413` before the
+arrives from `127.0.0.1`, so a per-address key would exempt exactly the exposed case. The
+lockout's end does not reset the count: each further failure after it re-arms the lockout for
+another 60 s, and only a successful login resets the count. A login body above 4 KiB MUST be refused `413` before the
 password is read, and does not count as an attempt. A session is an opaque token from a cryptographically secure random
 source with at least 256 bits of entropy (the bar `SEC-2` sets for the bearer token), held in
 memory only — no signing key at rest,
