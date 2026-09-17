@@ -196,8 +196,9 @@ funding with a `NotProbed` refusal row: a pin does not bypass the gate; *when*
 
 **CNF-38** *Given* a wallet whose stored occurrence is one below the largest representable
 value, *when* the scheduler runs, *then* at most one cycle plans at the maximum, and every cycle
-after it publishes `automation_blocked {cycle_failed}` and admits no agent work; *when* a
-standalone tick is invoked at the maximum, *then* it is refused before planning; and *when*
+after it publishes `automation_blocked {cycle_failed}` and admits no agent work; *when* the
+daemon is stopped and a standalone tick is invoked at the maximum, *then* it is refused for
+the occurrence, before planning, and not for lock contention; and *when*
 `/v1/status` is read, *then* it answers 503. Demonstrates `ALC-33`, `ALC-36`, `ALC-45`,
 `DOM-16`, `API-15`.
 
@@ -255,11 +256,12 @@ that decode when absent stripped from its serialized form — one field per row,
 once — *when* the wallet reads it, *then* the field decodes to the value `STO-30` names for it,
 and the wallet serves on that store. Demonstrates `STO-30`, `DEF-10`, `OVR-14`.
 
-**CNF-33** *Given* a `Policy` row carrying a key this wallet does not know — written by a later
-build — *when* the wallet starts and reads its policy, *then* it starts and serves with the
-twenty-eight fields it knows at their stored values; *when* `PUT /v1/policy` is sent a body
-with that key, *then* it is refused 422 naming the unknown field. Demonstrates `STO-31`,
-`STO-13`, `API-20`, `DEF-11`.
+**CNF-33** *Given* a store in which a row of each type on `STO-29`'s list — the `Policy` row
+and its nested values included — carries a key this wallet does not know, as a later build
+would write it, *when* the wallet starts and reads them, *then* it starts and serves with every
+field it knows at its stored value; *when* `PUT /v1/policy` is sent a body
+with an unknown key, *then* it is refused 422 naming the unknown field. Demonstrates `STO-31`,
+`STO-29`, `STO-13`, `API-20`, `DEF-11`.
 
 **CNF-15** *Given* the environment, *when* one session performs two joins, a direct inflow, a
 raw receive, a move, a pay whose fee cap is set below the route's fee, and a tick under a
@@ -293,7 +295,10 @@ print `<word> <key>`, and the await verbs print `claimed` and `success`. Demonst
 
 **CNF-26** *Given* a daemon reachable by the CLI in client mode, *when* each verb of `API-26`
 is invoked, *then*: the request each sends carries the fields and only the fields `API-18`–`API-24` name, and
-`reclaim` posts an empty body to the route `API-42` names; every error envelope, usage error and journaled failure maps to the exit code `API-28`
+`reclaim` posts an empty body to the route `API-42` names; two nonce-less `receive`
+invocations create two distinct operations while two nonce-less `direct-inflow` invocations of
+one amount attach to one operation and re-yield its invoice, a nonce-less `move` sends
+`occurrence` `0`, and an omitted `--fee-cap` or `--to`/`--fed` is absent from the request; every error envelope, usage error and journaled failure maps to the exit code `API-28`
 gives it; the stdout of every
 verb is the shape `API-29` or `API-39` fixes for it — `health` printing all five fields of
 `API-16`, `status` rendering `deferred` and `suppressed`, `show` printing `fee_cap_msat`,
@@ -314,7 +319,12 @@ Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`, `API-33`, `API-38
 failed, and after five consecutive failures every attempt is `429` for the lockout window;
 *when* the right password is sent once that window has elapsed, *then* it is `303` to `/` with the `session` cookie carrying
 the attributes `HST-31` fixes, and the balance page then shows what `GET /v1/balance` on the
-daemon returns; *when* a state-changing request arrives without the session's CSRF token or
+daemon returns; *when* each daemon route other than `/v1/recover` is requested under the
+sidecar's `/v1/` prefix with the session, *then* its path, query, method, status and bodies
+reach and return unchanged, with `Content-Type` and `Allow` forwarded and `Cache-Control:
+no-store` added; *when* a session goes without a non-polling request for the idle timeout,
+or reaches the absolute timeout — requests marked `X-Polling: 1` extending neither — or the
+sidecar restarts, *then* the session is gone and the next request is `303` or `401` as above; *when* a state-changing request arrives without the session's CSRF token or
 from another `Origin`, *then* it is `403` with no change; *when* `/v1/recover` is requested
 through the sidecar, *then* it is not reachable by any route or page; *when* the daemon is stopped, its token rotated by `walletd init`, and the daemon restarted
 while the sidecar keeps running, *then* the sidecar's next forwarded request uses the new
