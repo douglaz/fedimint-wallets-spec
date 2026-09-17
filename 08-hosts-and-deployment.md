@@ -61,8 +61,9 @@ is not validated: a bare IPv6 literal is bracketed wherever it is rendered into 
 bind string, and a hostname is resolved by the bind. Environment knobs are the table in
 `HST-2`.
 
-**HST-4** `walletd init` MUST: read the config or take its defaults; create the data directory
-`0700`; take the lock and open both stores (`STO-2`: blocking while a resident host holds it, so
+**HST-4** `walletd init` MUST, in this order: read the config or take its defaults and
+resolve and check every path and value it will use (`HST-29`: a failure here leaves nothing
+behind); create the data directory `0700`; take the lock and open both stores (`STO-2`: blocking while a resident host holds it, so
 the token is never rotated under a running daemon, `API-3`) — and hold it for every write that
 follows, the config file included, so two concurrent `init`s serialise as wholes and the
 config, token and pointer a daemon and a frontend later read were written by one of them —
@@ -293,8 +294,8 @@ be exposed under the sidecar's own `/v1/` prefix with the daemon's path, query s
 code, request and response bodies unchanged (`04-api-contract.md`), the sidecar swapping the session
 for the bearer token, forwarding the request's `Content-Type` (`API-35` requires it), the
 response's `Content-Type` and `Allow` (`API-5`'s `405` carries it), and nothing else, and
-setting `Cache-Control: no-store` on every response to an authenticated request, page or
-forwarded route, so a shared cache in front of the sidecar never replays wallet data, and answering `502` with no wallet data when
+adding, on its own account rather than by forwarding, `Cache-Control: no-store` to every
+response to an authenticated request, page or forwarded route, so a shared cache in front of the sidecar never replays wallet data, and answering `502` with no wallet data when
 it has no daemon response to forward (the token unreadable, the daemon unreachable, or its
 answer not received within 90 s, `API-25`'s client bound), and the HTML pages, on paths outside `/v1/`, are
 views over those forwarded routes and expose no wallet data the routes do not; verbs with no daemon
