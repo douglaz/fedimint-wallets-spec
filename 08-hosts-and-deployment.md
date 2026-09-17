@@ -261,8 +261,8 @@ most 5 failed verifications before the lockout and a success among them resets t
 its turn — behind the reverse proxy `ADR-0028` contemplates every request
 arrives from `127.0.0.1`, so a per-address key would exempt exactly the exposed case. The
 lockout's end does not reset the count: each further failure after it re-arms the lockout for
-another 60 s, and only a successful login resets the count. A login body above 4 KiB MUST be refused `413` before the
-password is read, and does not count as an attempt. A session is an opaque token from a cryptographically secure random
+another 60 s, and only a successful login resets the count. A login body above 4 KiB MUST be refused `413`, a check that runs after the `Origin` check
+and before the body's type and fields are examined, and does not count as an attempt. A session is an opaque token from a cryptographically secure random
 source with at least 256 bits of entropy (the bar `SEC-2` sets for the bearer token), held in
 memory only — no signing key at rest,
 no session survives a restart, so restarting the sidecar is the one "revoke all sessions" —
@@ -379,7 +379,9 @@ writable directory lets another user replace the pointer whatever the file's own
 alone (`HST-26`). Nothing changes the mode of the stores' own files. **Lock files**: `client.db.lock` and
 `client.toml.lock` MUST each be a regular file, not a link, owned by the running user, checked
 before any lock on it is relied on, else the command fails (`HST-29`) — a lock on a linked
-inode excludes nobody who can retarget the link.
+inode excludes nobody who can retarget the link. **Store directories**: `client.db` and
+`journal.db` MUST each be a directory, not a link, owned by the running user and writable by
+no other, checked before it is opened, else the command fails (`HST-29`).
 
 **HST-21** Data directory layout:
 
