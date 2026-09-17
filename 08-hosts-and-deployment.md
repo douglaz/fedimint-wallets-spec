@@ -99,7 +99,9 @@ the token only under that lock (`API-3`), so a daemon that reads it there serves
 token the last completed `init` wrote, and an `init` racing a start cannot leave the daemon
 holding a token no frontend has. The daemon MUST refuse to start when the token path it
 resolves (`HST-4`'s precedence, in its own environment) differs from the `token_path` the CLI
-pointer names, or when the URL it will serve at differs from the pointer's `url`, since every
+pointer names, or when the URL it will serve at differs from the pointer's `url` — both
+compared from `walletd.toml` and `client.toml` as re-read under the lock, since an `init`
+completing before the lock was taken may have replaced what was read before it — since every
 frontend would then present a different file's token or reach a different address — which is
 also what an `init` interrupted between its files leaves behind, and the refusal is how that
 mixed state is caught: re-running `init` repairs it.
@@ -256,7 +258,8 @@ no step-up before spending. The surface is every daemon route **except `/v1/reco
 the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment): each such route MUST
 be exposed under the sidecar's own `/v1/` prefix with the daemon's path, method, status code,
 request and response bodies unchanged (`04-api-contract.md`), the sidecar swapping the session
-for the bearer token and forwarding nothing else, and answering `502` with no wallet data when
+for the bearer token, forwarding the request's `Content-Type` (`API-35` requires it) and
+nothing else, and answering `502` with no wallet data when
 it has no daemon response to forward (the token unreadable, the daemon unreachable, or its
 answer not received within 90 s, `API-25`'s client bound), and the HTML pages, on paths outside `/v1/`, are
 views over those forwarded routes and expose no wallet data the routes do not; verbs with no daemon
@@ -323,7 +326,9 @@ is visible at that path, whatever the umask; once the write returns the contents
 stable storage; and a temporary an interrupted earlier write had not yet published MUST NOT
 block the next (a target it had published is the file, and `HST-26`'s refuse-if-exists applies). **Non-secret files** — `walletd.toml`, `client.toml` — carry the same old-or-new
 guarantee, so an interrupted `init` never leaves a truncated config for the next `init` to
-refuse, and MAY take their mode from the ambient umask (`SEC-5`). **Directories**: the daemon MUST create the data
+refuse, and MAY take their mode from the ambient umask (`SEC-5`) but MUST NOT be writable by
+another user whatever the umask is: a writable `client.toml` lets that user point every
+frontend's token at an address of their choosing. **Directories**: the daemon MUST create the data
 directory if missing and re-assert `0700` on it at the start of `serve`, `init` and
 `restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is
 re-tightened by the next start (the directory's own existence and mode hold no wallet content

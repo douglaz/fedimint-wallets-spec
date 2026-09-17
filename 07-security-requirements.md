@@ -84,7 +84,7 @@ status code alone.
 
 **SEC-5** Configuration files MUST hold no secret. `walletd.toml` holds paths and the bind
 (`HST-3`); the CLI's pointer file holds the token's **path**, never the token (`HST-4`); both
-MAY be written under the ambient umask. The one exception is the sidecar's `wallet-web.toml`,
+MAY take their mode from the ambient umask, never writable by another user (`HST-19`). The one exception is the sidecar's `wallet-web.toml`,
 which holds an Argon2id password hash and MUST therefore be written `0600` (`HST-19`) and
 MUST be refused at every start unless its mode and its directory's ownership and mode pass
 `HST-26`'s checks.
