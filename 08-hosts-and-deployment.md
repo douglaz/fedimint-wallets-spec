@@ -268,8 +268,8 @@ timeout without a non-polling request, and unconditionally at the absolute timeo
 polling request — one the page issues on its own timer rather than on a user action, which
 the page marks with the request header `X-Polling: 1`, and which the sidecar classifies by that
 header alone — MUST NOT extend the idle timer. Every state-changing request MUST — after the session has been authenticated, so an
-unauthenticated one gets the `401` or `303` above, except `POST /login`, which is checked
-before the credential is verified — be refused unless its `Origin` header equals
+unauthenticated one gets the `401` or `303` above, except `POST /login`, whose `Origin` is checked
+first of all, before the body is read or the credential verified — be refused unless its `Origin` header equals
 `public_origin` (`HST-27`'s form); every one but
 `POST /login` — the request that creates the session, so it has no token yet — MUST also carry
 the session's CSRF token: a second value minted with the session from the same source and

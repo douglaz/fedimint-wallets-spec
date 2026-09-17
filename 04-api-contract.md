@@ -269,7 +269,8 @@ second move; a retry that is meant to attach sends the same values as the first 
 Validation order: `from == to` is `422` `move from and to must be different federations (from
 == to is a no-op)`; then `from` and `to` are each checked against the registry (`422`
 `federation <hex> is not joined`); then the policy is read and the key derived. A destination
-that is joined but not open is `503` **for a fresh key, and for a retry of a `Failed` key**
+that is joined but not open is `503` **for a fresh key, and for a retry of a `Failed` key** — except a `Failed` move
+whose record is `Stranded`, which `OPS-10` refuses `409 conflict` before this check —
 (`OPS-5`, `OPS-10`); a replay of a live or `Done` key attaches before that check runs and
 succeeds, unless the key is an active probe leg's, which a user request never attaches to:
 `409` `conflict` (`DOM-21`). As for `pay`, an unopened **source** is not gated and surfaces as
