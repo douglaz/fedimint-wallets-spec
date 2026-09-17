@@ -33,7 +33,7 @@ by `docs/devimint-runbook.md` §1.
 
 - [x] **CNF-4** `cargo fmt --check` and `cargo clippy --workspace --all-targets -- -D warnings`
       clean, in the devshell, on every push, and (from this change) the specification repository's `tools/check-all.sh`
-      exit 0 in the same job (`HST-16`).
+      exit 0 in the same job.
 - [x] **CNF-5** 1,071 tests pass under the gate at commit `ab52094` (PR #40's head, which
       contains `main` `1e44487`), run as `nix develop -c bash -c 'cargo fmt --all --check && cargo
       clippy --workspace --all-targets -- -D warnings && cargo test --workspace'` with
@@ -43,7 +43,7 @@ by `docs/devimint-runbook.md` §1.
       against the cache action rewriting it; build-time drift is guarded by `--locked` on the clippy
       and test steps.
 - [x] **CNF-7** `nix build` produces `walletd`, `wallet-cli` and a non-empty OCI image, and both
-      binaries answer `--help` (`HST-16`).
+      binaries answer `--help`.
 - [ ] **CNF-18** Every persisted field that decodes when absent (`STO-30` lists the eighteen)
       is pinned by a test that strips the key from the serialized row, alone, and re-reads it,
       asserting the value `STO-30` names; a fixture that omits several keys at once pins none
@@ -195,7 +195,7 @@ by `docs/devimint-runbook.md` §1.
 - [ ] **CNF-44** Any build after `b5f46de` against a **real** federation: receive, pay, scheduled
       top-up, standby funding, cross-federation move, restart, reconcile, and — for the changed
       path — that the evacuation cap admits a full-balance drain at current gateway prices
-      (`HST-24`).
+      (the code repository's conformance results say which build).
 - [ ] **CNF-45** A human reading of the four supersession money-path boundaries (`F26`).
 - [ ] **CNF-46** The browser sidecar's route manifest and live gate (`F27`).
 - [ ] **CNF-47** Seed at rest (`SEC-25`, `SEC-11`). *Given* a store holding the plaintext seed
