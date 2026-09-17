@@ -116,8 +116,8 @@ is drained — what remains on it is below `OPS-44`'s sizing floor, so a further
 **CNF-36** *Given* the dying federation of `CNF-14` and a policy whose evacuation cap
 components `(base, bps)` and whose flat `max_fee` disagree — `ALC-20`'s cap differs from
 `max_fee` at every amount in play — *when* a tick plans, *then* the `Evacuate` it emits
-carries `fee_cap` equal to `ALC-20`'s cap at the planned amount and the components
-themselves, never `max_fee`, readable on the intent and on its ledger row; and the sizing that
+carries `fee_cap` equal to `ALC-20`'s cap at the planned amount, never `max_fee` — the cap
+readable on the intent and on its ledger row, the components on the intent; and the sizing that
 follows enforces that cap at the delivered net (`CNF-43`), not `max_fee`. The funding move's
 cap is `CNF-13`'s. Demonstrates `ALC-2`, `ALC-17`, `ALC-20`, `ALC-21`, `ALC-22`, `DEF-3`.
 
@@ -190,7 +190,8 @@ verdict is `Passed`; and *given* a candidate that is not joined, *when* a probe 
 the Sybil check, auto-joined and marked `AutoJoined`, with the discover, auto-join and agent join
 rows in `history`; *when* the operator pins it as standby in place of B and a tick runs, *then* it is refused
 funding with a `NotProbed` refusal row: a pin does not bypass the gate; *when*
-`probe_min_successes` probes have passed over `probe_min_span_secs`, *then* the same tick funds it. Demonstrates
+`probe_min_successes` probes have passed over `probe_min_span_secs` and a later tick runs,
+*then* that tick funds it. Demonstrates
 `ALC-28`, `ALC-29`, `ALC-37`, `FMI-28`, `SEC-16`, `OVR-5`.
 
 **CNF-38** *Given* a wallet whose stored occurrence is one below the largest representable
@@ -291,8 +292,8 @@ print `<word> <key>`, and the await verbs print `claimed` and `success`. Demonst
 `API-21`, `API-25`, `API-29`, `API-38`, `OPS-5`, `HST-1`, `HST-13`.
 
 **CNF-26** *Given* a daemon reachable by the CLI in client mode, *when* each verb of `API-26`
-is invoked, *then*: the request each sends carries the fields and only the fields `API-18`–`API-24`
-name; every error envelope, usage error and journaled failure maps to the exit code `API-28`
+is invoked, *then*: the request each sends carries the fields and only the fields `API-18`–`API-24` name, and
+`reclaim` posts an empty body to the route `API-42` names; every error envelope, usage error and journaled failure maps to the exit code `API-28`
 gives it; the stdout of every
 verb is the shape `API-29` or `API-39` fixes for it — `health` printing all five fields of
 `API-16`, `status` rendering `deferred` and `suppressed`, `show` printing `fee_cap_msat`,
@@ -311,7 +312,7 @@ Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`, `API-33`, `API-38
 *then* it is `303` to `/login`, and a non-`GET` is `401`, neither carrying wallet data; *when*
 `POST /login` is sent a wrong password, *then* it is `401` with no hint beyond that the login
 failed, and after five consecutive failures every attempt is `429` for the lockout window;
-*when* the right password is sent, *then* it is `303` to `/` with the `session` cookie carrying
+*when* the right password is sent once that window has elapsed, *then* it is `303` to `/` with the `session` cookie carrying
 the attributes `HST-31` fixes, and the balance page then shows what `GET /v1/balance` on the
 daemon returns; *when* a state-changing request arrives without the session's CSRF token or
 from another `Origin`, *then* it is `403` with no change; *when* `/v1/recover` is requested
