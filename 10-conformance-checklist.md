@@ -309,7 +309,9 @@ verb is the shape `API-29` or `API-39` fixes for it — `health` printing all fi
 key the GET returned, unchanged where no flag named it, and refuses as a usage error a flag for
 a field the GET did not return; and `reclaim <key>` on an operation whose incoming contract
 reached a terminal non-claim prints the outcome and exits 0 on `claimed` and 3 on
-`not_claimable`, while on any other operation it exits as `API-28` maps the refusal.
+`not_claimable`, a repeat of the same `reclaim` returns the same outcome with the balance
+unchanged and one more `reclaim:` ledger row, while on any other operation it exits as
+`API-28` maps the refusal.
 Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`, `API-33`, `API-38`, `API-39`,
 `API-40`, `API-41`, `API-42`.
 
@@ -328,7 +330,11 @@ the attributes `HST-31` fixes, and the balance page then shows what `GET /v1/bal
 daemon returns; *when* each daemon route other than `/v1/recover` is requested under the
 sidecar's `/v1/` prefix with the session, *then* its path, query, method, status and bodies
 reach and return unchanged, with `Content-Type` and `Allow` forwarded and `Cache-Control:
-no-store` added; *when* a session goes without a non-polling request for the idle timeout,
+no-store` added; *given* open operations on the daemon spanning more than one page of the open-history
+filter and one unreadable ledger row, *when* the sidecar is restarted and its page loaded,
+*then* the page lists every open operation, having followed `next_before_seq` to `null`
+under `status=open`, polls each through its operation route, and says the set is incomplete;
+*when* a session goes without a non-polling request for the idle timeout,
 or reaches the absolute timeout — requests marked `X-Polling: 1` extending neither — or the
 sidecar restarts, *then* the session is gone and the next request is `303` or `401` as above; *when* a state-changing request arrives without the session's CSRF token or
 from another `Origin`, *then* it is `403` with no change; *when* `/v1/recover` is requested
