@@ -35,7 +35,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | `XDG_CONFIG_HOME` | all three | config home | empty or relative → ignored, `~/.config` (the XDG base-directory rule) |
 | `XDG_DATA_HOME` | `walletd`, standalone `wallet-cli` | default `data_dir` | empty or relative → ignored, `~/.local/share` (the same rule) |
 | `HOME` | all three | `~` expansion and the XDG fallbacks | read only when a path actually falls back to it; unset or empty then fails startup, before any file is written (`HST-29`); never read when every path the command touches is absolute (`XDG_CONFIG_HOME` and `XDG_DATA_HOME` absolute, an explicit `--config` whose paths are absolute for every subcommand but `init`, which also writes the pointer under the config home (`HST-4`) and so needs an absolute `XDG_CONFIG_HOME` as well; standalone `--data-dir`; or client-mode `--url` with `--token-path`, `API-25`) |
-| `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` (and lowercase), `NO_PROXY` | `walletd`, `wallet-cli` | every outgoing HTTP connection the two make — the CLI's connection to the daemon, gateway `routing_info` (`FMI-11`), the Observer (`FMI-28`) — with these semantics: `HTTPS_PROXY` for `https` destinations, `HTTP_PROXY` for `http`, `ALL_PROXY` for either when the scheme's variable is unset; the lowercase form of a variable takes precedence over the uppercase, and an empty variable counts as unset — it neither proxies nor suppresses the fallback; `NO_PROXY` is a comma-separated list of entries, each a host name (a leading `.` matches subdomains too), an IP literal or a CIDR block, optionally `:port` — an IPv6 literal with a port MUST be bracketed, `[::1]:9736`, and an unbracketed entry with more than one `:` is an IPv6 literal without a port — or `*` for every destination, and an entry exempts a destination whose host equals or is a subdomain of the name, or — for an IP or CIDR entry — whose host is an IP literal equal to or inside it (a host name is matched by name only and is never resolved for the exemption), and whose port matches when one is given; no destination is exempt that no entry matches, loopback included, so an operator who sets a proxy owns the exemption for the daemon's own address (`SEC-3`). The sidecar is the exception and ignores them (`SEC-22`) | a proxy URL MUST be `http://` or `https://` (an HTTP proxy, reached over plain TCP or TLS respectively; the CONNECT method for `https` destinations); any other scheme, or a value that does not parse as a URL, fails startup (`HST-29`) |
+| `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` (and lowercase), `NO_PROXY` | `walletd`, `wallet-cli` | every outgoing HTTP connection the two make — the CLI's connection to the daemon, gateway `routing_info` (`FMI-11`), the Observer (`FMI-28`) — with these semantics: `HTTPS_PROXY` for `https` destinations, `HTTP_PROXY` for `http`, `ALL_PROXY` for either when the scheme's variable is unset; the lowercase form of a variable takes precedence over the uppercase, and an empty variable counts as unset — it neither proxies nor suppresses the fallback; `NO_PROXY` is a comma-separated list of entries, whitespace around an entry trimmed, each a host name (a leading `.` matches subdomains too), an IP literal or a CIDR block, optionally `:port` — an IPv6 literal with a port MUST be bracketed, `[::1]:9736`, and an unbracketed entry with more than one `:` is an IPv6 literal without a port — or `*` for every destination, and an entry exempts a destination whose host equals or is a subdomain of the name, or — for an IP or CIDR entry — whose host is an IP literal equal to or inside it (a host name is matched by name only and is never resolved for the exemption), and whose port matches when one is given; no destination is exempt that no entry matches, loopback included, so an operator who sets a proxy owns the exemption for the daemon's own address (`SEC-3`). The sidecar is the exception and ignores them (`SEC-22`) | a proxy URL MUST be `http://` or `https://` (an HTTP proxy, reached over plain TCP or TLS respectively; the CONNECT method for `https` destinations); any other scheme, or a value that does not parse as a URL, fails startup (`HST-29`) |
 
 **HST-3** `walletd.toml` has five keys and MUST reject any other — including the retired
 `gateway` key (`ADR-0030`), so a file that still carries it fails startup loudly:
@@ -53,10 +53,12 @@ is not validated: a bare IPv6 literal is bracketed wherever it is rendered into 
 bind string, and a hostname is resolved by the bind. Environment knobs are the table in
 `HST-2`.
 
-**HST-4** `walletd init` MUST: read the config or take its defaults and write every key back
-canonicalised; create the data directory `0700`; open both stores under the lock (`STO-2`:
-blocking while a resident host holds it, so the token is never rotated under a running daemon,
-`API-3`); seed the default policy row if absent (`STO-13`); mint and write the token `0600`
+**HST-4** `walletd init` MUST: read the config or take its defaults; create the data directory
+`0700`; take the lock and open both stores (`STO-2`: blocking while a resident host holds it, so
+the token is never rotated under a running daemon, `API-3`) — and hold it for every write that
+follows, the config file included, so two concurrent `init`s serialise as wholes and the
+config, token and pointer a daemon and a frontend later read were written by one of them;
+write every config key back canonicalised; seed the default policy row if absent (`STO-13`); mint and write the token `0600`
 (`API-3`); and write the CLI's pointer file `client.toml` `{url, token_path}` under the config
 home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve fails it with nothing
 written (`HST-29`). It prints six stdout lines: `initialized walletd`, then `  host config:`,
@@ -244,8 +246,9 @@ the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment); verbs w
 endpoint (`API-25`'s standalone-only set) are not offered. Every operation it admits is
 `actor: User` (`OPS-5`). It holds no in-flight state: outstanding operations are rebuilt from
 the daemon's history (`API-10`) on every load and polled through `GET /v1/operations/{key}`
-(`API-11`) while on screen; the rebuild MUST use the `status=open` filter (`API-43`), never a
-crawl of the whole history, and when a page reports `skipped_unreadable` above zero the UI
+(`API-11`) while on screen; the rebuild MUST use the `status=open` filter (`API-43`), following
+`next_before_seq` until it is `null` — paging the filtered query is not the crawl this forbids —
+never an unfiltered walk of the whole history, and when a page reports `skipped_unreadable` above zero the UI
 MUST say the outstanding set is incomplete and MUST NOT present it as complete, because a
 skipped row may be a live money operation with no key to poll.
 
@@ -325,11 +328,11 @@ alone (`HST-26`). Nothing changes the mode of the stores' own files.
 **HST-30** The wallet is not required to ship or schedule a readiness probe; whether one runs
 is the deployment's. A probe an implementation does ship MUST read `GET /v1/health`
 (`API-16`) with the token and MUST distinguish three outcomes: ready; not ready — the daemon
-answered and `scheduler_alive` is `false` or `automation_ready` is `false` or absent
-(`API-16`: a caller "MUST treat readiness as unknown, not healthy"); and unable to ask — the
-daemon unreachable, no token configured, or an answer that is not `200` with a decodable
-body (a `401` on a stale token included). A command-line probe exits `0`, `1` and `2` for
-those in turn; a platform-native probe maps them to its ready, failing and unknown states. Its
+answered and `scheduler_alive` is `false` or `automation_ready` is `false`; and unknown — the
+daemon unreachable, no token configured, an answer that is not `200` with a decodable body (a
+`401` on a stale token included), or a body without `automation_ready` (`API-16`: a caller
+"MUST treat readiness as unknown, not healthy"). A command-line probe exits `0`, `1` and `2`
+for those in turn; a platform-native probe maps them to its ready, failing and unknown states. Its
 report carries `automation_blocked`'s `reason` and `detail` when the body has them and says
 readiness is unknown when it does not. A probe that reads only the status code is not a
 readiness probe (`ALC-45`: "Liveness is not readiness").
