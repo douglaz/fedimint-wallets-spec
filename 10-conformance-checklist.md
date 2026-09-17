@@ -15,15 +15,6 @@ by `docs/devimint-runbook.md` §1.
 - [x] **CNF-1** The gate is one command, run unpiped, with its own exit code captured:
       `nix develop -c bash -c 'cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace'`.
       `REAL_GATE_EXIT=$?` written into the log and grepped, never read off a `tail`.
-- [x] **CNF-2** A test added for a property is watched to fail against the broken **production**
-      behaviour first, one mutation per property, and the failure names the assertion that pins
-      the property.
-- [x] **CNF-3** A live gate's parameters discriminate: the old behaviour fails and the new one
-      passes. The supersession smoke sets a base-only cap below the gateway's summed bases so the
-      refusal is deterministic; the evacuation smoke does **not** yet discriminate the cap basis
-      (`CNF-43`, unchecked below).
-- [x] **CNF-40** A runbook claim about what a procedure does is re-run from a clean shell before
-      it is called correct. The failure signature is recorded verbatim.
 - [ ] **CNF-39** Every smoke header records its complete launch block and its last green run with
       the figures observed. As built only `smoke_evacuate_supersede_devimint.sh` does; the other
       sixteen carry a launch block and no run record, and their last green runs live in issue

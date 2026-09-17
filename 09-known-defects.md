@@ -148,11 +148,11 @@ However opens and joins of one federation overlap, exactly one client MUST becom
 partition (`FMI-20`). An open racing a user's join could briefly run two client handles on one
 database partition — the one state the client layer forbids.
 
-### DEF-18 — The join serialization MUST NOT be held across an unbounded network fetch
+### DEF-18 — An unreachable federation MUST NOT hold up other joins and recoveries indefinitely
 
-The config preview under the join serialization MUST be bounded (`FMI-21`). Held across an
-unbounded federation preview, one unreachable federation queued every later join and recovery
-behind it.
+The config preview a join or recovery performs MUST be bounded (`FMI-21`), so that an
+unreachable federation delays any later join or recovery by at most that bound. With the
+preview unbounded, one unreachable federation queued every later join and recovery behind it.
 
 ## Recorded and reported state
 
