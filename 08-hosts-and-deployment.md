@@ -102,7 +102,8 @@ seed or a password. `walletd mnemonic` prints the seed to stdout by design.
 
 **HST-29** A misconfiguration fails loudly and leaves nothing behind. Every host MUST refuse
 to start — exit non-zero with an error naming the cause, before any file, store row or
-network request — on: an environment variable set to a non-empty value it cannot parse
+network request, the standalone lock probe's own directory and lock file excepted (`HST-9`) —
+on: an environment variable set to a non-empty value it cannot parse
 (`HST-2`); a config key it does not know or cannot parse (`HST-3`, `HST-26`); a path it cannot
 resolve to an absolute one (`HST-3`, `HST-4`); and, for the standalone process alone, a store
 lock a resident host holds (`HST-9`) — `init` is the one one-shot command that blocks on the
@@ -162,7 +163,9 @@ store. `04-api-contract.md` `API-25`–`API-31` own its behaviour.
 
 **HST-26** The sidecar `wallet-web` is a separate process that talks to the daemon over its
 HTTP API with the bearer token, exactly as the CLI does, and renders HTML (`ADR-0028`). It
-MUST NOT open either store. Its posture — loopback bind, fail-closed start, a loopback-literal
+MUST NOT open either store. It reads the token from `token_path` before each daemon request,
+as the CLI does on each invocation, so a rotation by `walletd init` takes effect on the next
+request; a missing or empty file fails that request as the daemon being unreachable. Its posture — loopback bind, fail-closed start, a loopback-literal
 `daemon_url` reached directly — is `SEC-22`'s; this rule owns its provisioning and its
 configuration, and `HST-31` its request-time surface.
 
@@ -210,7 +213,8 @@ rate-limited (`ADR-0028`: "Rate limiting is required, not optional"): after 5 co
 failed attempts the sidecar MUST answer every login attempt `429` for the next 60 s, counted
 across the whole listener — behind the reverse proxy `ADR-0028` contemplates every request
 arrives from `127.0.0.1`, so a per-address key would exempt exactly the exposed case — and a
-successful login resets the count. A session is an opaque token from a cryptographically secure random
+successful login resets the count. A login body above 4 KiB MUST be refused `413` before the
+password is read, and does not count as an attempt. A session is an opaque token from a cryptographically secure random
 source with at least 256 bits of entropy (the bar `SEC-2` sets for the bearer token), held in
 memory only — no signing key at rest,
 no session survives a restart, so restarting the sidecar is the one "revoke all sessions" —
@@ -265,10 +269,11 @@ recovery procedure (`DEF-20`). What the wallet MUST guarantee for that response:
 record with both leg operation ids, the invoice, the gateway and the preimage (`STO-11`) and
 the operation record with the receive leg's error detail anchored on "send settled but receive
 was not credited" (`OPS-27`) stay in the journal unchanged, once the stranding write of
-`OPS-27` has completed them, by every later cycle; standalone `show <key>` (`API-30`) reads the operation record offline — the leg
-operation ids, the gateway, the error detail, and the timestamps that date the move's window —
-while the invoice and the preimage survive only in the move record (`STO-11`) and no verb is
-required to display them; and the destination federation's client state — what a re-claim (`FMI-41`) reads to learn
+`OPS-27` has completed them, by every later cycle; standalone `show <key> --json` (`API-30`)
+reads the operation record offline — the leg operation ids, the gateway, the error detail, and
+the timestamps that date the move's window — while the preimage survives only in the move
+record (`STO-11`: the invoice and the leg ids can be rebuilt from the operation log, the
+preimage cannot) and no verb is required to display it; and the destination federation's client state — what a re-claim (`FMI-41`) reads to learn
 whether the incoming contract is still funded and claimable or already consumed (`FMI-37`:
 after some failures its position is unknown) — stays in the client store, where a running
 daemon keeps transacting on it, which is why the operator's procedure begins with stopping the
