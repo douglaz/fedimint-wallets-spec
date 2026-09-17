@@ -31,7 +31,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | `WALLETD_TOKEN_PATH` | `walletd` (all subcommands) | token file, over `walletd.toml` (`HST-4`) | empty = unset; a relative path fails startup |
 | `WALLETD_PERFORM_TIMEOUT_SECS` | `walletd` serve | the per-intent perform deadline `OPS-15` bounds (`FMI-22`); unset or empty → 600 s, `0` disables it, as for the standalone flag (`HST-9`) | unparseable fails startup (`HST-29`) |
 | `WALLETD_SETTLEMENT_STALL_SECS` | `walletd` serve (the standalone mode runs no scheduler) | the settlement-stall deadline `ALC-40` owns, with `ALC-40`'s default; `0` is a zero-second deadline | unparseable fails startup (`HST-29`) |
-| `RUST_LOG` | all three binaries | overrides the log level (`HST-8`); the grammar, shared with `walletd.toml` `log_level`, is a level `error`, `warn`, `info`, `debug` or `trace`, or a comma-separated list of `<target>=<level>` directives with at most one bare level among them, a target being one or more segments of letters, digits, `_` and `-` joined by a double colon; a target matches itself and every longer target that begins with its segments, the longest matching target decides a line's level, the last of two equal targets wins, and where no target matches the bare level applies, or, with no bare level in the list, the level the variable would otherwise override (`walletd.toml` `log_level` — which, being that fallback, MUST itself carry a bare level or be a bare level, else startup fails, `HST-29` — `warn`, `info`); a well-formed target that matches nothing the wallet emits is accepted and has no effect | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup (`HST-29`) |
+| `RUST_LOG` | all three binaries | overrides the log level (`HST-8`); the grammar, shared with `walletd.toml` `log_level`, is a level `error`, `warn`, `info`, `debug` or `trace` — in that order of increasing verbosity, a selected level enabling itself and every more severe one — or a comma-separated list of `<target>=<level>` directives with at most one bare level among them, a target being one or more segments of letters, digits, `_` and `-` joined by a double colon; a target matches itself and every longer target that begins with its segments, the longest matching target decides a line's level, the last of two equal targets wins, and where no target matches the bare level applies, or, with no bare level in the list, the level the variable would otherwise override (`walletd.toml` `log_level` — which, being that fallback, MUST itself carry a bare level or be a bare level, else startup fails, `HST-29` — `warn`, `info`); a well-formed target that matches nothing the wallet emits is accepted and has no effect | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup (`HST-29`) |
 | `XDG_CONFIG_HOME` | all three | config home | empty or relative → ignored, `~/.config` (the XDG base-directory rule) |
 | `XDG_DATA_HOME` | `walletd`, standalone `wallet-cli` | default `data_dir` | empty or relative → ignored, `~/.local/share` (the same rule) |
 | `HOME` | all three | `~` expansion and the XDG fallbacks | read only when a path actually falls back to it; unset or empty then fails startup, before any file is written (`HST-29`); never read when every path the command touches is absolute (`XDG_CONFIG_HOME` and `XDG_DATA_HOME` absolute, an explicit `--config` whose paths are absolute for every subcommand but `init`, which also writes the pointer under the config home (`HST-4`) and so needs an absolute `XDG_CONFIG_HOME` as well; standalone `--data-dir`; or client-mode `--url` with `--token-path`, `API-25`) |
@@ -254,9 +254,11 @@ missing or is not the presenting session's, or whose `Origin` fails the check, i
 that reason (`ADR-0028`: "same-origin neighbours can read the CSRF token out of the page"). One login gates the whole UI: there is
 no step-up before spending. The surface is every daemon route **except `/v1/recover`**, which
 the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment): each such route MUST
-be exposed under the sidecar's own `/v1/` prefix with the daemon's path, method, request and
-response bodies unchanged (`04-api-contract.md`), the sidecar swapping the session for the
-bearer token and forwarding nothing else, and the HTML pages, on paths outside `/v1/`, are
+be exposed under the sidecar's own `/v1/` prefix with the daemon's path, method, status code,
+request and response bodies unchanged (`04-api-contract.md`), the sidecar swapping the session
+for the bearer token and forwarding nothing else, and answering `502` with no wallet data when
+it has no daemon response to forward (the token unreadable, the daemon unreachable, or its
+answer not received within 90 s, `API-25`'s client bound), and the HTML pages, on paths outside `/v1/`, are
 views over those forwarded routes and expose no wallet data the routes do not; verbs with no daemon
 endpoint (`API-25`'s standalone-only set) are not offered. Every operation it admits is
 `actor: User` (`OPS-5`). It holds no in-flight state: outstanding operations are rebuilt from
@@ -319,8 +321,9 @@ one that appeared in the meantime (so two `init`s racing on an absent file canno
 succeed); the new file has mode `0600` from the first instant it
 is visible at that path, whatever the umask; once the write returns the contents are on
 stable storage; and a temporary an interrupted earlier write had not yet published MUST NOT
-block the next (a target it had published is the file, and `HST-26`'s refuse-if-exists applies). **Non-secret files** — `walletd.toml`, `client.toml` — MAY be written
-plainly under the ambient umask (`SEC-5`). **Directories**: the daemon MUST create the data
+block the next (a target it had published is the file, and `HST-26`'s refuse-if-exists applies). **Non-secret files** — `walletd.toml`, `client.toml` — carry the same old-or-new
+guarantee, so an interrupted `init` never leaves a truncated config for the next `init` to
+refuse, and MAY take their mode from the ambient umask (`SEC-5`). **Directories**: the daemon MUST create the data
 directory if missing and re-assert `0700` on it at the start of `serve`, `init` and
 `restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is
 re-tightened by the next start (the directory's own existence and mode hold no wallet content
