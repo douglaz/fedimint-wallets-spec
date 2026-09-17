@@ -31,19 +31,6 @@ by `docs/devimint-runbook.md` §1.
 
 ## Build and unit gates
 
-- [x] **CNF-4** `cargo fmt --check` and `cargo clippy --workspace --all-targets -- -D warnings`
-      clean, in the devshell, on every push, and (from this change) the specification repository's `tools/check-all.sh`
-      exit 0 in the same job (`HST-16`).
-- [x] **CNF-5** 1,071 tests pass under the gate at commit `ab52094` (PR #40's head, which
-      contains `main` `1e44487`), run as `nix develop -c bash -c 'cargo fmt --all --check && cargo
-      clippy --workspace --all-targets -- -D warnings && cargo test --workspace'` with
-      `REAL_GATE_EXIT=0` on 2026-09-06. `main` alone is a few fewer. The suite spans all six
-      crates plus the integration suites under `wallet-core/tests/` and `wallet-fedimint/tests/`.
-- [x] **CNF-6** CI asserts `Cargo.lock` is unchanged **before** any cargo step runs, guarding
-      against the cache action rewriting it; build-time drift is guarded by `--locked` on the clippy
-      and test steps.
-- [x] **CNF-7** `nix build` produces `walletd`, `wallet-cli` and a non-empty OCI image, and both
-      binaries answer `--help` (`HST-16`).
 - [ ] **CNF-18** Every persisted field that decodes when absent (`STO-30` lists the eighteen)
       is pinned by a test that strips the key from the serialized row, alone, and re-reads it,
       asserting the value `STO-30` names; a fixture that omits several keys at once pins none
@@ -192,10 +179,6 @@ by `docs/devimint-runbook.md` §1.
       the fee it asserts, so a return to sizing off `max_fee` would pass; and the delivered-net
       basis is unpinned at the pre-mint gate and the post-receive recompute because the test route
       cannot produce `delivered ≠ ask` (`DEF-25`, `F22`, `F23`).
-- [ ] **CNF-44** Any build after `b5f46de` against a **real** federation: receive, pay, scheduled
-      top-up, standby funding, cross-federation move, restart, reconcile, and — for the changed
-      path — that the evacuation cap admits a full-balance drain at current gateway prices
-      (`HST-24`).
 - [ ] **CNF-45** A human reading of the four supersession money-path boundaries (`F26`).
 - [ ] **CNF-46** The browser sidecar's route manifest and live gate (`F27`).
 - [ ] **CNF-47** Seed at rest (`SEC-25`, `SEC-11`). *Given* a store holding the plaintext seed
@@ -211,7 +194,6 @@ by `docs/devimint-runbook.md` §1.
       *then* it refuses to start, the slot is unchanged and no seed is minted. *Given* the
       re-encrypted store, *when* the build that predates `SEC-25` starts on it, *then* it fails
       to start and mints nothing.
-- [ ] **CNF-49** The readiness poller running from a schedule and paging on a transition (`F14`).
 - [ ] **CNF-50** A failed `ReconcileDecide` reported as `automation_blocked` (`F32`).
 - [x] **CNF-51** A malformed value under a well-formed registry key fences the scheduler with
       `corrupt_federation_registry` and writes no probe, tick or watch row, planted under the

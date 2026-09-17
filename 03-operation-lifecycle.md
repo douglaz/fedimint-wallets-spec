@@ -15,7 +15,7 @@ one of four **outcome classes** the whole set uses: `Retryable` — nothing term
 a later perform may succeed; `Permanent` — the intent fails; `StructuralEvacuationRefusal` — a
 `Retryable` that carries refusal evidence (`DOM-19`); `Unsupported` — the action cannot be
 performed at all. Error text quoted below is what the wallet records as the ledger row's `error`
-(`STO-35`); where another requirement anchors on that text (`FMI-37`'s prefixes, `HST-28`'s
+(`STO-35`); where another requirement anchors on that text (`FMI-37`'s prefixes, `HST-32`'s
 "send settled but receive was not credited"), the anchored part is normative and the rest of the
 wording is informative.
 
@@ -149,8 +149,11 @@ nothing) and is what agent planning and commit use (`ALC-35`). User admission MU
 view.
 
 **OPS-10** Retry. Only a `Failed` intent, only by a `User` request, only preserving the anchor
-fields of `OPS-8`, and never a `Failed` pay that recorded an operation id — refused `conflict`,
-"this invoice already consumed its single payment attempt" (`FMI-17`). Before the write the retry
+fields of `OPS-8`, never a `Failed` pay that recorded an operation id — refused `conflict`,
+"this invoice already consumed its single payment attempt" (`FMI-17`) — and never a `Failed`
+move whose move record's phase is `Stranded` — refused `conflict`, "this move's send already
+settled" (`HST-32`: a retry would send again) — a refusal checked before every admission check
+below, `API-19`'s destination check included. Before the write the retry
 is admitted like a fresh key: an unopened destination (`OPS-5`), the driver cap and the probe
 hold (`OPS-6`), and the arithmetic (`OPS-7`) on the refreshed intent against the strict
 projection, the request's sampled balances and the stored cap. The retry write then, in one transaction (`STO-9`): writes `Pending` at
@@ -715,4 +718,4 @@ reason a condition yields; how an implementation derives the reason is its own:
 records or emits: the ledger `error` (`STO-35`) and the operation views (`API-12`) state what the
 state **is** — `Stranded` is "a settled send with a preimage and an op-terminal non-claim on the
 receive" (`OPS-27`) — and never why it arose or what would recover it (`DEF-20`). The operator's
-account of causes and responses is the runbook's (`HST-28`).
+account of causes and responses is the code repository's runbook (`HST-32`).

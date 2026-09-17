@@ -48,9 +48,8 @@ provenance is the code repository's concern.
 and cited here: the loopback default (`SEC-3`), one bearer token on every request (`API-2`),
 the token file written `0600` (`API-3`) at the path `HST-4` resolves, by default inside the
 data directory, and the directory's `0700` mode re-asserted on the starts `HST-19` names. The
-consequences are this requirement's: the token file's protection is the directory's, and the
-wallet is not required to re-check the file's own mode when it reads it — an operator who
-configures a `token_path` outside the data directory owns its mode; anything that can read
+consequences are this requirement's: the token file's protection is the directory's and its own
+mode, which the daemon refuses to serve with if any group or other bit is set (`HST-4`); anything that can read
 the token file can do everything the wallet's API can; anything that can read the data
 directory holds the ecash notes, the ledger and, at the default location, the token — every
 asset but the seed (`SEC-25`) — and no requirement in this set defends against it.
@@ -84,7 +83,7 @@ status code alone.
 
 **SEC-5** Configuration files MUST hold no secret. `walletd.toml` holds paths and the bind
 (`HST-3`); the CLI's pointer file holds the token's **path**, never the token (`HST-4`); both
-MAY be written under the ambient umask. The one exception is the sidecar's `wallet-web.toml`,
+MAY take their mode from the ambient umask, never writable by another user (`HST-19`). The one exception is the sidecar's `wallet-web.toml`,
 which holds an Argon2id password hash and MUST therefore be written `0600` (`HST-19`) and
 MUST be refused at every start unless its mode and its directory's ownership and mode pass
 `HST-26`'s checks.
@@ -236,8 +235,7 @@ variable cannot ship it either; MUST apply `SEC-5`'s file and directory checks a
 and MUST fail closed on every configuration defect `HST-26` and `HST-27` enumerate — the
 session ceilings and their tighten-only rule, and the origin's canonical form, are theirs and
 are not restated here. The sidecar's request-time
-surface — login, sessions, CSRF, `/healthz` — is `HST-26`'s to specify from `ADR-0028`, and
-until it does this set places no route-level requirement on the sidecar. Reaching the sidecar from beyond the host is the
+surface — login, sessions, CSRF, `/healthz` — is `HST-31`'s. Reaching the sidecar from beyond the host is the
 operator's overlay or reverse proxy ("Reaching it from a phone is the **operator's** job"), and
 behind a proxy the bind is not an authentication boundary: the password is. A sidecar in front
 of a wallet that does not meet `SEC-25` MUST NOT be exposed beyond loopback or a trusted

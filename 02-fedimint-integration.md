@@ -320,7 +320,7 @@ operation state:
 | receive | the **claim** transaction was rejected and the retries `FMI-41` requires are exhausted (this wallet claimed nothing, which does not prove the contract is unclaimed), or it was accepted and note issuance then failed | unknown whether the incoming contract was consumed |
 
 The wallet MUST record the send case with an error beginning `send failed:` and the receive case
-with one beginning `receive failed:`; the two prefixes are the operator's anchors (`HST-28`) and
+with one beginning `receive failed:`; the two prefixes are the operator's anchors (`HST-32`) and
 MUST NOT change. A move whose error starts `send failed:` is NOT evidence the money stayed put
 (`OPS-27`). `Expired` on a receive and `Refunded` on a send are the only terminals that establish
 the funds' position.
@@ -333,7 +333,7 @@ wallet MUST provide an explicit re-claim, invocable for one operation by its ope
 (`API-42`), that claims an incoming contract the federation still holds funded and unclaimed —
 the receive leg of a `Stranded` move included — and reports "not claimable" when the contract
 is expired or already consumed. This is the recovery path for `Stranded`; it runs only after
-`HST-28`'s evidence-preservation procedure, and it does not contradict `DEF-20`, because it
+`HST-32`'s evidence preservation, and it does not contradict `DEF-20`, because it
 claims what the federation holds rather than reasoning from the preimage about what happened.
 
 ## Recovery
