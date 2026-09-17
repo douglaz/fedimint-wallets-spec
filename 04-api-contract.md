@@ -145,7 +145,8 @@ it — when `limit > 0` and the scan stopped before the ledger's first row, else
 back as `before_seq` for the next page. `limit=0` returns
 `{"operations":[],"next_before_seq":null}`. A non-integer or negative value for either
 parameter is `422` `invalid query parameters: …` (`API-6`). **Any other query parameter
-(`actor`, `fed`, `kind`, …) is ignored and the page is unfiltered**. The route carries no federation filter: the CLI emulates
+(`actor`, `fed`, `kind`, …) is ignored and adds no filtering** — a `status=open` beside it
+still applies. The route carries no federation filter: the CLI emulates
 actor and status filters by paging client-side (`API-40`), and `history --fed` is
 standalone-only (`API-25`). A caller MUST NOT infer filtering from a `200`. Undecodable ledger
 rows are skipped without signal on this route (`STO-19`).

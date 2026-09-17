@@ -114,9 +114,10 @@ misconfiguration nobody sees.
 ## The standalone mode
 
 **HST-9** `wallet-cli --standalone` is a one-shot process that takes the exclusive lock and
-opens both stores (`STO-2`). Every verb it runs is admitted through the same admission point as
-every other host's (`OPS-12`, `OPS-5`); only its `tick` is the documented exception `ADR-0031`
-names (`OPS-12`). The live reads (`balance`, `list-feds`, `status`) perform nothing, so no
+opens both stores (`STO-2`). Every verb of it that admits work — the money verbs, `join`,
+`recover`, `probe`'s legs — is admitted through the same admission point as every other host's
+(`OPS-5`, `OPS-12`); only its `tick` is the documented exception `ADR-0031` names (`OPS-12`);
+its reads and admin verbs admit nothing. The live reads (`balance`, `list-feds`, `status`) perform nothing, so no
 perform deadline applies to them (`ALC-44`); every verb that performs, `join` and `recover`
 excepted (`OPS-15`: they "MUST NOT be timed out"), runs under `--perform-timeout <secs>`
 (default 600; `0` disables), which bounds one perform as `WALLETD_PERFORM_TIMEOUT_SECS` does
