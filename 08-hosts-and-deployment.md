@@ -71,8 +71,9 @@ and, because two stores may share a config home, it MUST also hold an exclusive 
 stores serialise on the pointer too;
 write every config key back canonicalised; seed the default policy row if absent (`STO-13`); mint and write the token `0600`
 (`API-3`); and write the CLI's pointer file `client.toml` `{url, token_path}` under the config
-home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve, or a host config path that resolves to the pointer's own path, fails
-it with nothing written (`HST-29`) — the two files have different schemas and cannot share an
+home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve, or a host config path that resolves to the pointer's own path, to
+either lock file (`client.db.lock`, `client.toml.lock`) or to a store entry (`HST-21`), fails
+it with nothing written (`HST-29`) — a config write can never replace a pointer, lock or store
 entry. It prints six stdout lines: `initialized walletd`, then `  host config:`,
 `  data dir:`, `  token (0600):`, `  client pointer:`, `  api url:` each followed by the
 resolved value.
