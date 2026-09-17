@@ -167,7 +167,7 @@ and terminalized after, as `ALC-34` requires, and B rises by the move's amount. 
 `ALC-5`, `ALC-7`, `ALC-32`, `ALC-34`, `ALC-53`, `OPS-11`, `DEF-1`.
 
 **CNF-20** *Given* the environment with `auto_join` on and a discovery source announcing a
-third federation **C**, *when* the resident scheduler runs for as long as the policy's probe
+third federation **C** that passes `ALC-14`'s floor under its announced id, *when* the resident scheduler runs for as long as the policy's probe
 span requires and the operator's only action is to pin C as standby in place of B once C is
 joined, *then*, in order: C is auto-joined and probe-gated, and the pin does not bypass the
 gate; scheduled probes run on C until its verdict is `Passed`; an
@@ -185,8 +185,9 @@ verdict is `Passed`; and *given* a candidate that is not joined, *when* a probe 
 *then* it is a no-attempt that records nothing and never demotes the verdict. Demonstrates
 `FMI-34`, `ALC-25`, `ALC-27`, `STO-26`.
 
-**CNF-17** *Given* a discovery source announcing a federation the wallet has not joined and
-`auto_join` on, *when* a discovery pass runs, *then* the federation is discovered, previewed with
+**CNF-17** *Given* a discovery source announcing a federation the wallet has not joined —
+one whose authenticated config carries the announced id and passes `ALC-14`'s structural
+floor — and `auto_join` on, *when* a discovery pass runs, *then* the federation is discovered, previewed with
 the Sybil check, auto-joined and marked `AutoJoined`, with the discover, auto-join and agent join
 rows in `history`; *when* the operator pins it as standby in place of B and a tick runs, *then* it is refused
 funding with a `NotProbed` refusal row: a pin does not bypass the gate; *when*
@@ -251,9 +252,10 @@ exactly once in `history`, no user operation fails, `/v1/health` reports `schedu
 
 ## Durability and the ledger
 
-**CNF-18** *Given* a stored row of each type on `STO-30`'s list with exactly one of the fields
-that decode when absent stripped from its serialized form — one field per row, never several at
-once — *when* the wallet reads it, *then* the field decodes to the value `STO-30` names for it,
+**CNF-18** *Given*, for each of the eighteen fields `STO-30` lists — the four `MoveMeta`
+fields in the operation log included — a stored row of the enclosing type with that field
+alone stripped from its serialized form, never several at once, *when* the wallet reads each
+row, *then* the field decodes to the value `STO-30` names for it,
 and the wallet serves on that store. Demonstrates `STO-30`, `DEF-10`, `OVR-14`.
 
 **CNF-33** *Given* a store in which a row of each type on `STO-29`'s list — the `Policy` row
@@ -334,13 +336,14 @@ daemon returns; *when* each daemon route other than `/v1/recover` is requested u
 sidecar's `/v1/` prefix with the session, *then* its path, query, method, status and bodies
 reach and return unchanged, with `Content-Type` and `Allow` forwarded and `Cache-Control:
 no-store` added; *given* open operations on the daemon spanning more than one page of the open-history
-filter and one unreadable ledger row, *when* the sidecar is restarted and its page loaded,
+filter and one unreadable ledger row, *when* the sidecar is restarted, a login succeeds, and its page is loaded,
 *then* the page lists every open operation, having followed `next_before_seq` to `null`
 under `status=open`, polls each through its operation route, and says the set is incomplete;
 *when* a session goes without a non-polling request for the idle timeout,
 or reaches the absolute timeout — requests marked `X-Polling: 1` extending neither — or the
-sidecar restarts, *then* the session is gone and the next request is `303` or `401` as above; *when* a state-changing request arrives without the session's CSRF token or
-from another `Origin`, *then* it is `403` with no change; *when* `/v1/recover` is requested
+sidecar restarts, *then* the session is gone and the next request is `303` or `401` as above; *when* an authenticated state-changing request other than `POST /login` arrives without
+the session's CSRF token, or any state-changing request arrives from another `Origin`,
+*then* it is `403` with no change; *when* `/v1/recover` is requested
 through the sidecar, *then* it is not reachable by any route or page; *when* the daemon is stopped, its token rotated by `walletd init`, and the daemon restarted
 while the sidecar keeps running, *then* the sidecar's next forwarded request uses the new
 token; and *when* the sidecar is started on a config with no password hash, a non-loopback
