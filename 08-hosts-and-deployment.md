@@ -46,7 +46,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | `address` | `127.0.0.1` |
 | `port` | `9736` |
 | `token_path` | env `WALLETD_TOKEN_PATH`, else the key, else `<data_dir>/token` |
-| `log_level` | `info` (`RUST_LOG` overrides) |
+| `log_level` | `info`; one of the five bare levels the `RUST_LOG` row of `HST-2` orders, with the same threshold meaning, anything else failing startup (`HST-29`); `RUST_LOG` overrides it |
 
 Paths MUST be absolute once `~` and `~/…` are expanded; anything else fails startup.
 `token_path` MUST resolve to a direct child of `data_dir` — after every filesystem link in
@@ -350,9 +350,9 @@ directory if missing and re-assert `0700` on it at the start of `serve`, `init` 
 re-tightened by the next start (the directory's own existence and mode hold no wallet content
 and are not a write in `SEC-11`'s "MUST write nothing on any failure"); the standalone process asserts it likewise (`HST-9`); the daemon's config directories — the actual parent of `walletd.toml` and the actual parent
 of `client.toml`, one directory or two when `--config` points elsewhere — are created `0700`
-by `init` when missing and MUST, at every
-start of any subcommand and at every client-mode CLI invocation that reads the pointer, each
-be owned by the running user and writable by no other, else the command fails (`HST-29`) — a
+by `init` when missing and MUST, at every start of `init` and serve (the commands that write
+or read the pointer, `HST-4`, `HST-33`) and at every client-mode CLI invocation that reads it,
+each be owned by the running user and writable by no other, else the command fails (`HST-29`) — a
 writable directory lets another user replace the pointer whatever the file's own mode;
 `wallet-web init` creates a missing config directory `0700` and leaves an existing one's mode
 alone (`HST-26`). Nothing changes the mode of the stores' own files.
