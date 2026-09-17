@@ -28,7 +28,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | Variable | Read by | Effect | Empty / invalid |
 |---|---|---|---|
 | `WALLETD_TOKEN_PATH` | `walletd` (all subcommands) | token file, over `walletd.toml` (`HST-4`) | empty = unset; a relative path fails startup |
-| `WALLETD_PERFORM_TIMEOUT_SECS` | `walletd` serve | the per-intent perform deadline `OPS-15` bounds (`FMI-22`) | unparseable fails startup (`HST-29`) |
+| `WALLETD_PERFORM_TIMEOUT_SECS` | `walletd` serve | the per-intent perform deadline `OPS-15` bounds (`FMI-22`); unset or empty → 600 s, `0` disables it, as for the standalone flag (`HST-9`) | unparseable fails startup (`HST-29`) |
 | `WALLETD_SETTLEMENT_STALL_SECS` | `walletd` serve (the standalone mode runs no scheduler) | the settlement-stall deadline `ALC-40` owns, with `ALC-40`'s default; `0` is a zero-second deadline | unparseable fails startup (`HST-29`) |
 | `RUST_LOG` | all three binaries | overrides the log level (`HST-8`); the grammar, shared with `walletd.toml` `log_level`, is a level `error`, `warn`, `info`, `debug` or `trace`, or a comma-separated list of `<target>=<level>` directives with at most one bare level among them, a target being one or more segments of letters, digits, `_` and `-` joined by a double colon, and a well-formed target that matches nothing the wallet emits is accepted and has no effect | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup (`HST-29`) |
 | `XDG_CONFIG_HOME` | all three | config home | empty or relative → ignored, `~/.config` (the XDG base-directory rule) |
