@@ -15,15 +15,6 @@ by `docs/devimint-runbook.md` §1.
 - [x] **CNF-1** The gate is one command, run unpiped, with its own exit code captured:
       `nix develop -c bash -c 'cargo fmt --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace'`.
       `REAL_GATE_EXIT=$?` written into the log and grepped, never read off a `tail`.
-- [x] **CNF-2** A test added for a property is watched to fail against the broken **production**
-      behaviour first, one mutation per property, and the failure names the assertion that pins
-      the property. `DEF-23` and `DEF-24` are what skipping this cost, twice in one week.
-- [x] **CNF-3** A live gate's parameters discriminate: the old behaviour fails and the new one
-      passes. The supersession smoke sets a base-only cap below the gateway's summed bases so the
-      refusal is deterministic; the evacuation smoke does **not** yet discriminate the cap basis
-      (`DEF-25`, unchecked below).
-- [x] **CNF-40** A runbook claim about what a procedure does is re-run from a clean shell before
-      it is called correct (`DEF-15`, `DEF-19`). The failure signature is recorded verbatim.
 - [ ] **CNF-39** Every smoke header records its complete launch block and its last green run with
       the figures observed. As built only `smoke_evacuate_supersede_devimint.sh` does; the other
       sixteen carry a launch block and no run record, and their last green runs live in issue
@@ -45,7 +36,7 @@ by `docs/devimint-runbook.md` §1.
       every gate here (`FMI-2`).
 - [x] **CNF-34** A claim committing inside the supersession exchange window leaves one executable
       intent: the parent `Executing`, no child, no sidecar, `pending()` equal to the parent alone.
-      Red against both guards it pins (`DEF-23`, commit `beba9ab`).
+      Red against both guards it pins (commit `beba9ab`).
 - [x] **CNF-35** A joined-but-unopened federation fences the scheduler with
       `partial_federation_view` and writes no probe, tick or watch row
       (`a_partial_federation_view_reports_why_automation_is_blocked`).
@@ -97,7 +88,7 @@ by `docs/devimint-runbook.md` §1.
       `ADR-0030` rests on. Carries a launch block and no run record (`CNF-39`).
 - [x] **CNF-28** The harness environment exports `FM_ENABLE_MODULE_LNV2=1`,
       `FM_ENABLE_MODULE_MINT=1` and `FM_ENABLE_MODULE_WALLET=1`; without the last two every smoke
-      that reads a balance dies with "Primary module not available" (`DEF-19`).
+      that reads a balance dies with "Primary module not available".
 - [x] **CNF-29** Wallet binaries are rebuilt into this repository's target directory through a
       fixed Nix child-environment allowlist with a fresh temporary Cargo source home before each
       certifying run, so an ambiently overridden build or a mutable git source cannot be what
@@ -175,10 +166,18 @@ by `docs/devimint-runbook.md` §1.
 - [ ] **CNF-42** A crash at `after-receive-commit` on a supersession **child**, then restart and
       reconcile. The supersession smoke covers restart-and-reconcile but not a mid-flight kill
       (`F25`, `br-supersession-child-killpoint-gate-7c9`).
-- [ ] **CNF-43** The evacuation smoke discriminating the cap **basis**: its flat cap is far above
-      the fee it asserts, so a return to sizing off `max_fee` would pass; and the delivered-net
-      basis is unpinned at the pre-mint gate and the post-receive recompute because the test route
-      cannot produce `delivered ≠ ask` (`DEF-25`, `F22`, `F23`).
+- [ ] **CNF-43** The evacuation cap **basis** (`ALC-20`, `ALC-21`, `OPS-25`). *Given* a dying
+      federation with a balance to evacuate, a route whose receive-side fee makes the delivered
+      net smaller than the sized ask, a policy whose evacuation cap `(base, bps)` has `bps > 0`
+      and whose flat `max_fee` exceeds every fee below, and a route fee at the sized amount that
+      lies strictly between `ALC-20`'s cap at the delivered net and the same cap at the sized ask,
+      *when* the evacuation is planned, sized and driven, *then* no fee above the cap at the
+      delivered net is paid, at the pre-mint gate or at the post-receive recompute — the leg is
+      refused or resized, and an implementation that bounds by the ask or by `max_fee` pays the
+      fee and fails. *Given* a receive committed under that cap, *when* the wallet restarts with
+      its cache lost and replays the attempt, *then* the cap it enforces is the one persisted
+      with the receive, not a recomputed planning cap. Unrun against the current implementation
+      (`F22`, `F23`).
 - [ ] **CNF-45** A human reading of the four supersession money-path boundaries (`F26`).
 - [ ] **CNF-46** The browser sidecar's route manifest and live gate (`F27`).
 - [ ] **CNF-47** Seed at rest (`SEC-25`, `SEC-11`). *Given* a store holding the plaintext seed
@@ -197,6 +196,5 @@ by `docs/devimint-runbook.md` §1.
 - [ ] **CNF-50** A failed `ReconcileDecide` reported as `automation_blocked` (`F32`).
 - [x] **CNF-51** A malformed value under a well-formed registry key fences the scheduler with
       `corrupt_federation_registry` and writes no probe, tick or watch row, planted under the
-      `0x00` partition (`DEF-24`;
-      `a_corrupt_federation_registry_reports_why_automation_is_blocked`). On `main` since
+      `0x00` partition (`a_corrupt_federation_registry_reports_why_automation_is_blocked`). On `main` since
       `ee4ba1c`; green in PR #40's CI at `ab52094`.
