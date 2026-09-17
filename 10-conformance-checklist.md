@@ -85,10 +85,10 @@ claim — and the invoice amount is what the payer paid. Demonstrates `FMI-15`, 
 total fee is within the move's cap, and both legs' operation ids are on the move's ledger row.
 Demonstrates `OPS-19`, `OPS-22`, `OPS-24`, `OPS-26`, `OPS-27`, `OPS-29`, `STO-33`.
 
-**CNF-12** *Given* a move from A to B, *when* the wallet suffers an uncatchable abort at each of
-the four killpoints of `OPS-28` in turn — before the move record, after the receive commit,
-before the send, after the send commit — and is restarted and reconciled after each, *then* the
-move completes exactly once: B rises exactly once by the amount, A falls exactly once, no second
+**CNF-12** *Given* a fresh move from A to B for each of the four killpoints of `OPS-28` —
+before the move record, after the receive commit, before the send, after the send commit —
+*when* the wallet suffers an uncatchable abort at that move's killpoint and is restarted and
+reconciled, *then* each move completes exactly once: B rises exactly once by the amount, A falls exactly once, no second
 payable invoice was ever minted, and the route recorded with the committed leg is the one the
 send went through. Demonstrates `OPS-28`, `OPS-20`, `OPS-24`, `OPS-25`, `FMI-17`, `OPS-35`,
 `OVR-2`.
@@ -162,8 +162,8 @@ source, and the wallet holds exactly one executable evacuation for it. Demonstra
 target by more than the shortfall, *when* one tick runs, *then* it probes, scores, snapshots,
 decides and commits a funding `Move` from A into B sized to the shortfall and not over, chosen
 by the allocator and named by no one, carrying `ALC-7`'s proportional cap and not the flat
-`max_fee` — the two differing at that amount — with the `Tick` row `ALC-34` requires opened
-before sensing and terminalized after, and B rises by the move's amount. Demonstrates `ALC-4`,
+`max_fee` — the two differing at that amount — with the `Tick` row opened before sensing
+and terminalized after, as `ALC-34` requires, and B rises by the move's amount. Demonstrates `ALC-4`,
 `ALC-5`, `ALC-7`, `ALC-32`, `ALC-34`, `ALC-53`, `OPS-11`, `DEF-1`.
 
 **CNF-20** *Given* the environment with `auto_join` on, a discovery source announcing a third
@@ -314,8 +314,8 @@ failed, and after five consecutive failures every attempt is `429` for the locko
 the attributes `HST-31` fixes, and the balance page then shows what `GET /v1/balance` on the
 daemon returns; *when* a state-changing request arrives without the session's CSRF token or
 from another `Origin`, *then* it is `403` with no change; *when* `/v1/recover` is requested
-through the sidecar, *then* it is not reachable by any route or page; *when* the daemon's
-token is rotated by `walletd init`, *then* the sidecar's next forwarded request uses the new
+through the sidecar, *then* it is not reachable by any route or page; *when* the daemon is stopped, its token rotated by `walletd init`, and the daemon restarted
+while the sidecar keeps running, *then* the sidecar's next forwarded request uses the new
 token; and *when* the sidecar is started on a config with no password hash, a non-loopback
 `daemon_url` or a world-readable config file, *then* it refuses to start and serves nothing.
 Demonstrates `HST-26`, `HST-31`, `HST-27`, `SEC-22`, `SEC-5`.
