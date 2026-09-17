@@ -136,8 +136,11 @@ default 50; values above 500 are silently capped to 500), `before_seq` (unsigned
 `status`, whose only value is `open` (`ADR-0028`: "`/v1/history` gains a `?status=open`
 filter — a read-only journal query"): with it the page holds only rows whose status is
 `started` or `awaiting`, the terminal rows are passed over like unreadable ones — `limit`
-counts the rows returned and `next_before_seq` is still the last row reached — and any other
-value is `422` `invalid query parameters: …`.
+counts the rows returned and `next_before_seq` is still the last row reached — the response
+additionally carries `skipped_unreadable` (unsigned integer): the rows the scan passed over as
+undecodable, because an unreadable row may be an open operation the caller cannot rebuild
+(`ADR-0028`: the filter lands "together with its skipped-undecodable-row signal"; `STO-19`
+carves it out) — and any other value is `422` `invalid query parameters: …`.
 `before_seq` is **exclusive**: the page holds rows with `seq < before_seq`, newest first
 (`STO-19`). `next_before_seq` is the `seq` of the last row the page **reached** — returned or
 skipped as unreadable (`STO-19`, `OVR-14`), so a skipped row never strands the rows older than

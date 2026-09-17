@@ -85,7 +85,8 @@ admitted → start the scheduler (`ALC-38`) → serve. The dry run behind `GET /
 
 **HST-7** Shutdown begins on `SIGTERM` or `SIGINT`, on the listener exiting, or on a critical
 service task exiting (which one, in the log). It MUST then, in order: stop admitting
-(`ALC-42`; new requests get `503` `wallet service is shutting down`, `API-37`) → abort every
+(`ALC-42`; while the listener still runs, new requests get `503` `wallet service is shutting
+down`, `API-37`) → abort every
 in-flight drive, leaving its intent re-performable (`OPS-15`) → answer every parked long-poll
 (`API-11`) with that error → exit. A fatal exit is non-zero, so a supervisor configured to
 restart on failure restarts it; a clean shutdown on a signal exits zero.
