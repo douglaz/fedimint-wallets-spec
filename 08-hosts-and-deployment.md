@@ -31,7 +31,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | `WALLETD_TOKEN_PATH` | `walletd` (all subcommands) | token file, over `walletd.toml` (`HST-4`) | empty = unset; a relative path, or one that is not a direct child of `data_dir` (`HST-3`), fails startup |
 | `WALLETD_PERFORM_TIMEOUT_SECS` | `walletd` serve | the per-intent perform deadline `OPS-15` bounds (`FMI-22`); unset or empty → 600 s, `0` disables it, as for the standalone flag (`HST-9`) | unparseable fails startup (`HST-29`) |
 | `WALLETD_SETTLEMENT_STALL_SECS` | `walletd` serve (the standalone mode runs no scheduler) | the settlement-stall deadline `ALC-40` owns, with `ALC-40`'s default; `0` is a zero-second deadline | unparseable fails startup (`HST-29`) |
-| `RUST_LOG` | all three binaries | overrides the log level (`HST-8`); the grammar, shared with `walletd.toml` `log_level`, is a level `error`, `warn`, `info`, `debug` or `trace` — in that order of increasing verbosity, a selected level enabling itself and every more severe one — or a comma-separated list of `<target>=<level>` directives with at most one bare level among them, a target being one or more segments of letters, digits, `_` and `-` joined by a double colon; a target matches itself and every longer target that begins with its segments, the longest matching target decides a line's level, the last of two equal targets wins, and where no target matches the bare level applies, or, with no bare level in the list, the level the variable would otherwise override (`walletd.toml` `log_level` — which, being that fallback, MUST itself carry a bare level or be a bare level, else startup fails, `HST-29` — `warn`, `info`); a well-formed target that matches nothing the wallet emits is accepted and has no effect | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup (`HST-29`) |
+| `RUST_LOG` | all three binaries | overrides the log level (`HST-8`). The value MUST be accepted as a bare level `error`, `warn`, `info`, `debug` or `trace` — in that order of increasing verbosity, a selected level enabling itself and every more severe one — and this is the whole contract; an implementation MAY also accept a comma-separated list of `<target>=<level>` directives with at most one bare level, whose targets are its own and outside this set | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; a value that is neither a bare level nor an accepted directive list fails startup (`HST-29`) |
 | `XDG_CONFIG_HOME` | all three | config home | empty or relative → ignored, `~/.config` (the XDG base-directory rule) |
 | `XDG_DATA_HOME` | `walletd`, standalone `wallet-cli` | default `data_dir` | empty or relative → ignored, `~/.local/share` (the same rule) |
 | `HOME` | all three | `~` expansion and the XDG fallbacks | read only when a path actually falls back to it; unset or empty then fails startup, before any file is written (`HST-29`); never read when every path the command touches is absolute (`XDG_CONFIG_HOME` and `XDG_DATA_HOME` absolute, an explicit `--config` whose paths are absolute for `mnemonic` and `restore-mnemonic` — `init` writes the pointer under the config home (`HST-4`) and serve reads it (`HST-33`), so both need an absolute `XDG_CONFIG_HOME` as well; standalone `--data-dir`; or client-mode `--url` with `--token-path`, `API-25`) |
@@ -108,12 +108,12 @@ token the last completed `init` wrote, and an `init` racing a start cannot leave
 holding a token no frontend has. The daemon MUST refuse to start when the token path it
 resolves (`HST-4`'s precedence, in its own environment) differs from the `token_path` the CLI
 pointer names, or when the URL it will serve at differs from the pointer's `url` — both
-compared from `walletd.toml` and `client.toml` as re-read under the lock, since an `init`
-completing before the lock was taken may have replaced what was read before it — since every
+compared from `walletd.toml` and `client.toml` as re-read after taking the store lock and
+`client.toml.lock` (held from before the comparison, and kept), since an `init` completing
+before either lock was taken may have replaced what was read before it — since every
 frontend would then present a different file's token or reach a different address — which is
 also what an `init` interrupted between its files leaves behind, and the refusal is how that
-mixed state is caught: re-running `init` repairs it. Having passed that check the daemon MUST
-hold `client.toml.lock` exclusively for its lifetime, so an `init` of any store sharing the
+mixed state is caught: re-running `init` repairs it. The daemon keeps `client.toml.lock` exclusively for its lifetime, so an `init` of any store sharing the
 config home blocks until it stops (`HST-4`), as an `init` of its own store does on the store
 lock, and the pointer cannot be repointed under a running daemon.
 
