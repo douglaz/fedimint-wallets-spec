@@ -203,8 +203,8 @@ writable by no one else.
 password_hash, session_idle_timeout, session_absolute_timeout, public_origin`, every one
 required; there is no bind-address key (the bind is `127.0.0.1`, `SEC-22`) and no log-level key
 (`RUST_LOG`, `HST-2`). Timeouts are the grammar `<unsigned integer><s|m|h>` (no sign); `0s` is accepted —
-immediate expiry is the fail-closed direction. Startup MUST refuse: a config file with any
-group or other permission bit; a config directory not owned by the running user or writable
+immediate expiry is the fail-closed direction. Startup MUST refuse: a config file not owned by the
+running user or with any group or other permission bit; a config directory not owned by the running user or writable
 by another; a parse error (reported by position and message only — the offending line is
 never quoted, so the hash cannot reach a log, `SEC-6`); a missing, empty or malformed PHC
 hash; a hash that is not `argon2id`, does not declare `v=19`, has a salt under 16 bytes, has an
