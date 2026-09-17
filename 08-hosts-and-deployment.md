@@ -74,8 +74,8 @@ write every config key back canonicalised; seed the default policy row if absent
 (`API-3`); and write the CLI's pointer file `client.toml` `{url, token_path}` under the config
 home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve, or a host config path that resolves to the pointer's own path, to
 either lock file (`client.db.lock`, `client.toml.lock`) or to a store entry or anything inside
-either store directory (`HST-21`), fails
-it with nothing written (`HST-29`) — a config write can never replace a pointer, lock or store
+either store directory (`HST-21`), or a `data_dir` that equals, lies inside or contains the
+host config or pointer path, fails it with nothing written (`HST-29`) — a config write can never replace a pointer, lock or store
 entry. It prints six stdout lines: `initialized walletd`, then `  host config:`,
 `  data dir:`, `  token (0600):`, `  client pointer:`, `  api url:` each followed by the
 resolved value.
@@ -211,7 +211,8 @@ configuration, and `HST-31` its request-time surface.
 global `--config` (default `$XDG_CONFIG_HOME/wallet-web/wallet-web.toml`, else
 `~/.config/wallet-web/wallet-web.toml`). It MUST refuse to run if the config file already
 exists (`sidecar config <path> already exists; …`), checked before any prompt, and if
-`--config` and `--token-path` resolve to the same file (`HST-29`): rotating the
+`--config` and `--token-path` resolve to the same file or one lies under the other
+(`HST-29`): rotating the
 password is delete-then-init. It MUST prompt for the password twice on the controlling
 terminal with echo disabled, never read it from stdin or an argument (`SEC-6`); the two
 entries MUST match, and a mismatch or an abort at the prompt MUST exit non-zero with nothing
