@@ -261,8 +261,8 @@ no step-up before spending. The surface is every daemon route **except `/v1/reco
 the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment): each such route MUST
 be exposed under the sidecar's own `/v1/` prefix with the daemon's path, query string, method, status
 code, request and response bodies unchanged (`04-api-contract.md`), the sidecar swapping the session
-for the bearer token, forwarding the request's `Content-Type` (`API-35` requires it) and
-nothing else, and answering `502` with no wallet data when
+for the bearer token, forwarding the request's `Content-Type` (`API-35` requires it) and the
+response's, and nothing else, and answering `502` with no wallet data when
 it has no daemon response to forward (the token unreadable, the daemon unreachable, or its
 answer not received within 90 s, `API-25`'s client bound), and the HTML pages, on paths outside `/v1/`, are
 views over those forwarded routes and expose no wallet data the routes do not; verbs with no daemon
