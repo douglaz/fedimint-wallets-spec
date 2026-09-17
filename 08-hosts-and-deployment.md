@@ -390,9 +390,11 @@ before any lock on it is relied on, else the command fails (`HST-29`) — a lock
 inode excludes nobody who can retarget the link. **Store directories**: `client.db` and
 `journal.db` MUST each be a directory, not a link, owned by the running user and writable by
 no other, checked before it is opened, else the command fails (`HST-29`). A process MUST reach the
-lock file and both stores through one handle to the data directory, obtained once before the
-checks, so that a swap of the directory entry by whoever can write its parent cannot separate
-the lock a process holds from the stores it guards.
+lock file, both stores and the token file through one handle to the data directory, obtained
+once before the checks, so that a swap of the directory entry by whoever can write its parent
+cannot separate the lock a process holds from the stores it guards or from the token it reads
+or rotates; and likewise the pointer, its lock and the host config through one handle to each
+checked config directory, so the pointer a daemon holds locked is the one a frontend reads.
 
 **HST-21** Data directory layout:
 
