@@ -303,7 +303,7 @@ one amount attach to one operation and re-yield its invoice, a nonce-less `move`
 than one page, `history --limit N` with that filter prints the N newest matching rows, and
 `candidates` prints newest first; every error envelope, usage error and journaled failure maps to the exit code `API-28`
 gives it; the stdout of every
-verb is the shape `API-29` or `API-39` fixes for it — `health` printing all five fields of
+verb whose shape `API-29` or `API-39` fixes is that shape — `health` printing all five fields of
 `API-16`, `status` rendering `deferred` and `suppressed`, `show` printing `fee_cap_msat`,
 `history --json` and `show --json` carrying `fee_cap`; and `policy set` of one field PUTs every
 key the GET returned, unchanged where no flag named it, and refuses as a usage error a flag for
@@ -319,7 +319,10 @@ Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`, `API-33`, `API-38
 password twice on the controlling terminal with echo disabled and refuses — writing nothing —
 a mismatch, a password below `HST-26`'s bounds, and a config path that already exists or
 overlaps the token path; on success it writes the config `0600` with an Argon2id hash at or
-above `HST-26`'s minimums; *when* the provisioned sidecar starts, *then* it listens on loopback only and has opened no store; *when*
+above `HST-26`'s minimums; *when* the provisioned sidecar starts
+with the standard proxy variables pointing at an observing endpoint, *then* it listens on
+loopback only, has opened no store, reaches the daemon directly, and the proxy endpoint
+receives nothing; *when*
 `GET /healthz` is requested without a session, *then* it answers 200 with exactly the two keys
 `HST-31` names and `daemon_reachable` `true`; *when* a page is requested without a session,
 *then* it is `303` to `/login`, and a non-`GET` is `401`, neither carrying wallet data; *when*
@@ -341,5 +344,6 @@ from another `Origin`, *then* it is `403` with no change; *when* `/v1/recover` i
 through the sidecar, *then* it is not reachable by any route or page; *when* the daemon is stopped, its token rotated by `walletd init`, and the daemon restarted
 while the sidecar keeps running, *then* the sidecar's next forwarded request uses the new
 token; and *when* the sidecar is started on a config with no password hash, a non-loopback
-`daemon_url` or a world-readable config file, *then* it refuses to start and serves nothing.
+`daemon_url`, a world-readable config file, or a config directory owned by or writable by
+another user, *then* it refuses to start and serves nothing.
 Demonstrates `HST-26`, `HST-31`, `HST-27`, `SEC-22`, `SEC-5`.
