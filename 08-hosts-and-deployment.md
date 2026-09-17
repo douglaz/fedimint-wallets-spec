@@ -75,9 +75,8 @@ The order is `init → restore-mnemonic → serve`, because serving on a store w
 
 **HST-6** Serve MUST proceed in this order, and a failure at any step exits non-zero with
 nothing admitted: load the config → log to stderr (`HST-8`) → re-assert the data directory
-`0700` (`HST-19`) → take the lock and open both stores (`STO-2`) → read the token (fail if
-empty, `HST-4`; read under the lock, so an `init` cannot rotate it between the read and the
-bind, `API-3`) → seed or validate the policy row (`STO-13`) → load the seed, or mint one
+`0700` (`HST-19`) → take the lock and open both stores (`STO-2`) → read the token under the
+lock (`HST-33`; fail if empty, `HST-4`) → seed or validate the policy row (`STO-13`) → load the seed, or mint one
 (`SEC-11`) → open each joined federation's client, tolerating one that fails to open (it is
 joined but not open, `DOM-2`; the scheduler's fence B answers for it, `ALC-46`) → **bind the
 listener before the scheduler admits any work**, so a port conflict fails startup with nothing
@@ -90,6 +89,11 @@ service task exiting (which one, in the log). It MUST then, in order: stop admit
 in-flight drive, leaving its intent re-performable (`OPS-15`) → answer every parked long-poll
 (`API-11`) with that error → exit. A fatal exit is non-zero, so a supervisor configured to
 restart on failure restarts it; a clean shutdown on a signal exits zero.
+
+**HST-33** The daemon MUST read the token only while it holds the store lock. `init` rotates
+the token only under that lock (`API-3`), so a daemon that reads it there serves with the
+token the last completed `init` wrote, and an `init` racing a start cannot leave the daemon
+holding a token no frontend has.
 
 **HST-8** The daemon MUST log to stderr and to nothing else, at the level `HST-3`'s
 `log_level` or `RUST_LOG` selects. Redaction is `SEC-6`'s: no code path logs the token, the
@@ -113,10 +117,11 @@ misconfiguration nobody sees.
 opens both stores (`STO-2`). Every verb it runs is admitted through the same admission point as
 every other host's (`OPS-12`, `OPS-5`); only its `tick` is the documented exception `ADR-0031`
 names (`OPS-12`). The live reads (`balance`, `list-feds`, `status`) perform nothing, so no
-perform deadline applies to them (`ALC-44`); every verb that performs runs under
-`--perform-timeout <secs>` (default 600; `0` disables), which bounds one perform as
-`WALLETD_PERFORM_TIMEOUT_SECS` does for the daemon (`OPS-15` owns what a timeout leaves
-behind); the environment variable is not read by the CLI. It resolves `data_dir` from
+perform deadline applies to them (`ALC-44`); every verb that performs, `join` and `recover`
+excepted (`OPS-15`: they "MUST NOT be timed out"), runs under `--perform-timeout <secs>`
+(default 600; `0` disables), which bounds one perform as `WALLETD_PERFORM_TIMEOUT_SECS` does
+for the daemon (`OPS-15` owns what a timeout leaves behind); the environment variable is not
+read by the CLI. It resolves `data_dir` from
 `--data-dir`, else `walletd.toml` (parsed with the daemon's own closed schema, so a stale
 `gateway` key fails here too, `HST-3`), else the default. The lock comes first: open-or-create
 `<data_dir>/client.db.lock` and attempt a non-blocking exclusive lock; contention MUST exit 1
