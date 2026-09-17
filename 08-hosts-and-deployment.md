@@ -366,9 +366,9 @@ stable storage; and a temporary an interrupted earlier write had not yet publish
 block the next (a target it had published is the file, and `HST-26`'s refuse-if-exists applies). **Non-secret files** — `walletd.toml`, `client.toml` — carry the same old-or-new
 guarantee and the same durability once the write returns, so an interrupted `init` never
 leaves a truncated config for the next `init` to refuse and a power loss after `init` reports
-success never reverts the pointer or config behind a rotated token, and MAY take their mode from the ambient umask (`SEC-5`) but MUST, at every read, be regular
-files, not links, owned by the running user and not writable by another user whatever the
-umask is, else the read fails: a writable `client.toml` lets that user point every
+success never reverts the pointer or config behind a rotated token, and are published with no group or other write bit whatever the umask is — their read bits MAY
+follow the umask (`SEC-5`) — and MUST, at every read, be regular files, not links, owned by the
+running user and not writable by another user, else the read fails: a writable `client.toml` lets that user point every
 frontend's token at an address of their choosing. **Directories**: the daemon MUST create the data
 directory if missing, refuse one not owned by the running user (`HST-29`; a mode can be
 re-asserted, an owner cannot), and re-assert `0700` on it at the start of `serve`, `init` and
