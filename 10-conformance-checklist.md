@@ -179,10 +179,6 @@ by `docs/devimint-runbook.md` §1.
       the fee it asserts, so a return to sizing off `max_fee` would pass; and the delivered-net
       basis is unpinned at the pre-mint gate and the post-receive recompute because the test route
       cannot produce `delivered ≠ ask` (`DEF-25`, `F22`, `F23`).
-- [ ] **CNF-44** Any build after `b5f46de` against a **real** federation: receive, pay, scheduled
-      top-up, standby funding, cross-federation move, restart, reconcile, and — for the changed
-      path — that the evacuation cap admits a full-balance drain at current gateway prices
-      (the code repository's conformance results say which build).
 - [ ] **CNF-45** A human reading of the four supersession money-path boundaries (`F26`).
 - [ ] **CNF-46** The browser sidecar's route manifest and live gate (`F27`).
 - [ ] **CNF-47** Seed at rest (`SEC-25`, `SEC-11`). *Given* a store holding the plaintext seed

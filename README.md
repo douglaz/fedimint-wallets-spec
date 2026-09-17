@@ -147,6 +147,7 @@ Deleted from the documents. Never reused. Listed so an older citation still reso
 | `CNF-5` | The unit and integration suite's test count at one commit, with the command line that ran it | A build and unit result at one commit (`ADR-0032`); the code repository's conformance results own it |
 | `CNF-6` | CI asserts the lock file is unchanged before any build step and builds with `--locked` | Continuous-integration policy of one repository (`ADR-0032`), withdrawn with `HST-16` |
 | `CNF-7` | The Nix build produces the two binaries and a non-empty image, and both answer `--help` | A build artefact check of one repository (`ADR-0032`), withdrawn with `HST-15` |
+| `CNF-44` | "Any build after `b5f46de` against a **real** federation": receive, pay, top-up, standby funding, move, restart, reconcile and the evacuation cap, for the changed path | A conformance result of one implementation's build lineage against one deployment (`ADR-0032`: which requirements have been exercised against a real federation "moves to the code repository with the conformance results"); the behaviours it lists are scenarios elsewhere in this chapter |
 
 ## Gates
 

@@ -213,8 +213,12 @@ timeout without a non-polling request, and unconditionally at the absolute timeo
 polling request MUST NOT extend the idle timer. Every state-changing request MUST be refused
 unless its `Origin` header equals `public_origin` (`HST-27`'s form); every one but
 `POST /login` — the request that creates the session, so it has no token yet — MUST also carry
-the session's CSRF token. A dedicated origin is required for that reason (`ADR-0028`:
-"same-origin neighbours can read the CSRF token out of the page"). One login gates the whole UI: there is
+the session's CSRF token: a second value minted with the session from the same source and
+entropy as the session token, bound to that session for its lifetime, delivered only inside
+the HTML the sidecar renders (never in a cookie or a response header), and presented back in
+the form field `csrf_token` or the request header `X-CSRF-Token`; a request whose token is
+missing or is not the presenting session's is refused. A dedicated origin is required for
+that reason (`ADR-0028`: "same-origin neighbours can read the CSRF token out of the page"). One login gates the whole UI: there is
 no step-up before spending. The surface is every daemon route **except `/v1/recover`**, which
 the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment); verbs with no daemon
 endpoint (`API-25`'s standalone-only set) are not offered. Every operation it admits is
