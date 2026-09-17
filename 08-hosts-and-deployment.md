@@ -75,7 +75,8 @@ write every config key back canonicalised; seed the default policy row if absent
 home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve, or a host config path that equals, lies under or contains the pointer path, either lock
 file (`client.db.lock`, `client.toml.lock`), a store entry or anything inside either store
 directory (`HST-21`), or a `data_dir` that equals, lies inside or contains the
-host config path, the pointer path or the pointer lock path (`client.toml.lock`), fails it
+host config path, the pointer path or the pointer lock path (`client.toml.lock`), or an
+output target — config, token or pointer — that exists but is not a regular file, fails it
 with nothing written (`HST-29`) — a config write can never replace a pointer, lock or store
 entry. It prints six stdout lines: `initialized walletd`, then `  host config:`,
 `  data dir:`, `  token (0600):`, `  client pointer:`, `  api url:` each followed by the
@@ -388,7 +389,10 @@ alone (`HST-26`). Nothing changes the mode of the stores' own files. **Lock file
 before any lock on it is relied on, else the command fails (`HST-29`) — a lock on a linked
 inode excludes nobody who can retarget the link. **Store directories**: `client.db` and
 `journal.db` MUST each be a directory, not a link, owned by the running user and writable by
-no other, checked before it is opened, else the command fails (`HST-29`).
+no other, checked before it is opened, else the command fails (`HST-29`). A process MUST reach the
+lock file and both stores through one handle to the data directory, obtained once before the
+checks, so that a swap of the directory entry by whoever can write its parent cannot separate
+the lock a process holds from the stores it guards.
 
 **HST-21** Data directory layout:
 
