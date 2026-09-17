@@ -159,7 +159,7 @@ source, and the wallet holds exactly one executable evacuation for it. Demonstra
 ## The automated cycle
 
 **CNF-13** *Given* the environment with B below its standby target and A above its spending
-target by more than the shortfall, *when* one tick runs, *then* it probes, scores, snapshots,
+target by more than the shortfall plus `move_fee_cap(shortfall, bps)`, *when* one tick runs, *then* it probes, scores, snapshots,
 decides and commits a funding `Move` from A into B sized to the shortfall and not over, chosen
 by the allocator and named by no one, carrying `ALC-7`'s proportional cap and not the flat
 `max_fee` — the two differing at that amount — with the `Tick` row opened before sensing
@@ -167,7 +167,8 @@ and terminalized after, as `ALC-34` requires, and B rises by the move's amount. 
 `ALC-5`, `ALC-7`, `ALC-32`, `ALC-34`, `ALC-53`, `OPS-11`, `DEF-1`.
 
 **CNF-20** *Given* the environment with `auto_join` on and a discovery source announcing a
-third federation **C** that passes `ALC-14`'s floor under its announced id, *when* the resident scheduler runs for as long as the policy's probe
+third federation **C** that passes `ALC-14`'s floor under its announced id and lists G, which
+serves it, on its vetted list, *when* the resident scheduler runs for as long as the policy's probe
 span requires and the operator's only action is to pin C as standby in place of B once C is
 joined, *then*, in order: C is auto-joined and probe-gated, and the pin does not bypass the
 gate; scheduled probes run on C until its verdict is `Passed`; an
@@ -187,7 +188,7 @@ verdict is `Passed`; and *given* a candidate that is not joined, *when* a probe 
 
 **CNF-17** *Given* a discovery source announcing a federation the wallet has not joined —
 one whose authenticated config carries the announced id and passes `ALC-14`'s structural
-floor — and `auto_join` on, *when* a discovery pass runs, *then* the federation is discovered, previewed with
+floor, and whose vetted list holds G, which serves it — and `auto_join` on, *when* a discovery pass runs, *then* the federation is discovered, previewed with
 the Sybil check, auto-joined and marked `AutoJoined`, with the discover, auto-join and agent join
 rows in `history`; *when* the operator pins it as standby in place of B and a tick runs, *then* it is refused
 funding with a `NotProbed` refusal row: a pin does not bypass the gate; *when*
@@ -319,7 +320,7 @@ Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`, `API-33`, `API-38
 
 **CNF-54** *Given* a running daemon, *when* `wallet-web init` is run, *then* it takes the
 password twice on the controlling terminal with echo disabled and refuses — writing nothing —
-a mismatch, a password below `HST-26`'s bounds, and a config path that already exists or
+a mismatch, a password below or above `HST-26`'s bounds — each tried on its own — and a config path that already exists or
 overlaps the token path; on success it writes the config `0600` with an Argon2id hash at or
 above `HST-26`'s minimums; *when* the provisioned sidecar starts
 with the standard proxy variables pointing at an observing endpoint, *then* it listens on
@@ -333,7 +334,8 @@ failed, and after five consecutive failures every attempt is `429` for the locko
 *when* the right password is sent once that window has elapsed, *then* it is `303` to `/` with the `session` cookie carrying
 the attributes `HST-31` fixes, and the balance page then shows what `GET /v1/balance` on the
 daemon returns; *when* each daemon route other than `/v1/recover` is requested under the
-sidecar's `/v1/` prefix with the session, *then* its path, query, method, status and bodies
+sidecar's `/v1/` prefix with the session — a state-changing one also with the matching
+`Origin` and the session's `X-CSRF-Token` — *then* its path, query, method, status and bodies
 reach and return unchanged, with `Content-Type` and `Allow` forwarded and `Cache-Control:
 no-store` added; *given* open operations on the daemon spanning more than one page of the open-history
 filter and one unreadable ledger row, *when* the sidecar is restarted, a login succeeds, and its page is loaded,
