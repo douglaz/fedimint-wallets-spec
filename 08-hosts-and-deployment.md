@@ -19,8 +19,9 @@ file is `$XDG_CONFIG_HOME/walletd/walletd.toml`, else `~/.config/walletd/walletd
 `--config` overrides. This rule owns the complete environment-variable surface the wallet's
 binaries read in a release build (variables the language runtime or a library beneath the
 wallet reads are not the wallet's, and the code repository documents them). Every variable
-in the table is read in a release build. A variable set to a non-empty value the wallet cannot
-parse fails startup (`HST-29`), never falls back silently to a default. Two further variables
+in the table is read in a release build. An empty value counts as unset for every variable in
+the table. A variable set to a non-empty value the wallet cannot parse fails startup (`HST-29`),
+never falls back silently to a default. Two further variables
 exist only in debug builds and are compiled out of release: the fault-injection seams
 `WALLET_CLI_CRASH_AT` (`OPS-28`) and `WALLET_CLI_FORCE_SHUTDOWN` (`FMI-26`), owned by
 `SEC-18`.
@@ -30,7 +31,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | `WALLETD_TOKEN_PATH` | `walletd` (all subcommands) | token file, over `walletd.toml` (`HST-4`) | empty = unset; a relative path fails startup |
 | `WALLETD_PERFORM_TIMEOUT_SECS` | `walletd` serve | the per-intent perform deadline `OPS-15` bounds (`FMI-22`); unset or empty → 600 s, `0` disables it, as for the standalone flag (`HST-9`) | unparseable fails startup (`HST-29`) |
 | `WALLETD_SETTLEMENT_STALL_SECS` | `walletd` serve (the standalone mode runs no scheduler) | the settlement-stall deadline `ALC-40` owns, with `ALC-40`'s default; `0` is a zero-second deadline | unparseable fails startup (`HST-29`) |
-| `RUST_LOG` | all three binaries | overrides the log level (`HST-8`); the grammar, shared with `walletd.toml` `log_level`, is a level `error`, `warn`, `info`, `debug` or `trace`, or a comma-separated list of `<target>=<level>` directives with at most one bare level among them, a target being one or more segments of letters, digits, `_` and `-` joined by a double colon; a target matches itself and every longer target that begins with its segments, the longest matching target decides a line's level, the last of two equal targets wins, and the bare level applies where no target matches; a well-formed target that matches nothing the wallet emits is accepted and has no effect | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup (`HST-29`) |
+| `RUST_LOG` | all three binaries | overrides the log level (`HST-8`); the grammar, shared with `walletd.toml` `log_level`, is a level `error`, `warn`, `info`, `debug` or `trace`, or a comma-separated list of `<target>=<level>` directives with at most one bare level among them, a target being one or more segments of letters, digits, `_` and `-` joined by a double colon; a target matches itself and every longer target that begins with its segments, the longest matching target decides a line's level, the last of two equal targets wins, and where no target matches the bare level applies, or, with no bare level in the list, the level the variable would otherwise override (`walletd.toml` `log_level`, `warn`, `info`); a well-formed target that matches nothing the wallet emits is accepted and has no effect | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup (`HST-29`) |
 | `XDG_CONFIG_HOME` | all three | config home | empty or relative → ignored, `~/.config` (the XDG base-directory rule) |
 | `XDG_DATA_HOME` | `walletd`, standalone `wallet-cli` | default `data_dir` | empty or relative → ignored, `~/.local/share` (the same rule) |
 | `HOME` | all three | `~` expansion and the XDG fallbacks | read only when a path actually falls back to it; unset or empty then fails startup, before any file is written (`HST-29`); never read when every path the command touches is absolute (`XDG_CONFIG_HOME` and `XDG_DATA_HOME` absolute, an explicit `--config` whose paths are absolute for every subcommand but `init`, which also writes the pointer under the config home (`HST-4`) and so needs an absolute `XDG_CONFIG_HOME` as well; standalone `--data-dir`; or client-mode `--url` with `--token-path`, `API-25`) |
@@ -188,7 +189,7 @@ writable by no one else.
 **Configuration.** The file has exactly the keys `port, daemon_url, token_path,
 password_hash, session_idle_timeout, session_absolute_timeout, public_origin`, every one
 required; there is no bind-address key (the bind is `127.0.0.1`, `SEC-22`) and no log-level key
-(`RUST_LOG`, `HST-2`). Timeouts are the grammar `<integer><s|m|h>`; `0s` is accepted —
+(`RUST_LOG`, `HST-2`). Timeouts are the grammar `<unsigned integer><s|m|h>` (no sign); `0s` is accepted —
 immediate expiry is the fail-closed direction. Startup MUST refuse: a config file with any
 group or other permission bit; a config directory not owned by the running user or writable
 by another; a parse error (reported by position and message only — the offending line is
