@@ -73,7 +73,7 @@ text, is `OPS-39`.
 | 422 | refused | `policy_invalid`, `amount_required`, `sizing_conflict`; and every request validation failure with no reason (bad invoice, `from == to`, unjoined federation, bad nonce, malformed JSON, bad query or path, unknown policy field, a reclaim of an operation that is not reclaimable) |
 | 409 | refused | `insufficient_after_reservations`, `fed_held_by_probe`, `over_cap`, `budget_exhausted`, `storage_error`, `policy_superseded`, `conflict` |
 | 409 | failed | a journaled terminal failure surfaced synchronously; carries `operation_key` |
-| 503 | failed | shutting down, engine stopped, destination federation joined but not open (fresh key, or a retry of a `Failed` key other than a `Stranded` move, which `OPS-10` refuses `409` first), a balance read failing on an open source federation during money-verb admission, or a `/v1/status` precondition (`API-15`) |
+| 503 | failed | shutting down, engine stopped, destination federation joined but not open (fresh key, or a retry `OPS-10` admits — a `Stranded` move or a `Failed` pay with a recorded operation id is refused `409` before this check), a balance read failing on an open source federation during money-verb admission, or a `/v1/status` precondition (`API-15`) |
 | 504 | timeout | a long-poll or invoice deadline elapsed; carries `operation_key` when the operation was admitted |
 | 500 | failed | storage fault (`API-37`) |
 

@@ -81,10 +81,10 @@ entry. It prints six stdout lines: `initialized walletd`, then `  host config:`,
 `  data dir:`, `  token (0600):`, `  client pointer:`, `  api url:` each followed by the
 resolved value.
 Token path precedence, for every subcommand, is `WALLETD_TOKEN_PATH` (when set and non-empty)
-> `walletd.toml` `token_path` > `<data_dir>/token`. On serve the token file MUST be a regular file, not a link, owned by the running user, else
-startup fails (`HST-29`); its contents are whitespace-trimmed and an empty file fails startup
-(`bearer token file <path> is empty`); the wallet is not required to check the file's mode
-when it reads it (`SEC-1`).
+> `walletd.toml` `token_path` > `<data_dir>/token`. On serve the token file MUST be a regular file, not a link, owned by the running user and
+with no group or other permission bit, else startup fails (`HST-29`) — a hard link kept by
+another user is excluded only by the mode; its contents are whitespace-trimmed and an empty
+file fails startup (`bearer token file <path> is empty`).
 
 **HST-5** `walletd restore-mnemonic` reads twelve BIP-39 words from stdin only, refuses if a
 seed already exists, and stores the entropy as `SEC-25` requires (`SEC-11` owns the rules).

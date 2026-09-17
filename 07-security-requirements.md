@@ -48,8 +48,8 @@ provenance is the code repository's concern.
 and cited here: the loopback default (`SEC-3`), one bearer token on every request (`API-2`),
 the token file written `0600` (`API-3`) at the path `HST-4` resolves, by default inside the
 data directory, and the directory's `0700` mode re-asserted on the starts `HST-19` names. The
-consequences are this requirement's: the token file's protection is the directory's, and the
-wallet is not required to re-check the file's own mode when it reads it; anything that can read
+consequences are this requirement's: the token file's protection is the directory's and its own
+mode, which the daemon refuses to serve with if any group or other bit is set (`HST-4`); anything that can read
 the token file can do everything the wallet's API can; anything that can read the data
 directory holds the ecash notes, the ledger and, at the default location, the token — every
 asset but the seed (`SEC-25`) — and no requirement in this set defends against it.
