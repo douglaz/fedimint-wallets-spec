@@ -20,9 +20,9 @@ paying many times its own value in fees; and reserving the whole flat cap before
 the fundable amount to zero whenever the cap was large next to the surplus, refusing moves that
 should have been made.
 
-### DEF-2 — A refusal MUST NOT be recorded without the figures that produced it
+### DEF-2 — A refusal MUST NOT be recorded without the figures its decision consumed
 
-Every refusal row MUST carry the amounts and bounds the allocator decided on (`STO-15`), and a
+A refusal row MUST carry the amounts and bounds its decision consumed (`STO-15`), and a
 field added to that record later MUST decode from a row written before it existed (`STO-30`).
 A refusal that recorded only the federation and a reason code could not be reproduced
 afterwards, so fee policy was being designed on top of a failure nobody could explain.
@@ -37,10 +37,10 @@ was over the cap many times over: either the balance trickled out in dozens of c
 many ticks, or no amount fit at all and the wallet retried forever — a silent livelock in the
 one path whose purpose is to get money out of a dying federation.
 
-### DEF-4 — A ledger row MUST NOT report a cap or an amount the wallet did not enforce
+### DEF-4 — A ledger row MUST NOT keep the planned cap or amount once a move artifact exists
 
-The ledger row's cap and amount MUST be the enforced cap and the executed amount, refreshed
-together (`STO-17`). A row that kept the planned figures for its whole life let a fee audit
+Once a move artifact exists, the ledger row's cap and amount MUST be the enforced cap and the
+executed amount, refreshed together (`STO-17`). A row that kept the planned figures for its whole life let a fee audit
 validate fees the enforced cap would have refused: an evacuation planned large and clamped small
 recorded a cap it never applied.
 
