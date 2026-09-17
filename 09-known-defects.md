@@ -44,10 +44,11 @@ together (`STO-17`). A row that kept the planned figures for its whole life let 
 validate fees the enforced cap would have refused: an evacuation planned large and clamped small
 recorded a cap it never applied.
 
-### DEF-5 — Automated gateway selection MUST NOT take the first candidate that validates
+### DEF-5 — Automated gateway selection MUST NOT stop at the first candidate that validates
 
-Automated selection MUST choose the cheapest validated candidate (`FMI-12`). Taking the first
-validating gateway paid a dearer route whenever it happened to be listed first.
+Automated selection MUST choose the cheapest validated candidate (`FMI-12`), which means pricing
+every candidate before choosing. Stopping at the first validating gateway paid a dearer route
+whenever it happened to be listed first.
 
 ## Liveness and suppression
 
@@ -70,7 +71,7 @@ cap it was admitted with; the operator raised the only knob the wallet exposed a
 changed. Terminalizing the retryable intent would not have fixed it: that strands the balance
 evacuation exists to sweep.
 
-### DEF-8 — The settlement-stall watchdog MUST NOT fire on a quiet wallet
+### DEF-8 — The settlement-stall watchdog MUST NOT count an unexpired invoice
 
 A receive counts toward a stall only once its invoice has been expired for longer than the
 deadline (`ALC-40`). Counting every unpaid, unexpired invoice put a low-traffic wallet into a
@@ -133,11 +134,11 @@ Recovery is an explicit verb with complete-or-fail semantics (`FMI-30`), never a
 never a side effect of a join (`FMI-33`). When no recovery path existed, "wipe the journal and
 rejoin" allocated a fresh empty partition, orphaned the funded one and reported a zero balance.
 
-### DEF-16 — Decrypting with a single threshold share MUST NOT stop the client
+### DEF-16 — A single-guardian federation's one decryption share MUST NOT stop the client
 
-Aggregating one threshold-decryption share MUST yield the preimage and MUST NOT panic or stop
-the client's state machines (`FMI-39`); `CNF-32` is the scenario that demonstrates it against a
-single-guardian federation. A client whose single-share decryption panicked killed the
+In a single-guardian federation, aggregating the one threshold-decryption share MUST yield the
+preimage and MUST NOT panic or stop the client's state machines (`FMI-39`); `CNF-32` is the
+scenario that demonstrates it. A client whose single-share decryption panicked killed the
 state-machine executor and froze every cross-federation operation on every federation the
 wallet hosts.
 
