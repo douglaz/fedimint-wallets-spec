@@ -112,7 +112,10 @@ compared from `walletd.toml` and `client.toml` as re-read under the lock, since 
 completing before the lock was taken may have replaced what was read before it — since every
 frontend would then present a different file's token or reach a different address — which is
 also what an `init` interrupted between its files leaves behind, and the refusal is how that
-mixed state is caught: re-running `init` repairs it.
+mixed state is caught: re-running `init` repairs it. Having passed that check the daemon MUST
+hold `client.toml.lock` exclusively for its lifetime, so an `init` of any store sharing the
+config home blocks until it stops (`HST-4`), as an `init` of its own store does on the store
+lock, and the pointer cannot be repointed under a running daemon.
 
 **HST-8** The daemon MUST log to stderr and to nothing else, at the level `HST-3`'s
 `log_level` or `RUST_LOG` selects. Redaction is `SEC-6`'s: no code path logs the token, the
@@ -255,8 +258,9 @@ carried by the `HttpOnly`, `SameSite=Strict`, host-only, `Path=/` cookie `sessio
 timeout without a non-polling request, and unconditionally at the absolute timeout; a
 polling request — one the page issues on its own timer rather than on a user action, which
 the page marks with the request header `X-Polling: 1`, and which the sidecar classifies by that
-header alone — MUST NOT extend the idle timer. Every state-changing request MUST be refused
-unless its `Origin` header equals `public_origin` (`HST-27`'s form); every one but
+header alone — MUST NOT extend the idle timer. Every state-changing request MUST — after the session has been authenticated, so an
+unauthenticated one gets the `401` or `303` above — be refused unless its `Origin` header
+equals `public_origin` (`HST-27`'s form); every one but
 `POST /login` — the request that creates the session, so it has no token yet — MUST also carry
 the session's CSRF token: a second value minted with the session from the same source and
 entropy as the session token, bound to that session for its lifetime, delivered only inside
