@@ -596,7 +596,8 @@ the key in the message, and per `API-28` otherwise.
 
 **API-43** The open-history filter. `GET /v1/history?status=open` (`ADR-0028`:
 "`/v1/history` gains a `?status=open` filter — a read-only journal query") returns only rows
-whose status is `started` or `awaiting`: the scan reads at most `limit` rows and returns the
+whose status — the projected `OperationView` status `API-13` defines, not the persisted row's
+own — is `started` or `awaiting`: the scan reads at most `limit` rows and returns the
 open ones among them, so a page may be shorter — the rule `STO-19` states for unreadable rows,
 applied to terminal ones too — and `next_before_seq` is still the last row reached
 (`API-10`). The response additionally carries `skipped_unreadable` (unsigned integer): the

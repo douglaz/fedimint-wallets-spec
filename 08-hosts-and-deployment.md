@@ -256,8 +256,8 @@ missing or is not the presenting session's, or whose `Origin` fails the check, i
 that reason (`ADR-0028`: "same-origin neighbours can read the CSRF token out of the page"). One login gates the whole UI: there is
 no step-up before spending. The surface is every daemon route **except `/v1/recover`**, which
 the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment): each such route MUST
-be exposed under the sidecar's own `/v1/` prefix with the daemon's path, method, status code,
-request and response bodies unchanged (`04-api-contract.md`), the sidecar swapping the session
+be exposed under the sidecar's own `/v1/` prefix with the daemon's path, query string, method, status
+code, request and response bodies unchanged (`04-api-contract.md`), the sidecar swapping the session
 for the bearer token, forwarding the request's `Content-Type` (`API-35` requires it) and
 nothing else, and answering `502` with no wallet data when
 it has no daemon response to forward (the token unreadable, the daemon unreachable, or its
@@ -332,7 +332,11 @@ frontend's token at an address of their choosing. **Directories**: the daemon MU
 directory if missing and re-assert `0700` on it at the start of `serve`, `init` and
 `restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is
 re-tightened by the next start (the directory's own existence and mode hold no wallet content
-and are not a write in `SEC-11`'s "MUST write nothing on any failure"); the standalone process asserts it likewise (`HST-9`);
+and are not a write in `SEC-11`'s "MUST write nothing on any failure"); the standalone process asserts it likewise (`HST-9`); the daemon's config directory (the parent
+of `walletd.toml` and `client.toml`) is created `0700` by `init` when missing and MUST, at every
+start of any subcommand and at every client-mode CLI invocation that reads the pointer, be
+owned by the running user and writable by no other, else the command fails (`HST-29`) — a
+writable directory lets another user replace the pointer whatever the file's own mode;
 `wallet-web init` creates a missing config directory `0700` and leaves an existing one's mode
 alone (`HST-26`). Nothing changes the mode of the stores' own files.
 
