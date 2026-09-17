@@ -78,9 +78,10 @@ entry. It prints six stdout lines: `initialized walletd`, then `  host config:`,
 `  data dir:`, `  token (0600):`, `  client pointer:`, `  api url:` each followed by the
 resolved value.
 Token path precedence, for every subcommand, is `WALLETD_TOKEN_PATH` (when set and non-empty)
-> `walletd.toml` `token_path` > `<data_dir>/token`. On serve the token file's contents are
-whitespace-trimmed and an empty file fails startup (`bearer token file <path> is empty`); the
-wallet is not required to check the file's mode when it reads it (`SEC-1`).
+> `walletd.toml` `token_path` > `<data_dir>/token`. On serve the token file MUST be a regular file, not a link, owned by the running user, else
+startup fails (`HST-29`); its contents are whitespace-trimmed and an empty file fails startup
+(`bearer token file <path> is empty`); the wallet is not required to check the file's mode
+when it reads it (`SEC-1`).
 
 **HST-5** `walletd restore-mnemonic` reads twelve BIP-39 words from stdin only, refuses if a
 seed already exists, and stores the entropy as `SEC-25` requires (`SEC-11` owns the rules).
@@ -370,7 +371,10 @@ elsewhere — are created `0700` by `init` when missing and MUST each be owned b
 user and writable by no other, else the command fails (`HST-29`) — a
 writable directory lets another user replace the pointer whatever the file's own mode;
 `wallet-web init` creates a missing config directory `0700` and leaves an existing one's mode
-alone (`HST-26`). Nothing changes the mode of the stores' own files.
+alone (`HST-26`). Nothing changes the mode of the stores' own files. **Lock files**: `client.db.lock` and
+`client.toml.lock` MUST each be a regular file, not a link, owned by the running user, checked
+before any lock on it is relied on, else the command fails (`HST-29`) — a lock on a linked
+inode excludes nobody who can retarget the link.
 
 **HST-21** Data directory layout:
 
