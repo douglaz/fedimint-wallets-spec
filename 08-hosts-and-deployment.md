@@ -234,7 +234,9 @@ hint beyond that the login failed, and is one failed attempt; a correct one answ
 `/` with the session cookie `session` (its attributes below). Login MUST be
 rate-limited (`ADR-0028`: "Rate limiting is required, not optional"): after 5 consecutive
 failed attempts the sidecar MUST answer every login attempt `429` for the next 60 s, counted
-across the whole listener — behind the reverse proxy `ADR-0028` contemplates every request
+across the whole listener and accounted at admission, under one serialisation, before the
+password is verified — so a concurrent burst can never have more than 5 verifications admitted
+before the lockout — behind the reverse proxy `ADR-0028` contemplates every request
 arrives from `127.0.0.1`, so a per-address key would exempt exactly the exposed case. The
 lockout's end does not reset the count: each further failure after it re-arms the lockout for
 another 60 s, and only a successful login resets the count. A login body above 4 KiB MUST be refused `413` before the
@@ -261,8 +263,8 @@ no step-up before spending. The surface is every daemon route **except `/v1/reco
 the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment): each such route MUST
 be exposed under the sidecar's own `/v1/` prefix with the daemon's path, query string, method, status
 code, request and response bodies unchanged (`04-api-contract.md`), the sidecar swapping the session
-for the bearer token, forwarding the request's `Content-Type` (`API-35` requires it) and the
-response's, and nothing else, and answering `502` with no wallet data when
+for the bearer token, forwarding the request's `Content-Type` (`API-35` requires it), the
+response's `Content-Type` and `Allow` (`API-5`'s `405` carries it), and nothing else, and answering `502` with no wallet data when
 it has no daemon response to forward (the token unreadable, the daemon unreachable, or its
 answer not received within 90 s, `API-25`'s client bound), and the HTML pages, on paths outside `/v1/`, are
 views over those forwarded routes and expose no wallet data the routes do not; verbs with no daemon
