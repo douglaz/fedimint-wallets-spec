@@ -316,7 +316,8 @@ is the deployment's. A probe an implementation does ship MUST read `GET /v1/heal
 (`API-16`) with the token and MUST distinguish three outcomes: ready; not ready — the daemon
 answered and `scheduler_alive` is `false` or `automation_ready` is `false` or absent
 (`API-16`: a caller "MUST treat readiness as unknown, not healthy"); and unable to ask — the
-daemon unreachable, or no token configured. A command-line probe exits `0`, `1` and `2` for
+daemon unreachable, no token configured, or an answer that is not `200` with a decodable
+body (a `401` on a stale token included). A command-line probe exits `0`, `1` and `2` for
 those in turn; a platform-native probe maps them to its ready, failing and unknown states. Its
 report carries `automation_blocked`'s `reason` and `detail` when the body has them and says
 readiness is unknown when it does not. A probe that reads only the status code is not a
