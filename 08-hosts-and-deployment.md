@@ -72,9 +72,9 @@ and, because two stores may share a config home, it MUST also hold an exclusive 
 stores serialise on the pointer too;
 write every config key back canonicalised; seed the default policy row if absent (`STO-13`); mint and write the token `0600`
 (`API-3`); and write the CLI's pointer file `client.toml` `{url, token_path}` under the config
-home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve, or a host config path that resolves to the pointer's own path, to
-either lock file (`client.db.lock`, `client.toml.lock`) or to a store entry or anything inside
-either store directory (`HST-21`), or a `data_dir` that equals, lies inside or contains the
+home. It does **not** mint a seed (`SEC-11`). A path it cannot resolve, or a host config path that equals, lies under or contains the pointer path, either lock
+file (`client.db.lock`, `client.toml.lock`), a store entry or anything inside either store
+directory (`HST-21`), or a `data_dir` that equals, lies inside or contains the
 host config path, the pointer path or the pointer lock path (`client.toml.lock`), fails it
 with nothing written (`HST-29`) — a config write can never replace a pointer, lock or store
 entry. It prints six stdout lines: `initialized walletd`, then `  host config:`,
@@ -242,7 +242,7 @@ dotted quad, so `127.1` and `0x7f.0.0.1` are refused as `HST-27` refuses them; `
 only IPv6 form; the stored
 value is the parsed socket re-rendered, so `[0:0::1]` becomes `[::1]` and the trailing `/` is
 dropped); a `token_path` that does not resolve to an absolute path (`~/` expands as `walletd`'s
-does); an idle timeout above 4h or an absolute timeout above 24h, or either unparseable; a
+does) or that equals, lies under or contains the config file's path; an idle timeout above 4h or an absolute timeout above 24h, or either unparseable; a
 `public_origin` that `HST-27` refuses.
 
 **HST-31** The sidecar's request-time surface, from `ADR-0028`. The complete unauthenticated
@@ -372,8 +372,9 @@ umask is, else the read fails: a writable `client.toml` lets that user point eve
 frontend's token at an address of their choosing. **Directories**: the daemon MUST create the data
 directory if missing, refuse one not owned by the running user (`HST-29`; a mode can be
 re-asserted, an owner cannot), and re-assert `0700` on it at the start of `serve`, `init` and
-`restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is
-re-tightened by the next start (the directory's own existence and mode hold no wallet content
+`restore-mnemonic` — not `mnemonic`, a read-only export, which MUST instead refuse a data
+directory writable by another user (`HST-29`) rather than trust a lock taken inside it — so a
+directory whose mode drifted is re-tightened by the next start (the directory's own existence and mode hold no wallet content
 and are not a write in `SEC-11`'s "MUST write nothing on any failure"); the standalone process asserts it likewise (`HST-9`); the daemon's config directories — the actual parent of `walletd.toml`, checked at the start
 of every subcommand and by a standalone invocation that consults the file (`HST-9`), and the actual parent of `client.toml`, checked at the start of `init`
 and serve (the commands that write or read the pointer, `HST-4`, `HST-33`) and at every
