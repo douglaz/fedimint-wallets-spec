@@ -46,9 +46,9 @@ recorded a cap it never applied.
 
 ### DEF-5 — Automated gateway selection MUST NOT stop at the first candidate that validates
 
-Automated selection MUST choose the cheapest validated candidate (`FMI-12`), which means pricing
-every candidate before choosing. Stopping at the first validating gateway paid a dearer route
-whenever it happened to be listed first.
+Automated selection MUST choose the cheapest validated candidate (`FMI-12`): the choice is made
+against the whole candidate set, never by a candidate's position in it. Stopping at the first
+validating gateway paid a dearer route whenever it happened to be listed first.
 
 ## Liveness and suppression
 
@@ -112,7 +112,7 @@ row decodes. A migration that treated any unreadable row as repair-only would ha
 rebalancing and evacuation over a few audit rows (`DEF-10`) until an operator restored their
 exact bytes — to repair a stale-checkpoint condition that did not exist.
 
-### DEF-13 — A persisted type MUST NOT be exempt from the compatibility rules
+### DEF-13 — A persisted type MUST NOT be exempt from `STO-30` and `STO-31`
 
 The types `STO-30` and `STO-31` bind are the ones on `STO-29`'s list, transitively through every
 type embedded in one; a type is on that list because the wallet writes it, not because someone
