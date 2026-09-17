@@ -202,7 +202,8 @@ surface is exactly `GET /login`, `POST /login` and `GET /healthz` (`ADR-0028`: "
 balance"); `/healthz` answers `200` with the JSON object `{"sidecar_alive": true,
 "daemon_reachable": <bool>}` — exactly those two keys, `daemon_reachable` `true` only when
 `GET /v1/health` on `daemon_url` answered `200` with the configured token — and no wallet
-data. Login verifies the password against the stored hash in constant time and MUST be
+data; the daemon check behind `daemon_reachable` is bounded by 5 s in total, and a check
+that has not answered by then reports `false`. Login verifies the password against the stored hash in constant time and MUST be
 rate-limited (`ADR-0028`: "Rate limiting is required, not optional"); the limit's observable
 parameters are an open question (`11-open-questions.md`, question 3) and the set is silent on
 them until it is answered. A session is an opaque token from a cryptographically secure random
@@ -226,7 +227,8 @@ the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment); verbs w
 endpoint (`API-25`'s standalone-only set) are not offered. Every operation it admits is
 `actor: User` (`OPS-5`). It holds no in-flight state: outstanding operations are rebuilt from
 the daemon's history (`API-10`) on every load and polled through `GET /v1/operations/{key}`
-(`API-11`) while on screen.
+(`API-11`) while on screen; the rebuild MUST use `API-10`'s `status=open` filter, never a
+crawl of the whole history.
 
 **HST-27** `public_origin` is stored in the canonical form a browser sends in `Origin` — the
 WHATWG URL origin serialisation — so that a request's `Origin` header can be compared with it
@@ -271,7 +273,7 @@ procedure itself — the runbook — is the code repository's.
 **HST-19** How files reach disk. **Secret files** — the bearer token and `wallet-web.toml` —
 MUST be written atomically, by whatever primitive the platform offers: at every instant,
 crashes included, a reader at the target path finds either the previous complete file or the
-new complete one, never a partial one; the new file has mode `0600` from the first instant it
+new complete one — or, on the file's first creation, nothing — never a partial one; the new file has mode `0600` from the first instant it
 is visible at that path, whatever the umask; once the write returns the contents are on
 stable storage; and what an interrupted earlier write left behind MUST NOT block the next. **Non-secret files** — `walletd.toml`, `client.toml` — MAY be written
 plainly under the ambient umask (`SEC-5`). **Directories**: the daemon MUST create the data
