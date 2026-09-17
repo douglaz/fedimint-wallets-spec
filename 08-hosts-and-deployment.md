@@ -28,7 +28,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 
 | Variable | Read by | Effect | Empty / invalid |
 |---|---|---|---|
-| `WALLETD_TOKEN_PATH` | `walletd` (all subcommands) | token file, over `walletd.toml` (`HST-4`) | empty = unset; a relative path fails startup |
+| `WALLETD_TOKEN_PATH` | `walletd` (all subcommands) | token file, over `walletd.toml` (`HST-4`) | empty = unset; a relative path, or one outside `data_dir` (`HST-3`), fails startup |
 | `WALLETD_PERFORM_TIMEOUT_SECS` | `walletd` serve | the per-intent perform deadline `OPS-15` bounds (`FMI-22`); unset or empty → 600 s, `0` disables it, as for the standalone flag (`HST-9`) | unparseable fails startup (`HST-29`) |
 | `WALLETD_SETTLEMENT_STALL_SECS` | `walletd` serve (the standalone mode runs no scheduler) | the settlement-stall deadline `ALC-40` owns, with `ALC-40`'s default; `0` is a zero-second deadline | unparseable fails startup (`HST-29`) |
 | `RUST_LOG` | all three binaries | overrides the log level (`HST-8`); the grammar, shared with `walletd.toml` `log_level`, is a level `error`, `warn`, `info`, `debug` or `trace` — in that order of increasing verbosity, a selected level enabling itself and every more severe one — or a comma-separated list of `<target>=<level>` directives with at most one bare level among them, a target being one or more segments of letters, digits, `_` and `-` joined by a double colon; a target matches itself and every longer target that begins with its segments, the longest matching target decides a line's level, the last of two equal targets wins, and where no target matches the bare level applies, or, with no bare level in the list, the level the variable would otherwise override (`walletd.toml` `log_level` — which, being that fallback, MUST itself carry a bare level or be a bare level, else startup fails, `HST-29` — `warn`, `info`); a well-formed target that matches nothing the wallet emits is accepted and has no effect | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup (`HST-29`) |
@@ -48,7 +48,10 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | `token_path` | env `WALLETD_TOKEN_PATH`, else the key, else `<data_dir>/token` |
 | `log_level` | `info` (`RUST_LOG` overrides) |
 
-Paths MUST be absolute once `~` and `~/…` are expanded; anything else fails startup. `address`
+Paths MUST be absolute once `~` and `~/…` are expanded; anything else fails startup.
+`token_path` MUST resolve to a path inside `data_dir`, so the token file belongs to exactly
+one store and its rotation is serialised by that store's lock (`HST-4`, `HST-33`); a path
+elsewhere fails startup (`HST-29`). `address`
 is not validated: a bare IPv6 literal is bracketed wherever it is rendered into a URL or a
 bind string, and a hostname is resolved by the bind. Environment knobs are the table in
 `HST-2`.
