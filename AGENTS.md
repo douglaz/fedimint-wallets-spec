@@ -48,8 +48,8 @@ sees, what survives a crash. If the only way to check a sentence is to read the 
 requirement yet.
 
 **Cite the owner.** One rule, one home; everywhere else points at it with the id in backticks.
-`DEF-21` is what a second normative copy costs. Arguments have owners too: re-explaining a rule
-elsewhere restates it, and the restatement drifts.
+A second normative copy drifts (`README.md`, *One owner per rule*). Arguments have owners too:
+re-explaining a rule elsewhere restates it, and the restatement drifts.
 
 **A decision gets its identifier when it is accepted.** Name the id a change lands on — the
 requirement it amends, or the next free number in the right namespace — before writing it, so

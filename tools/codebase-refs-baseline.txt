@@ -9,7 +9,7 @@
 06-allocator-and-automation.md 0
 07-security-requirements.md 0
 08-hosts-and-deployment.md 0
-09-known-defects.md 29
+09-known-defects.md 0
 10-conformance-checklist.md 7
 11-open-questions.md 0
 CONTEXT.md 0
