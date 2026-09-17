@@ -235,7 +235,9 @@ endpoint (`API-25`'s standalone-only set) are not offered. Every operation it ad
 `actor: User` (`OPS-5`). It holds no in-flight state: outstanding operations are rebuilt from
 the daemon's history (`API-10`) on every load and polled through `GET /v1/operations/{key}`
 (`API-11`) while on screen; the rebuild MUST use `API-10`'s `status=open` filter, never a
-crawl of the whole history.
+crawl of the whole history, and when a page reports `skipped_unreadable` above zero the UI
+MUST say the outstanding set is incomplete and MUST NOT present it as complete, because a
+skipped row may be a live money operation with no key to poll.
 
 **HST-27** `public_origin` is stored in the canonical form a browser sends in `Origin` — the
 WHATWG URL origin serialisation — so that a request's `Origin` header can be compared with it

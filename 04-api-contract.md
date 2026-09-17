@@ -103,7 +103,7 @@ key's presence, not the status code alone (`OPS-38`).
 |---|---|---|
 | GET | `/v1/balance` | `{total, federations:[FederationView]}` |
 | GET | `/v1/federations` | `[FederationView]` |
-| GET | `/v1/history` | `{operations:[OperationView], next_before_seq}` |
+| GET | `/v1/history` | `{operations:[OperationView], next_before_seq}`; with `status=open` also `skipped_unreadable` (`API-10`) |
 | GET | `/v1/operations/{key}` | `OperationView` |
 | POST | `/v1/operations/{key}/reclaim` | 200 `{operation_key, outcome}` (`API-42`) |
 | GET | `/v1/status` | dry-run of the next tick (`API-15`) |
@@ -146,13 +146,15 @@ carves it out) — and any other value is `422` `invalid query parameters: …`.
 skipped as unreadable (`STO-19`, `OVR-14`), so a skipped row never strands the rows older than
 it — when `limit > 0` and the scan stopped before the ledger's first row, else `null`; pass it
 back as `before_seq` for the next page. `limit=0` returns
-`{"operations":[],"next_before_seq":null}`. A non-integer or negative value for either
+`{"operations":[],"next_before_seq":null}` — with `status=open`, `"skipped_unreadable":0` as
+well, since a zero-length scan passes over nothing. A non-integer or negative value for either
 parameter is `422` `invalid query parameters: …` (`API-6`). **Any other query parameter
 (`actor`, `fed`, `kind`, …) is ignored and adds no filtering** — a `status=open` beside it
 still applies. The route carries no federation filter: the CLI emulates
 actor and status filters by paging client-side (`API-40`), and `history --fed` is
 standalone-only (`API-25`). A caller MUST NOT infer filtering from a `200`. Undecodable ledger
-rows are skipped without signal on this route (`STO-19`).
+rows are skipped without signal on the unfiltered route (`STO-19`); only a `status=open` page
+counts them.
 
 **API-11** `GET /v1/operations/{key}` reads the ledger row for `key` and returns `404`
 `no operation found for key <key>` if none exists. `wait` is a boolean query parameter: absent
