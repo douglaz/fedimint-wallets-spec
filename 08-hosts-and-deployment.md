@@ -116,7 +116,9 @@ resolves (`HST-4`'s precedence, in its own environment) differs from the `token_
 pointer names, or when the URL it will serve at differs from the pointer's `url` — both
 compared from `walletd.toml` and `client.toml` as re-read after taking the store lock and
 `client.toml.lock` (held from before the comparison, and kept), since an `init` completing
-before either lock was taken may have replaced what was read before it — since every
+before either lock was taken may have replaced what was read before it; and the re-read
+`walletd.toml` MUST itself equal the one that selected the store and the token path, else the
+daemon MUST refuse to start rather than serve a store its current config no longer names — since every
 frontend would then present a different file's token or reach a different address — which is
 also what an `init` interrupted between its files leaves behind, and the refusal is how that
 mixed state is caught: re-running `init` repairs it. The daemon keeps `client.toml.lock` exclusively for its lifetime, so an `init` of any store sharing the
