@@ -198,8 +198,8 @@ funding with a `NotProbed` refusal row: a pin does not bypass the gate; *when*
 value, *when* the scheduler runs, *then* at most one cycle plans at the maximum, and every cycle
 after it publishes `automation_blocked {cycle_failed}` and admits no agent work; *when* the
 daemon is stopped and a standalone tick is invoked at the maximum, *then* it is refused for
-the occurrence, before planning, and not for lock contention; and *when*
-`/v1/status` is read, *then* it answers 503. Demonstrates `ALC-33`, `ALC-36`, `ALC-45`,
+the occurrence, before planning, and not for lock contention; and *when* the daemon is
+restarted and `/v1/status` is read, *then* it answers 503. Demonstrates `ALC-33`, `ALC-36`, `ALC-45`,
 `DOM-16`, `API-15`.
 
 **CNF-35** *Given* a registered federation whose client partition fails to open at start,
@@ -298,7 +298,10 @@ is invoked, *then*: the request each sends carries the fields and only the field
 `reclaim` posts an empty body to the route `API-42` names; two nonce-less `receive`
 invocations create two distinct operations while two nonce-less `direct-inflow` invocations of
 one amount attach to one operation and re-yield its invoice, a nonce-less `move` sends
-`occurrence` `0`, and an omitted `--fee-cap` or `--to`/`--fed` is absent from the request; every error envelope, usage error and journaled failure maps to the exit code `API-28`
+`occurrence` `0`, and an omitted `--fee-cap` or `--to`/`--fed` is absent from the request;
+*given* a history whose newest rows do not match a filter and whose matching rows span more
+than one page, `history --limit N` with that filter prints the N newest matching rows, and
+`candidates` prints newest first; every error envelope, usage error and journaled failure maps to the exit code `API-28`
 gives it; the stdout of every
 verb is the shape `API-29` or `API-39` fixes for it — `health` printing all five fields of
 `API-16`, `status` rendering `deferred` and `suppressed`, `show` printing `fee_cap_msat`,
@@ -310,8 +313,11 @@ reached a terminal non-claim prints the outcome and exits 0 on `claimed` and 3 o
 Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`, `API-33`, `API-38`, `API-39`,
 `API-40`, `API-41`, `API-42`.
 
-**CNF-54** *Given* a running daemon and a sidecar provisioned against it with a password,
-*when* the sidecar starts, *then* it listens on loopback only and has opened no store; *when*
+**CNF-54** *Given* a running daemon, *when* `wallet-web init` is run, *then* it takes the
+password twice on the controlling terminal with echo disabled and refuses — writing nothing —
+a mismatch, a password below `HST-26`'s bounds, and a config path that already exists or
+overlaps the token path; on success it writes the config `0600` with an Argon2id hash at or
+above `HST-26`'s minimums; *when* the provisioned sidecar starts, *then* it listens on loopback only and has opened no store; *when*
 `GET /healthz` is requested without a session, *then* it answers 200 with exactly the two keys
 `HST-31` names and `daemon_reachable` `true`; *when* a page is requested without a session,
 *then* it is `303` to `/login`, and a non-`GET` is `401`, neither carrying wallet data; *when*
