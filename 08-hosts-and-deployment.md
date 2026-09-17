@@ -32,7 +32,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | `RUST_LOG` | all three binaries | overrides the log level (`HST-8`) | unset → `walletd.toml` `log_level` for the daemon, `warn` for the CLI, `info` for the sidecar; unparseable fails startup (`HST-29`) |
 | `XDG_CONFIG_HOME` | all three | config home | empty or relative → ignored, `~/.config` (the XDG base-directory rule) |
 | `XDG_DATA_HOME` | `walletd`, standalone `wallet-cli` | default `data_dir` | empty or relative → ignored, `~/.local/share` (the same rule) |
-| `HOME` | all three | `~` expansion and the XDG fallbacks | read only when a path actually falls back to it; unset or empty then fails startup, before any file is written (`HST-29`); never read when every path the command touches is absolute (`XDG_CONFIG_HOME` and `XDG_DATA_HOME` absolute, an explicit `--config` whose paths are absolute, standalone `--data-dir`, or client-mode `--url` with `--token-path`, `API-25`) |
+| `HOME` | all three | `~` expansion and the XDG fallbacks | read only when a path actually falls back to it; unset or empty then fails startup, before any file is written (`HST-29`); never read when every path the command touches is absolute (`XDG_CONFIG_HOME` and `XDG_DATA_HOME` absolute, an explicit `--config` whose paths are absolute for every subcommand but `init`, which also writes the pointer under the config home (`HST-4`) and so needs an absolute `XDG_CONFIG_HOME` as well; standalone `--data-dir`; or client-mode `--url` with `--token-path`, `API-25`) |
 | `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` (and lowercase), `NO_PROXY` | `walletd`, `wallet-cli` | every outgoing HTTP connection the two make — the CLI's connection to the daemon, gateway `routing_info` (`FMI-11`), the Observer (`FMI-28`) — with the conventional semantics: the proxy for the scheme, `NO_PROXY` the exemptions, and no destination exempt that `NO_PROXY` does not name, loopback included, so an operator who sets a proxy owns the exemption for the daemon's own address (`SEC-3`). The sidecar is the exception and ignores them (`SEC-22`) | a proxy URL that does not parse fails startup (`HST-29`) |
 
 **HST-3** `walletd.toml` has five keys and MUST reject any other — including the retired
@@ -193,9 +193,10 @@ carried by an `HttpOnly`, `SameSite=Strict`, host-only cookie whose `Secure` fla
 exactly when `public_origin`'s scheme is `https`. A session expires after the configured idle
 timeout without a non-polling request, and unconditionally at the absolute timeout; a
 polling request MUST NOT extend the idle timer. Every state-changing request MUST be refused
-unless its `Origin` header equals `public_origin` (`HST-27`'s form) and it carries the
-session's CSRF token; a dedicated origin is required for that reason (`ADR-0028`: "same-origin
-neighbours can read the CSRF token out of the page"). One login gates the whole UI: there is
+unless its `Origin` header equals `public_origin` (`HST-27`'s form); every one but
+`POST /login` — the request that creates the session, so it has no token yet — MUST also carry
+the session's CSRF token. A dedicated origin is required for that reason (`ADR-0028`:
+"same-origin neighbours can read the CSRF token out of the page"). One login gates the whole UI: there is
 no step-up before spending. The surface is every daemon route **except `/v1/recover`**, which
 the sidecar MUST NOT reach by any route or page (`ADR-0028`, amendment); verbs with no daemon
 endpoint (`API-25`'s standalone-only set) are not offered. Every operation it admits is
@@ -267,11 +268,11 @@ alone (`HST-26`). Nothing changes the mode of the stores' own files.
 
 ## Readiness
 
-**HST-22** The wallet is not required to ship or schedule a readiness probe; whether one runs
+**HST-30** The wallet is not required to ship or schedule a readiness probe; whether one runs
 is the deployment's. A probe an implementation does ship MUST read `GET /v1/health`
 (`API-16`) with the token and MUST report not-ready — a non-zero exit, or its platform's
 failing check — when the daemon is unreachable, when `scheduler_alive` is `false`, and when
 `automation_ready` is `false` or absent (`API-16`: a caller "MUST treat readiness as unknown,
-not healthy"), carrying `automation_blocked`'s `reason` and `detail` in its report; a probe
-that reads only the status code is not a readiness probe (`ALC-45`: "Liveness is not
-readiness").
+not healthy"); its report carries `automation_blocked`'s `reason` and `detail` when the body
+has them and says readiness is unknown when it does not. A probe that reads only the status
+code is not a readiness probe (`ALC-45`: "Liveness is not readiness").

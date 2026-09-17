@@ -140,6 +140,8 @@ Deleted from the documents. Never reused. Listed so an older citation still reso
 | `HST-23` | One instance runs the 2026-07-26 build as a test deployment with a small real-sats balance | A deployment (`ADR-0032`: "Nothing about a deployment belongs here") |
 | `HST-24` | `main` is 240 commits past the deployed build; which requirements are unexercised against a real federation | A deployment plus evidence about one implementation; the one non-trivia claim — which requirements have been exercised against a real federation — moves to the code repository's conformance results (`ADR-0032`) |
 | `HST-25` | What that deployment demonstrated from its ledger: restart survival, a cross-federation move, an external send and receive, one standing silent condition | A deployment's history (`ADR-0032`); the silent condition it observed is the code repository's `F1` |
+| `HST-22` | The readiness poller: its inputs, environment variables, webhook, alert list and exit codes, with an absent `automation_ready` a note rather than an alert | An operator artefact (`ADR-0032`: "the contract stays and the artefact goes"); the contract, with the opposite rule for an absent field — `API-16`'s "MUST treat readiness as unknown, not healthy" — is new behaviour and is `HST-30` |
+| `CNF-49` | "The readiness poller running from a schedule and paging on a transition" | A work item wearing a scenario id (`ADR-0032`: "`CNF` ids that were work items rather than scenarios are withdrawn"), for a facility `HST-30` says the wallet is not required to ship or schedule; the code repository's `F14` is its record |
 
 ## Gates
 
