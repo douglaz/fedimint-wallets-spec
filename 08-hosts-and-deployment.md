@@ -123,10 +123,12 @@ excepted (`OPS-15`: they "MUST NOT be timed out"), runs under `--perform-timeout
 for the daemon (`OPS-15` owns what a timeout leaves behind); the environment variable is not
 read by the CLI. It resolves `data_dir` from
 `--data-dir`, else `walletd.toml` (parsed with the daemon's own closed schema, so a stale
-`gateway` key fails here too, `HST-3`), else the default. The lock comes first: open-or-create
-`<data_dir>/client.db.lock` and attempt a non-blocking exclusive lock; contention MUST exit 1
-with `another process owns the wallet store (walletd?); stop it, or use client mode (drop
---standalone)` before the directory's mode or anything else is touched, and a lock taken
+`gateway` key fails here too, `HST-3`), else the default. The lock comes first — after
+creating the data directory `0700` if it does not exist, the one write a lock file needs:
+open-or-create `<data_dir>/client.db.lock` and attempt a non-blocking exclusive lock;
+contention MUST exit 1 with `another process owns the wallet store (walletd?); stop it, or use
+client mode (drop --standalone)` before an existing directory's mode or anything else is
+touched, and a lock taken
 between that probe and the store open is an exit-1 error too, never an indefinite wait
 (`HST-29`). Holding the lock, it asserts the directory `0700` (`HST-19`) and opens the stores.
 
@@ -173,7 +175,7 @@ password is delete-then-init. It MUST prompt for the password twice on the contr
 terminal with echo disabled, never read it from stdin or an argument (`SEC-6`), and an abort
 at the prompt MUST exit non-zero with nothing written. The password MUST be at least 12
 characters and at most 1,024 bytes (bytes checked first). It MUST hash with Argon2id v19 with
-at least m = 19456 KiB, t = 2, p = 1 and a fresh salt of at least 16 bytes, validate the whole
+at least m = 19456 KiB, t = 2, p = 1, a fresh salt of at least 16 bytes and a 32-byte output, validate the whole
 config through the same checks startup applies, and write the file `0600` atomically
 (`HST-19`) into a directory it creates `0700` or verifies is owned by the running user and
 writable by no one else.
@@ -186,8 +188,8 @@ immediate expiry is the fail-closed direction. Startup MUST refuse: a config fil
 group or other permission bit; a config directory not owned by the running user or writable
 by another; a parse error (reported by position and message only — the offending line is
 never quoted, so the hash cannot reach a log, `SEC-6`); a missing, empty or malformed PHC
-hash; a hash that is not `argon2id`, does not declare `v=19`, has a salt under 16 bytes, has no
-hash output, or has `m`, `t` or `p` below the minimums above; port 0; a `daemon_url` that is
+hash; a hash that is not `argon2id`, does not declare `v=19`, has a salt under 16 bytes, has an
+output under 32 bytes, or has `m`, `t` or `p` below the minimums above; port 0; a `daemon_url` that is
 not `http://` + a loopback IP **literal** + port with at most a bare trailing `/` (`localhost`
 is refused because it resolves but can be repointed; `::1` is the only IPv6 form; the stored
 value is the parsed socket re-rendered, so `[0:0::1]` becomes `[::1]` and the trailing `/` is
