@@ -99,9 +99,10 @@ seed or a password. `walletd mnemonic` prints the seed to stdout by design.
 to start — exit non-zero with an error naming the cause, before any file, store row or
 network request — on: an environment variable set to a non-empty value it cannot parse
 (`HST-2`); a config key it does not know or cannot parse (`HST-3`, `HST-26`); a path it cannot
-resolve to an absolute one (`HST-3`, `HST-4`); and a store lock a resident host holds when a
-one-shot process needs it (`HST-9`), whether found at the probe or taken between the probe and
-the open. It MUST NOT substitute a default for a value it could not parse, and MUST NOT leave
+resolve to an absolute one (`HST-3`, `HST-4`); and, for the standalone process alone, a store
+lock a resident host holds (`HST-9`), whether found at the probe or taken between the probe and
+the open — `init` is the one one-shot command that blocks on the lock instead (`HST-4`,
+`API-3`). It MUST NOT substitute a default for a value it could not parse, and MUST NOT leave
 a partial `init` behind: every path `init` writes is resolved before the first write. The
 reason is `HST-3`'s: a stale key fails "loudly", and a knob that falls back silently is a
 misconfiguration nobody sees.
@@ -197,7 +198,9 @@ balance"); `/healthz` answers `200` with the JSON object `{"sidecar_alive": true
 data. Login verifies the password against the stored hash in constant time and MUST be
 rate-limited (`ADR-0028`: "Rate limiting is required, not optional"); the limit's observable
 parameters are an open question (`11-open-questions.md`, question 3) and the set is silent on
-them until it is answered. A session is an opaque random token held in memory only — no signing key at rest,
+them until it is answered. A session is an opaque token from a cryptographically secure random
+source with at least 256 bits of entropy (the bar `SEC-2` sets for the bearer token), held in
+memory only — no signing key at rest,
 no session survives a restart, so restarting the sidecar is the one "revoke all sessions" —
 carried by an `HttpOnly`, `SameSite=Strict`, host-only cookie whose `Secure` flag is set
 exactly when `public_origin`'s scheme is `https`. A session expires after the configured idle
