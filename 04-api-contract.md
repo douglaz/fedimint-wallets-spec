@@ -414,7 +414,7 @@ design: one is the audit form of the row, the other the frontend view.
 
 **API-31** Deliberate absences, each owned elsewhere: no gateway on any money request or await
 (`ADR-0030`: the break-glass is a standalone flag bound to one operation key, never a wire
-field); no federation, status or actor filter on `/v1/history` (`API-10`); no preimage on any
+field); no federation or actor filter on `/v1/history` (`API-10`; `status=open` is its one filter); no preimage on any
 response (`API-38`); no cause attached to a money state the wallet did not observe (`OPS-40`).
 A field this chapter does not list is not on the wire, and a caller MUST NOT depend on one.
 

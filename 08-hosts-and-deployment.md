@@ -250,8 +250,8 @@ on its own output.
 **HST-32** A `Stranded` move (`DOM-10`; the transition is `OPS-27`) is terminal: nothing
 re-drives it (`OPS-35` re-drives `Pending` and `Executing` intents only, and a `Stranded` move
 is neither) and the wallet MUST NOT admit a second send
-for the same key — the executor's dedup on the existing key (`OPS-43`) is what stands between
-the operator and a double send. The only recovery is the explicit re-claim `FMI-41` requires,
+for the same key: a request under it attaches to the existing intent (`OPS-8`) and a retry of
+it is refused (`OPS-10`), which is what stands between the operator and a double send. The only recovery is the explicit re-claim `FMI-41` requires,
 and the operator's response before it is **evidence preservation**: the preimage is not a
 recovery procedure (`DEF-20`). What the wallet MUST guarantee for that response: the move
 record with both leg operation ids, the invoice, the gateway and the preimage (`STO-11`) and

@@ -149,8 +149,10 @@ nothing) and is what agent planning and commit use (`ALC-35`). User admission MU
 view.
 
 **OPS-10** Retry. Only a `Failed` intent, only by a `User` request, only preserving the anchor
-fields of `OPS-8`, and never a `Failed` pay that recorded an operation id — refused `conflict`,
-"this invoice already consumed its single payment attempt" (`FMI-17`). Before the write the retry
+fields of `OPS-8`, never a `Failed` pay that recorded an operation id — refused `conflict`,
+"this invoice already consumed its single payment attempt" (`FMI-17`) — and never a `Failed`
+move whose move record's phase is `Stranded` — refused `conflict`, "this move's send already
+settled" (`HST-32`: a retry would send again). Before the write the retry
 is admitted like a fresh key: an unopened destination (`OPS-5`), the driver cap and the probe
 hold (`OPS-6`), and the arithmetic (`OPS-7`) on the refreshed intent against the strict
 projection, the request's sampled balances and the stored cap. The retry write then, in one transaction (`STO-9`): writes `Pending` at
