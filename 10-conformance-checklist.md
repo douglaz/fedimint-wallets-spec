@@ -47,7 +47,7 @@ the recovered balance is again exact. Demonstrates `FMI-30`, `FMI-31`, `FMI-32`,
 
 **CNF-41** *Given* an invite for a federation whose module recovery cannot complete — a module
 that reports its recovery failed, or a federation that becomes unreachable after the config
-preview so that no module makes progress for 600 seconds — *when* the wallet recovers it,
+preview so that no module makes progress for longer than `FMI-30`'s bound — *when* the wallet recovers it,
 *then* the recovery terminalizes `Failed` rather than parking: no registry row is written, no
 client for that federation becomes live, the partition it used is left inert and is never
 opened, and a later recovery of the same invite — once the federation is reachable — allocates
@@ -64,8 +64,8 @@ credited and the pay settles; the single share is enough for every lnv2 operatio
 
 **CNF-9** *Given* the environment, *when* the wallet issues a receive of an amount on A and
 the invoice is paid from the Lightning node, *then* the receive is claimed, A rises by the amount
-minus the gateway and federation receive fees, and the invoice carried an expiry of 3 600 seconds
-and an empty description. *When* the wallet pays an invoice from the Lightning node out of A,
+minus the gateway and federation receive fees, and the invoice carried the expiry and the
+description `FMI-16` requires. *When* the wallet pays an invoice from the Lightning node out of A,
 *then* the send settles, A falls by the invoice amount plus a fee within the cap, and a second pay
 of the same invoice attaches to the first as already in flight and funds nothing. Demonstrates
 `FMI-16`, `FMI-17`, `OPS-17`, `OPS-18`, `OPS-29`.
@@ -104,18 +104,18 @@ Demonstrates `FMI-10`, `FMI-12`, `FMI-14`, `HST-10`, `ADR-0030`.
 ## Evacuation
 
 **CNF-14** *Given* the environment with A holding a balance, *when* A begins to report a
-corroborated shutdown — `f + 1` of its guardians report `scheduled_shutdown`, or its config
-expiry falls within the 24-hour trigger lead — and a tick runs, *then* the tick emits an
+corroborated shutdown — the `/status` signal corroborated as `FMI-26` requires, or a config
+expiry within `ALC-19`'s trigger lead — and a tick runs, *then* the tick emits an
 `Evacuate` from A into B keyed by the occurrence, B rises by what the evacuation delivered, and A
-is drained — what remains is less than one evacuable chunk, so a further tick sizes no
-`Evacuate` of A — without an operator naming the move. Demonstrates `FMI-26`, `ALC-17`, `ALC-18`, `ALC-19`, `OPS-21`.
+is drained — what remains on it is below `OPS-44`'s sizing floor, so a further tick's
+`Evacuate` of A sizes nothing — without an operator naming the move. Demonstrates `FMI-26`,
+`ALC-17`, `ALC-18`, `ALC-19`, `OPS-21`, `OPS-44`.
 
 **CNF-36** *Given* a policy whose evacuation cap components `(base, bps)` and whose flat
-`max_fee` disagree — `base + floor(amount × bps / 10 000)` differs from `max_fee` at every
-amount in play — and a funding shortfall on the standby, *when* a tick plans, *then* the
-`Evacuate` it emits carries `fee_cap` equal to the components' formula at the planned amount and
-the components themselves, and every funding `Move` it emits carries `fee_cap = floor(amount ×
-max_fee_bps_of_move / 10 000)`; neither carries `max_fee`, and both are readable on the intent
+`max_fee` disagree — `ALC-20`'s cap differs from `max_fee` at every amount in play — and a funding shortfall on the standby, *when* a tick plans, *then* the
+`Evacuate` it emits carries `fee_cap` equal to `ALC-20`'s cap at the planned amount and the
+components themselves, and every funding `Move` it emits carries `ALC-7`'s proportional cap;
+neither carries `max_fee`, and both are readable on the intent
 and on its ledger row. Demonstrates `ALC-2`, `ALC-7`, `ALC-17`, `ALC-20`, `ALC-22`, `DEF-1`,
 `DEF-3`.
 
@@ -125,8 +125,7 @@ has `bps > 0` and whose flat `max_fee` exceeds every fee below, and a route fee 
 amount that lies strictly between `ALC-20`'s cap at the delivered net and the same cap at the
 sized ask, *when* the evacuation is planned, sized and driven, *then* no fee above the cap at
 the delivered net is paid, at the pre-mint gate or at the post-receive recompute — the leg is
-refused or resized, and an implementation that bounds by the ask or by `max_fee` pays the fee
-and fails. *Given* a receive committed under that cap, *when* the wallet restarts with its cache
+refused or resized. *Given* a receive committed under that cap, *when* the wallet restarts with its cache
 lost and replays the attempt, *then* the cap it enforces is the one persisted with the receive,
 not a recomputed planning cap. Demonstrates `ALC-20`, `ALC-21`, `OPS-22`, `OPS-25`, `OVR-7`.
 
@@ -160,8 +159,8 @@ source, and the wallet holds exactly one executable evacuation for it. Demonstra
 **CNF-13** *Given* the environment with B below its standby target and A above its spending
 target by more than the shortfall, *when* one tick runs, *then* it probes, scores, snapshots,
 decides and commits a funding `Move` from A into B sized to the shortfall and not over, chosen
-by the allocator and named by no one, with a `Tick` row `Started` before sensing and terminalized
-when the move finishes, and B rises by the move's amount. Demonstrates `ALC-4`, `ALC-5`,
+by the allocator and named by no one, with the `Tick` row `ALC-34` requires opened before sensing
+and terminalized after, and B rises by the move's amount. Demonstrates `ALC-4`, `ALC-5`,
 `ALC-32`, `ALC-34`, `ALC-53`, `OPS-11`.
 
 **CNF-20** *Given* the environment with `auto_join` on, a discovery source announcing a third
@@ -186,8 +185,8 @@ verdict is `Passed`; and *given* a candidate that is not joined, *when* a probe 
 `auto_join` on, *when* a discovery pass runs, *then* the federation is discovered, previewed with
 the Sybil check, auto-joined and marked `AutoJoined`, with the discover, auto-join and agent join
 rows in `history`; *when* a tick runs — with the federation pinned as standby or not — *then* it
-is refused funding with a `NotProbed` refusal row: a pin does not bypass the gate; *when* three
-probes have passed over the policy's minimum span, *then* the same tick funds it. Demonstrates
+is refused funding with a `NotProbed` refusal row: a pin does not bypass the gate; *when*
+`probe_min_successes` probes have passed over `probe_min_span_secs`, *then* the same tick funds it. Demonstrates
 `ALC-28`, `ALC-29`, `ALC-37`, `FMI-28`, `SEC-16`, `OVR-5`.
 
 **CNF-38** *Given* a wallet whose stored occurrence is one below the largest representable
@@ -230,8 +229,8 @@ its `floor_source`, not moved. Demonstrates `ALC-12`, `ALC-10`, `ALC-13`, `API-1
 
 **CNF-21** *Given* a gateway that accepts a connection and never answers, registered on the
 candidate's vetted list, and a scheduled probe held in flight by it, *when* a pay is posted,
-*then* its first outbound request to a federation or gateway leaves the wallet within **250 ms**
-of the post, measured outside the wallet; *when* two pays are posted at once, *then* neither
+*then* its first outbound request reaches a federation or gateway while the probe's connection
+is still open and unanswered — observed at those endpoints, not inside the wallet; *when* two pays are posted at once, *then* neither
 waits for the other; *when* the external driver cap's worth of pays are held by hanging
 gateways, *then* the cap-plus-one submit is refused `conflict` at once; *when* the daemon is
 sent `SIGTERM` in that state, *then* it exits 0 promptly; and the move a stalled gateway holds
@@ -265,7 +264,7 @@ reconstructible from `history` and `show` alone: each row's kind, actor, reason,
 pay's row carrying its error and each `OverCap` refusal its figures. Demonstrates `OVR-4`, `STO-15`, `STO-16`, `STO-19`,
 `API-10`, `API-11`, `API-12`, `ALC-34`.
 
-**CNF-47** Seed at rest (`SEC-25`, `SEC-11`). *Given* a store holding the plaintext seed
+**CNF-47** *Given* a store holding the plaintext seed
 and the key source available, *when* the wallet starts and is killed at each of three
 boundaries of the one-time re-encryption — before the slot commit; after the commit
 while the plaintext still sits in a superseded store file; after the store is clean but
@@ -289,8 +288,8 @@ print `<word> <key>`, and the await verbs print `claimed` and `success`. Demonst
 
 **CNF-26** *Given* a daemon reachable by the CLI in client mode, *when* each verb of `API-26`
 is invoked, *then*: the request each sends carries the fields and only the fields `API-18`–`API-24`
-name; every error envelope maps to the exit code `API-28` gives its kind and status, and a
-usage error, a refusal and a journaled failure exit 1, 2 and 3 respectively; the stdout of every
+name; every error envelope, usage error and journaled failure maps to the exit code `API-28`
+gives it; the stdout of every
 verb is the shape `API-29` or `API-39` fixes for it — `health` printing all five fields of
 `API-16`, `status` rendering `deferred` and `suppressed`, `show` printing `fee_cap_msat`,
 `history --json` and `show --json` carrying `fee_cap`; and `policy set` of one field PUTs every
