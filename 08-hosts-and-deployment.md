@@ -49,8 +49,9 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | `log_level` | `info` (`RUST_LOG` overrides) |
 
 Paths MUST be absolute once `~` and `~/…` are expanded; anything else fails startup.
-`token_path` MUST resolve to a path inside `data_dir`, so the token file belongs to exactly
-one store and its rotation is serialised by that store's lock (`HST-4`, `HST-33`); a path
+`token_path` MUST resolve to a path inside `data_dir` — after every filesystem link in either
+path is resolved, so a link cannot place one file in two stores — so the token file belongs to
+exactly one store and its rotation is serialised by that store's lock (`HST-4`, `HST-33`); a path
 elsewhere fails startup (`HST-29`). `address`
 is not validated: a bare IPv6 literal is bracketed wherever it is rendered into a URL or a
 bind string, and a hostname is resolved by the bind. Environment knobs are the table in
@@ -256,7 +257,8 @@ unless its `Origin` header equals `public_origin` (`HST-27`'s form); every one b
 the session's CSRF token: a second value minted with the session from the same source and
 entropy as the session token, bound to that session for its lifetime, delivered only inside
 the HTML the sidecar renders (never in a cookie or a response header), and presented back in
-the form field `csrf_token` or the request header `X-CSRF-Token`; a request whose token is
+the form field `csrf_token` on the sidecar's own page routes, and the request header
+`X-CSRF-Token` alone on a forwarded `/v1/` route, whose body is forwarded unchanged; a request whose token is
 missing or is not the presenting session's, or whose `Origin` fails the check, is refused
 `403` with no wallet data and no change to the session. A dedicated origin is required for
 that reason (`ADR-0028`: "same-origin neighbours can read the CSRF token out of the page"). One login gates the whole UI: there is
