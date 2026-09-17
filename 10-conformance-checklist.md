@@ -324,8 +324,9 @@ Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`, `API-33`, `API-38
 **CNF-54** *Given* a running daemon, *when* `wallet-web init` is run, *then* it takes the
 password twice on the controlling terminal with echo disabled and refuses — writing nothing —
 a mismatch, a password below or above `HST-26`'s bounds — each tried on its own — and a config path that already exists or
-overlaps the token path; on success it writes the config `0600` with an Argon2id hash at or
-above `HST-26`'s minimums; *when* the provisioned sidecar starts
+overlaps the token path; on success — a `--public-origin` given in a non-canonical but valid form among the inputs
+— it writes the config `0600` with an Argon2id hash at or above `HST-26`'s minimums and the
+origin in `HST-27`'s canonical form, which a browser's `Origin` header then matches; *when* the provisioned sidecar starts
 with the standard proxy variables pointing at an observing endpoint, *then* it listens on
 loopback only, has opened no store, reaches the daemon directly, and the proxy endpoint
 receives nothing; *when*
