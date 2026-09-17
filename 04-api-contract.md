@@ -103,7 +103,7 @@ key's presence, not the status code alone (`OPS-38`).
 |---|---|---|
 | GET | `/v1/balance` | `{total, federations:[FederationView]}` |
 | GET | `/v1/federations` | `[FederationView]` |
-| GET | `/v1/history` | `{operations:[OperationView], next_before_seq}`; with `status=open` also `skipped_unreadable` (`API-10`) |
+| GET | `/v1/history` | `{operations:[OperationView], next_before_seq}`; with `status=open` also `skipped_unreadable` (`API-43`) |
 | GET | `/v1/operations/{key}` | `OperationView` |
 | POST | `/v1/operations/{key}/reclaim` | 200 `{operation_key, outcome}` (`API-42`) |
 | GET | `/v1/status` | dry-run of the next tick (`API-15`) |
@@ -133,28 +133,21 @@ is 200 regardless; a caller that wants "every joined federation is open" MUST ch
 
 **API-10** `GET /v1/history` reads exactly three query parameters: `limit` (unsigned integer,
 default 50; values above 500 are silently capped to 500), `before_seq` (unsigned integer) and
-`status`, whose only value is `open` (`ADR-0028`: "`/v1/history` gains a `?status=open`
-filter — a read-only journal query"): with it the page holds only rows whose status is
-`started` or `awaiting`, the terminal rows are passed over like unreadable ones — `limit`
-counts the rows returned and `next_before_seq` is still the last row reached — the response
-additionally carries `skipped_unreadable` (unsigned integer): the rows the scan passed over as
-undecodable, because an unreadable row may be an open operation the caller cannot rebuild
-(`ADR-0028`: the filter lands "together with its skipped-undecodable-row signal"; `STO-19`
-carves it out) — and any other value is `422` `invalid query parameters: …`.
+`status` (`API-43`).
 `before_seq` is **exclusive**: the page holds rows with `seq < before_seq`, newest first
 (`STO-19`). `next_before_seq` is the `seq` of the last row the page **reached** — returned or
 skipped as unreadable (`STO-19`, `OVR-14`), so a skipped row never strands the rows older than
 it — when `limit > 0` and the scan stopped before the ledger's first row, else `null`; pass it
 back as `before_seq` for the next page. `limit=0` returns
-`{"operations":[],"next_before_seq":null}` — with `status=open`, `"skipped_unreadable":0` as
-well, since a zero-length scan passes over nothing. A non-integer or negative value for either
+`{"operations":[],"next_before_seq":null}` (with `status=open`, `API-43`'s extra field too).
+A non-integer or negative value for either
 parameter is `422` `invalid query parameters: …` (`API-6`). **Any other query parameter
-(`actor`, `fed`, `kind`, …) is ignored and adds no filtering** — a `status=open` beside it
-still applies. The route carries no federation filter: the CLI emulates
+(`actor`, `fed`, `kind`, …) is ignored and adds no filtering** — a `status=open` (`API-43`)
+beside it still applies. The route carries no federation filter: the CLI emulates
 actor and status filters by paging client-side (`API-40`), and `history --fed` is
 standalone-only (`API-25`). A caller MUST NOT infer filtering from a `200`. Undecodable ledger
 rows are skipped without signal on the unfiltered route (`STO-19`); only a `status=open` page
-counts them.
+counts them (`API-43`).
 
 **API-11** `GET /v1/operations/{key}` reads the ledger row for `key` and returns `404`
 `no operation found for key <key>` if none exists. `wait` is a boolean query parameter: absent
@@ -420,7 +413,7 @@ design: one is the audit form of the row, the other the frontend view.
 
 **API-31** Deliberate absences, each owned elsewhere: no gateway on any money request or await
 (`ADR-0030`: the break-glass is a standalone flag bound to one operation key, never a wire
-field); no federation or actor filter on `/v1/history` (`API-10`; `status=open` is its one filter); no preimage on any
+field); no federation or actor filter on `/v1/history` (`API-10`; `status=open`, `API-43`, is its one filter); no preimage on any
 response (`API-38`); no cause attached to a money state the wallet did not observe (`OPS-40`).
 A field this chapter does not list is not on the wire, and a caller MUST NOT depend on one.
 
@@ -600,3 +593,13 @@ and for no other reason" (`OVR-4`) and its absence never changes the response. I
 and the break-glass gateway override is ignored on it, as on every verb that resolves no route
 (`ADR-0030`). The verb prints the outcome and exits 0 on `claimed`, 3 on `not_claimable` with
 the key in the message, and per `API-28` otherwise.
+
+**API-43** The open-history filter. `GET /v1/history?status=open` (`ADR-0028`:
+"`/v1/history` gains a `?status=open` filter — a read-only journal query") returns only rows
+whose status is `started` or `awaiting`; terminal rows are passed over like unreadable ones,
+`limit` counts the rows returned and `next_before_seq` is still the last row reached
+(`API-10`). The response additionally carries `skipped_unreadable` (unsigned integer): the
+rows the scan passed over as undecodable — `0` when `limit=0` — because an unreadable row may
+be an open operation the caller cannot rebuild (`ADR-0028`: the filter lands "together with
+its skipped-undecodable-row signal"; `STO-19` carves it out; `HST-31` says what a frontend
+does with it). `open` is the only value; any other is `422` `invalid query parameters: …`.

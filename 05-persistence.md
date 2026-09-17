@@ -399,7 +399,7 @@ exhausted at the largest representable value.
 descending `seq`, and `before_seq` is exclusive (`API-10` owns the query parameters and the
 cap on `limit`). An undecodable row MUST be skipped with a warning and no other signal — the
 page is shorter, never an error (`STO-22`) — except that a `status=open` page counts the rows
-it skipped (`API-10`, `skipped_unreadable`).
+it skipped (`API-43`, `skipped_unreadable`).
 
 **STO-20** `0x06` maps a correlation key to exactly one current row. A retry appends a fresh row
 and repoints the index, so older attempts' rows are reachable by `seq` only. A lookup by key
