@@ -138,7 +138,7 @@ CODEBASE_REF = re.compile(
     r"\b[A-Za-z_]\w*::[A-Za-z_]\w*"          # Type::method, module::item, backticked or bare
     r"|\b[a-z_][a-z0-9_]*\.rs\b"             # source files, with or without :line
     r"|\bwallet-(?:core|fedimint|api|cli)/"  # crate directories
-    r"|(?<!(?<![^\s`(])~/\.config/)(?<!(?<![^\s`(])\$XDG_CONFIG_HOME/)\bwallet-web/"  # the sidecar crate, but not its config path ~/.config/wallet-web/ or $XDG_CONFIG_HOME/wallet-web/ at a token start
+    r"|(?<!(?<![^\s`(=:])~/\.config/)(?<!(?<![^\s`(=:])\$XDG_CONFIG_HOME/)\bwallet-web/"  # the sidecar crate, but not its config path ~/.config/wallet-web/ or $XDG_CONFIG_HOME/wallet-web/ at a token start
     r"|\bPR #\d+"                            # pull requests
     r"|`br-[a-z0-9][a-z0-9.-]*`"             # issue ids
 )

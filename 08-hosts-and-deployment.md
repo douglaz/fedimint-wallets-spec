@@ -333,8 +333,9 @@ alone (`HST-26`). Nothing changes the mode of the stores' own files.
 
 **HST-30** The wallet is not required to ship or schedule a readiness probe; whether one runs
 is the deployment's. A probe an implementation does ship MUST read `GET /v1/health`
-(`API-16`) with the token and MUST distinguish three outcomes: ready; not ready — the daemon
-answered and `scheduler_alive` is `false` or `automation_ready` is `false`; and unknown — the
+(`API-16`) with the token and MUST distinguish three outcomes, the unknown one decided first:
+ready; not ready — a body carrying both fields, with `scheduler_alive` `false` or
+`automation_ready` `false`; and unknown — the
 daemon unreachable, no token configured, an answer that is not `200` with a decodable body (a
 `401` on a stale token included), or a body without `automation_ready` (`API-16`: a caller
 "MUST treat readiness as unknown, not healthy"). A command-line probe exits `0`, `1` and `2`
