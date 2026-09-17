@@ -66,9 +66,11 @@ credited and the pay settles; the single share is enough for every lnv2 operatio
 the invoice is paid from the Lightning node, *then* the receive is claimed, A rises by the amount
 minus the gateway and federation receive fees, and the invoice carried the expiry and the
 description `FMI-16` requires. *When* the wallet pays an invoice from the Lightning node out of A,
-*then* the send settles, A falls by the invoice amount plus a fee within the cap, and a second pay
-of the same invoice attaches to the first as already in flight and funds nothing. Demonstrates
-`FMI-16`, `FMI-17`, `OPS-17`, `OPS-18`, `OPS-29`.
+and a second pay of the same invoice is submitted while the first is still live, *then* the
+second attaches to the first as already in flight and funds nothing, the send settles once, A
+falls once by the invoice amount plus a fee within the cap, and a third submit after settlement
+is answered with the existing outcome. Demonstrates `FMI-16`, `FMI-17`, `OPS-8`, `OPS-17`,
+`OPS-18`, `OPS-29`.
 
 **CNF-10** *Given* the environment, *when* the wallet issues a direct inflow of an amount into
 A and the invoice is paid, *then* A is credited **never more** than the amount and at most
@@ -111,13 +113,13 @@ is drained — what remains on it is below `OPS-44`'s sizing floor, so a further
 `Evacuate` of A sizes nothing — without an operator naming the move. Demonstrates `FMI-26`,
 `ALC-17`, `ALC-18`, `ALC-19`, `OPS-21`, `OPS-44`.
 
-**CNF-36** *Given* a policy whose evacuation cap components `(base, bps)` and whose flat
-`max_fee` disagree — `ALC-20`'s cap differs from `max_fee` at every amount in play — and a funding shortfall on the standby, *when* a tick plans, *then* the
-`Evacuate` it emits carries `fee_cap` equal to `ALC-20`'s cap at the planned amount and the
-components themselves, and every funding `Move` it emits carries `ALC-7`'s proportional cap;
-neither carries `max_fee`, and both are readable on the intent
-and on its ledger row. Demonstrates `ALC-2`, `ALC-7`, `ALC-17`, `ALC-20`, `ALC-22`, `DEF-1`,
-`DEF-3`.
+**CNF-36** *Given* the dying federation of `CNF-14` and a policy whose evacuation cap
+components `(base, bps)` and whose flat `max_fee` disagree — `ALC-20`'s cap differs from
+`max_fee` at every amount in play — *when* a tick plans, *then* the `Evacuate` it emits
+carries `fee_cap` equal to `ALC-20`'s cap at the planned amount and the components
+themselves, never `max_fee`, readable on the intent and on its ledger row; and the sizing that
+follows enforces that cap at the delivered net (`CNF-43`), not `max_fee`. The funding move's
+cap is `CNF-13`'s. Demonstrates `ALC-2`, `ALC-17`, `ALC-20`, `ALC-21`, `ALC-22`, `DEF-3`.
 
 **CNF-43** *Given* a dying federation with a balance to evacuate, a route whose receive-side fee
 makes the delivered net smaller than the sized ask, a policy whose evacuation cap `(base, bps)`
@@ -159,9 +161,10 @@ source, and the wallet holds exactly one executable evacuation for it. Demonstra
 **CNF-13** *Given* the environment with B below its standby target and A above its spending
 target by more than the shortfall, *when* one tick runs, *then* it probes, scores, snapshots,
 decides and commits a funding `Move` from A into B sized to the shortfall and not over, chosen
-by the allocator and named by no one, with the `Tick` row `ALC-34` requires opened before sensing
-and terminalized after, and B rises by the move's amount. Demonstrates `ALC-4`, `ALC-5`,
-`ALC-32`, `ALC-34`, `ALC-53`, `OPS-11`.
+by the allocator and named by no one, carrying `ALC-7`'s proportional cap and not the flat
+`max_fee` — the two differing at that amount — with the `Tick` row `ALC-34` requires opened
+before sensing and terminalized after, and B rises by the move's amount. Demonstrates `ALC-4`,
+`ALC-5`, `ALC-7`, `ALC-32`, `ALC-34`, `ALC-53`, `OPS-11`, `DEF-1`.
 
 **CNF-20** *Given* the environment with `auto_join` on, a discovery source announcing a third
 federation **C**, and the operator touching nothing but policy from then on, *when* the resident
@@ -239,9 +242,9 @@ is not `Stranded` by the stall alone. Demonstrates `OVR-3`, `OPS-13`, `OPS-6`, `
 
 **CNF-22** *Given* the environment with the resident scheduler active, *when* the wallet is
 driven for 24 hours by periodic receives, pays and moves, *then* every operation key appears
-exactly once in `history`, no user operation fails, the same process serves throughout, its log
-carries no lock or panic line, and a final `SIGTERM` exits 0. Demonstrates `STO-20`, `STO-16`,
-`OPS-14`, `ALC-38`, `HST-7`, `OVR-4`.
+exactly once in `history`, no user operation fails, `/v1/health` reports `scheduler_alive`
+`true` throughout, and a final `SIGTERM` exits 0. Demonstrates `STO-20`, `STO-16`, `OPS-14`,
+`ALC-38`, `ALC-42`, `API-16`, `HST-7`, `OVR-4`.
 
 ## Durability and the ledger
 
@@ -294,5 +297,25 @@ verb is the shape `API-29` or `API-39` fixes for it — `health` printing all fi
 `API-16`, `status` rendering `deferred` and `suppressed`, `show` printing `fee_cap_msat`,
 `history --json` and `show --json` carrying `fee_cap`; and `policy set` of one field PUTs every
 key the GET returned, unchanged where no flag named it, and refuses as a usage error a flag for
-a field the GET did not return. Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`,
-`API-33`, `API-38`, `API-39`, `API-40`, `API-41`.
+a field the GET did not return; and `reclaim <key>` on an operation whose incoming contract
+reached a terminal non-claim prints the outcome and exits 0 on `claimed` and 3 on
+`not_claimable`, while on any other operation it exits as `API-28` maps the refusal.
+Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`, `API-33`, `API-38`, `API-39`,
+`API-40`, `API-41`, `API-42`.
+
+**CNF-54** *Given* a running daemon and a sidecar provisioned against it with a password,
+*when* the sidecar starts, *then* it listens on loopback only and has opened no store; *when*
+`GET /healthz` is requested without a session, *then* it answers 200 with exactly the two keys
+`HST-31` names and `daemon_reachable` `true`; *when* a page is requested without a session,
+*then* it is `303` to `/login`, and a non-`GET` is `401`, neither carrying wallet data; *when*
+`POST /login` is sent a wrong password, *then* it is `401` with no hint beyond that the login
+failed, and after five consecutive failures every attempt is `429` for the lockout window;
+*when* the right password is sent, *then* it is `303` to `/` with the `session` cookie carrying
+the attributes `HST-31` fixes, and the balance page then shows what `GET /v1/balance` on the
+daemon returns; *when* a state-changing request arrives without the session's CSRF token or
+from another `Origin`, *then* it is `403` with no change; *when* `/v1/recover` is requested
+through the sidecar, *then* it is not reachable by any route or page; *when* the daemon's
+token is rotated by `walletd init`, *then* the sidecar's next forwarded request uses the new
+token; and *when* the sidecar is started on a config with no password hash, a non-loopback
+`daemon_url` or a world-readable config file, *then* it refuses to start and serves nothing.
+Demonstrates `HST-26`, `HST-31`, `HST-27`, `SEC-22`, `SEC-5`.
