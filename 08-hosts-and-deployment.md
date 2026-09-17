@@ -34,7 +34,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | `XDG_CONFIG_HOME` | all three | config home | empty or relative → ignored, `~/.config` (the XDG base-directory rule) |
 | `XDG_DATA_HOME` | `walletd`, standalone `wallet-cli` | default `data_dir` | empty or relative → ignored, `~/.local/share` (the same rule) |
 | `HOME` | all three | `~` expansion and the XDG fallbacks | read only when a path actually falls back to it; unset or empty then fails startup, before any file is written (`HST-29`); never read when every path the command touches is absolute (`XDG_CONFIG_HOME` and `XDG_DATA_HOME` absolute, an explicit `--config` whose paths are absolute for every subcommand but `init`, which also writes the pointer under the config home (`HST-4`) and so needs an absolute `XDG_CONFIG_HOME` as well; standalone `--data-dir`; or client-mode `--url` with `--token-path`, `API-25`) |
-| `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` (and lowercase), `NO_PROXY` | `walletd`, `wallet-cli` | every outgoing HTTP connection the two make — the CLI's connection to the daemon, gateway `routing_info` (`FMI-11`), the Observer (`FMI-28`) — with the conventional semantics: the proxy for the scheme, `NO_PROXY` the exemptions, and no destination exempt that `NO_PROXY` does not name, loopback included, so an operator who sets a proxy owns the exemption for the daemon's own address (`SEC-3`). The sidecar is the exception and ignores them (`SEC-22`) | a proxy URL that does not parse fails startup (`HST-29`) |
+| `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` (and lowercase), `NO_PROXY` | `walletd`, `wallet-cli` | every outgoing HTTP connection the two make — the CLI's connection to the daemon, gateway `routing_info` (`FMI-11`), the Observer (`FMI-28`) — with these semantics: `HTTPS_PROXY` for `https` destinations, `HTTP_PROXY` for `http`, `ALL_PROXY` for either when the scheme's variable is unset; the lowercase form of a variable takes precedence over the uppercase; `NO_PROXY` is a comma-separated list of entries, each a host name (a leading `.` matches subdomains too), an IP literal or a CIDR block, optionally `:port`, or `*` for every destination, and an entry exempts a destination whose host equals or is a subdomain of the name, or whose address lies in the block, and whose port matches when one is given; no destination is exempt that no entry matches, loopback included, so an operator who sets a proxy owns the exemption for the daemon's own address (`SEC-3`). The sidecar is the exception and ignores them (`SEC-22`) | a proxy URL that does not parse fails startup (`HST-29`) |
 
 **HST-3** `walletd.toml` has five keys and MUST reject any other — including the retired
 `gateway` key (`ADR-0030`), so a file that still carries it fails startup loudly:
@@ -173,8 +173,9 @@ global `--config` (default `$XDG_CONFIG_HOME/wallet-web/wallet-web.toml`, else
 `~/.config/wallet-web/wallet-web.toml`). It MUST refuse to run if the config file already
 exists (`sidecar config <path> already exists; …`), checked before any prompt: rotating the
 password is delete-then-init. It MUST prompt for the password twice on the controlling
-terminal with echo disabled, never read it from stdin or an argument (`SEC-6`), and an abort
-at the prompt MUST exit non-zero with nothing written. The password MUST be at least 12
+terminal with echo disabled, never read it from stdin or an argument (`SEC-6`); the two
+entries MUST match, and a mismatch or an abort at the prompt MUST exit non-zero with nothing
+written. The password MUST be at least 12
 characters and at most 1,024 bytes (bytes checked first). It MUST hash with Argon2id v19 with
 at least m = 19456 KiB, t = 2, p = 1, a fresh salt of at least 16 bytes and a 32-byte output, validate the whole
 config through the same checks startup applies, and write the file `0600` atomically
@@ -205,9 +206,11 @@ balance"); `/healthz` answers `200` with the JSON object `{"sidecar_alive": true
 `GET /v1/health` on `daemon_url` answered `200` with the configured token — and no wallet
 data; the daemon check behind `daemon_reachable` is bounded by 5 s in total, and a check
 that has not answered by then reports `false`. Login verifies the password against the stored hash in constant time and MUST be
-rate-limited (`ADR-0028`: "Rate limiting is required, not optional"); the limit's observable
-parameters are an open question (`11-open-questions.md`, question 3) and the set is silent on
-them until it is answered. A session is an opaque token from a cryptographically secure random
+rate-limited (`ADR-0028`: "Rate limiting is required, not optional"): after 5 consecutive
+failed attempts the sidecar MUST answer every login attempt `429` for the next 60 s, counted
+across the whole listener — behind the reverse proxy `ADR-0028` contemplates every request
+arrives from `127.0.0.1`, so a per-address key would exempt exactly the exposed case — and a
+successful login resets the count. A session is an opaque token from a cryptographically secure random
 source with at least 256 bits of entropy (the bar `SEC-2` sets for the bearer token), held in
 memory only — no signing key at rest,
 no session survives a restart, so restarting the sidecar is the one "revoke all sessions" —
@@ -303,9 +306,11 @@ alone (`HST-26`). Nothing changes the mode of the stores' own files.
 
 **HST-30** The wallet is not required to ship or schedule a readiness probe; whether one runs
 is the deployment's. A probe an implementation does ship MUST read `GET /v1/health`
-(`API-16`) with the token and MUST report not-ready — a non-zero exit, or its platform's
-failing check — when the daemon is unreachable, when `scheduler_alive` is `false`, and when
-`automation_ready` is `false` or absent (`API-16`: a caller "MUST treat readiness as unknown,
-not healthy"); its report carries `automation_blocked`'s `reason` and `detail` when the body
-has them and says readiness is unknown when it does not. A probe that reads only the status
-code is not a readiness probe (`ALC-45`: "Liveness is not readiness").
+(`API-16`) with the token and MUST distinguish three outcomes: ready; not ready — the daemon
+answered and `scheduler_alive` is `false` or `automation_ready` is `false` or absent
+(`API-16`: a caller "MUST treat readiness as unknown, not healthy"); and unable to ask — the
+daemon unreachable, or no token configured. A command-line probe exits `0`, `1` and `2` for
+those in turn; a platform-native probe maps them to its ready, failing and unknown states. Its
+report carries `automation_blocked`'s `reason` and `detail` when the body has them and says
+readiness is unknown when it does not. A probe that reads only the status code is not a
+readiness probe (`ALC-45`: "Liveness is not readiness").
