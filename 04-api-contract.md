@@ -131,8 +131,13 @@ failed to open is still listed with `balance: null` and is excluded from `total`
 is 200 regardless; a caller that wants "every joined federation is open" MUST check for nulls
 (the CLI does, `API-39`). `GET /v1/federations` returns the same list.
 
-**API-10** `GET /v1/history` reads exactly two query parameters: `limit` (unsigned integer,
-default 50; values above 500 are silently capped to 500) and `before_seq` (unsigned integer).
+**API-10** `GET /v1/history` reads exactly three query parameters: `limit` (unsigned integer,
+default 50; values above 500 are silently capped to 500), `before_seq` (unsigned integer) and
+`status`, whose only value is `open` (`ADR-0028`: "`/v1/history` gains a `?status=open`
+filter — a read-only journal query"): with it the page holds only rows whose status is
+`started` or `awaiting`, the terminal rows are passed over like unreadable ones — `limit`
+counts the rows returned and `next_before_seq` is still the last row reached — and any other
+value is `422` `invalid query parameters: …`.
 `before_seq` is **exclusive**: the page holds rows with `seq < before_seq`, newest first
 (`STO-19`). `next_before_seq` is the `seq` of the last row the page **reached** — returned or
 skipped as unreadable (`STO-19`, `OVR-14`), so a skipped row never strands the rows older than
@@ -140,7 +145,7 @@ it — when `limit > 0` and the scan stopped before the ledger's first row, else
 back as `before_seq` for the next page. `limit=0` returns
 `{"operations":[],"next_before_seq":null}`. A non-integer or negative value for either
 parameter is `422` `invalid query parameters: …` (`API-6`). **Any other query parameter
-(`status`, `actor`, `fed`, `kind`, …) is ignored and the page is unfiltered**. The route carries no federation filter: the CLI emulates
+(`actor`, `fed`, `kind`, …) is ignored and the page is unfiltered**. The route carries no federation filter: the CLI emulates
 actor and status filters by paging client-side (`API-40`), and `history --fed` is
 standalone-only (`API-25`). A caller MUST NOT infer filtering from a `200`. Undecodable ledger
 rows are skipped without signal on this route (`STO-19`).
