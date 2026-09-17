@@ -10,8 +10,9 @@ implementation is built, tested and run in one place is the code repository's.
 ## The daemon
 
 **HST-1** `walletd` is the only resident host on a server. One process MUST own both stores
-under the exclusive lock (`STO-2`); every other process reaches it through its HTTP API
-(`04-api-contract.md`).
+under the exclusive lock (`STO-2`); while it does, every other process reaches the wallet
+through its HTTP API (`04-api-contract.md`), and a one-shot process that opens the stores
+itself (`HST-4`, `HST-9`) does so only while no resident host holds them.
 
 **HST-2** Subcommands: none (serve), `init`, `mnemonic`, `restore-mnemonic`. The host config
 file is `$XDG_CONFIG_HOME/walletd/walletd.toml`, else `~/.config/walletd/walletd.toml`;
@@ -74,8 +75,9 @@ The order is `init → restore-mnemonic → serve`, because serving on a store w
 
 **HST-6** Serve MUST proceed in this order, and a failure at any step exits non-zero with
 nothing admitted: load the config → log to stderr (`HST-8`) → re-assert the data directory
-`0700` (`HST-19`) → read the token (fail if empty, `HST-4`) → take the lock and open both
-stores (`STO-2`) → seed or validate the policy row (`STO-13`) → load the seed, or mint one
+`0700` (`HST-19`) → take the lock and open both stores (`STO-2`) → read the token (fail if
+empty, `HST-4`; read under the lock, so an `init` cannot rotate it between the read and the
+bind, `API-3`) → seed or validate the policy row (`STO-13`) → load the seed, or mint one
 (`SEC-11`) → open each joined federation's client, tolerating one that fails to open (it is
 joined but not open, `DOM-2`; the scheduler's fence B answers for it, `ALC-46`) → **bind the
 listener before the scheduler admits any work**, so a port conflict fails startup with nothing
@@ -115,11 +117,12 @@ perform deadline applies to them (`ALC-44`); every verb that performs runs under
 `WALLETD_PERFORM_TIMEOUT_SECS` does for the daemon (`OPS-15` owns what a timeout leaves
 behind); the environment variable is not read by the CLI. It resolves `data_dir` from
 `--data-dir`, else `walletd.toml` (parsed with the daemon's own closed schema, so a stale
-`gateway` key fails here too, `HST-3`), else the default; then asserts the directory `0700`
-(`HST-19`). The lock: open-or-create `<data_dir>/client.db.lock` and attempt a non-blocking
-exclusive lock; contention MUST exit 1 with `another process owns the wallet store (walletd?);
-stop it, or use client mode (drop --standalone)`, and a lock taken between that probe and the
-store open is an exit-1 error too, never an indefinite wait (`HST-29`).
+`gateway` key fails here too, `HST-3`), else the default. The lock comes first: open-or-create
+`<data_dir>/client.db.lock` and attempt a non-blocking exclusive lock; contention MUST exit 1
+with `another process owns the wallet store (walletd?); stop it, or use client mode (drop
+--standalone)` before the directory's mode or anything else is touched, and a lock taken
+between that probe and the store open is an exit-1 error too, never an indefinite wait
+(`HST-29`). Holding the lock, it asserts the directory `0700` (`HST-19`) and opens the stores.
 
 **HST-10** The standalone-only verb shapes and flags are the set `API-25` enumerates (client
 mode refuses exactly those with exit 1). The break-glass `--gateway` (`ADR-0030` owns its
@@ -133,10 +136,13 @@ armed for that ONE operation's key; it is a usage error on `tick`, `probe`, `dis
 opening or planning; explicit user and admin verbs keep their poison-tolerant behaviour
 (`ALC-46`).
 
-**HST-12** Standalone is not a second resident engine and MUST NOT be the model for a future
-host (`ADR-0031`: "a deliberately isolated compatibility exception, not a resident host or a
-model for a future frontend"). A resident host drives the engine's cycle through the one
-admission point (`OPS-12`, `OVR-10`); no production scheduler is built on a one-shot harness.
+**HST-12** The standalone process is not a resident engine: it admits work only while it
+holds the exclusive lock, through the one admission point (`OPS-13`), and admits nothing once
+it exits; a resident host MUST admit every intent, its own cycle's included, through that same
+point (`OPS-12`, `OVR-10`). `ADR-0031` calls the standalone tick "a deliberately isolated
+compatibility exception, not a resident host or a model for a future frontend"; how a
+resident host is constructed is the reference design's, and this set judges it only by the
+admission invariant.
 
 ## The CLI as a frontend
 
@@ -148,8 +154,8 @@ store. `04-api-contract.md` `API-25`–`API-31` own its behaviour.
 **HST-26** The sidecar `wallet-web` is a separate process that talks to the daemon over its
 HTTP API with the bearer token, exactly as the CLI does, and renders HTML (`ADR-0028`). It
 MUST NOT open either store. Its posture — loopback bind, fail-closed start, a loopback-literal
-`daemon_url` reached directly — is `SEC-22`'s; this rule owns its provisioning, its
-configuration and its request-time surface.
+`daemon_url` reached directly — is `SEC-22`'s; this rule owns its provisioning and its
+configuration, and `HST-31` its request-time surface.
 
 **Provisioning.** `wallet-web init` takes `--port` (default 9737), `--daemon-url` (default
 `http://127.0.0.1:9736`), `--token-path` (required), `--public-origin` (required),
@@ -174,7 +180,7 @@ immediate expiry is the fail-closed direction. Startup MUST refuse: a config fil
 group or other permission bit; a config directory not owned by the running user or writable
 by another; a parse error (reported by position and message only — the offending line is
 never quoted, so the hash cannot reach a log, `SEC-6`); a missing, empty or malformed PHC
-hash; a hash that is not `argon2id`, does not declare `v=19`, has a salt under 8 bytes, has no
+hash; a hash that is not `argon2id`, does not declare `v=19`, has a salt under 16 bytes, has no
 hash output, or has `m`, `t` or `p` below the minimums above; port 0; a `daemon_url` that is
 not `http://` + a loopback IP **literal** + port with at most a bare trailing `/` (`localhost`
 is refused because it resolves but can be repointed; `::1` is the only IPv6 form; the stored
@@ -183,11 +189,13 @@ dropped); a `token_path` that does not resolve to an absolute path (`~/` expands
 does); an idle timeout above 4h or an absolute timeout above 24h, or either unparseable; a
 `public_origin` that `HST-27` refuses.
 
-**Requests.** The complete unauthenticated surface is exactly `GET /login`, `POST /login` and
-`GET /healthz` (`ADR-0028`: "There is otherwise no unauthenticated surface — not even
+**HST-31** The sidecar's request-time surface, from `ADR-0028`. The complete unauthenticated
+surface is exactly `GET /login`, `POST /login` and `GET /healthz` (`ADR-0028`: "There is otherwise no unauthenticated surface — not even
 balance"); `/healthz` returns exactly two booleans, sidecar alive and daemon reachable, and no
 wallet data. Login verifies the password against the stored hash in constant time and MUST be
-rate-limited. A session is an opaque random token held in memory only — no signing key at rest,
+rate-limited (`ADR-0028`: "Rate limiting is required, not optional"); the limit's observable
+parameters are an open question (`11-open-questions.md`, question 3) and the set is silent on
+them until it is answered. A session is an opaque random token held in memory only — no signing key at rest,
 no session survives a restart, so restarting the sidecar is the one "revoke all sessions" —
 carried by an `HttpOnly`, `SameSite=Strict`, host-only cookie whose `Secure` flag is set
 exactly when `public_origin`'s scheme is `https`. A session expires after the configured idle
@@ -206,7 +214,7 @@ the daemon's history (`API-10`) on every load and polled through `GET /v1/operat
 
 **HST-27** `public_origin` is stored in the canonical form a browser sends in `Origin` — the
 WHATWG URL origin serialisation — so that a request's `Origin` header can be compared with it
-byte for byte (`HST-26`). An accepted input is **normalised** by the rules below and only the
+byte for byte (`HST-31`). An accepted input is **normalised** by the rules below and only the
 listed ambiguous or unsafe forms are refused, so `https://Wallet.EXAMPLE:443` starts and is
 stored as `https://wallet.example`.
 Refused: any `#`; a scheme other than `http`/`https`; userinfo; a non-`/` path or a query; an
@@ -241,11 +249,11 @@ procedure itself — the runbook — is the code repository's.
 ## Files on disk
 
 **HST-19** How files reach disk. **Secret files** — the bearer token and `wallet-web.toml` —
-MUST be written atomically: a sibling temporary in the target's directory, created
-exclusively with mode `0600` and the mode re-asserted after creation so the umask cannot widen
-it, written, flushed to stable storage, then renamed over the target, so a reader sees the
-old file or the new one and never a truncated one; a temporary left by an earlier crash MUST
-NOT block the write. **Non-secret files** — `walletd.toml`, `client.toml` — MAY be written
+MUST be written atomically, by whatever primitive the platform offers: at every instant,
+crashes included, a reader at the target path finds either the previous complete file or the
+new complete one, never a partial one; the new file has mode `0600` from the first instant it
+is visible at that path, whatever the umask; once the write returns the contents are on
+stable storage; and what an interrupted earlier write left behind MUST NOT block the next. **Non-secret files** — `walletd.toml`, `client.toml` — MAY be written
 plainly under the ambient umask (`SEC-5`). **Directories**: the daemon MUST create the data
 directory if missing and re-assert `0700` on it at the start of `serve`, `init` and
 `restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is

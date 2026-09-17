@@ -33,6 +33,14 @@ was open can see where it landed.
    practice, not a wallet rule. Until answered, the set enforces the per-federation cap and is
    silent on an aggregate one.
 
+3. **What bounds a browser-sidecar login attempt?** `ADR-0028` requires the sidecar's login
+   to be rate-limited ("Rate limiting is required, not optional") and decides nothing about the
+   bound: how many failed attempts, in what window, keyed by what — the client address, the
+   whole listener — and whether the refusal is a delay or a `429`. Behind the reverse proxy the
+   ADR contemplates every request arrives from `127.0.0.1`, so keying by address needs a
+   forwarded-address rule the ADR also does not give. `HST-31` requires the limit and is silent
+   on its parameters until an ADR fixes them.
+
 ## Answered
 
 *(none yet)*
