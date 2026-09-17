@@ -337,8 +337,8 @@ is visible at that path, whatever the umask; once the write returns the contents
 stable storage; and a temporary an interrupted earlier write had not yet published MUST NOT
 block the next (a target it had published is the file, and `HST-26`'s refuse-if-exists applies). **Non-secret files** — `walletd.toml`, `client.toml` — carry the same old-or-new
 guarantee, so an interrupted `init` never leaves a truncated config for the next `init` to
-refuse, and MAY take their mode from the ambient umask (`SEC-5`) but MUST NOT be writable by
-another user whatever the umask is: a writable `client.toml` lets that user point every
+refuse, and MAY take their mode from the ambient umask (`SEC-5`) but MUST, at every read, be owned by
+the running user and not writable by another user whatever the umask is, else the read fails: a writable `client.toml` lets that user point every
 frontend's token at an address of their choosing. **Directories**: the daemon MUST create the data
 directory if missing and re-assert `0700` on it at the start of `serve`, `init` and
 `restore-mnemonic` — not `mnemonic`, a read-only export — so a directory whose mode drifted is
