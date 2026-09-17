@@ -34,7 +34,7 @@ exist only in debug builds and are compiled out of release: the fault-injection 
 | `XDG_CONFIG_HOME` | all three | config home | empty or relative → ignored, `~/.config` (the XDG base-directory rule) |
 | `XDG_DATA_HOME` | `walletd`, standalone `wallet-cli` | default `data_dir` | empty or relative → ignored, `~/.local/share` (the same rule) |
 | `HOME` | all three | `~` expansion and the XDG fallbacks | read only when a path actually falls back to it; unset or empty then fails startup, before any file is written (`HST-29`); never read when every path the command touches is absolute (`XDG_CONFIG_HOME` and `XDG_DATA_HOME` absolute, an explicit `--config` whose paths are absolute for every subcommand but `init`, which also writes the pointer under the config home (`HST-4`) and so needs an absolute `XDG_CONFIG_HOME` as well; standalone `--data-dir`; or client-mode `--url` with `--token-path`, `API-25`) |
-| `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` (and lowercase), `NO_PROXY` | `walletd`, `wallet-cli` | every outgoing HTTP connection the two make — the CLI's connection to the daemon, gateway `routing_info` (`FMI-11`), the Observer (`FMI-28`) — with these semantics: `HTTPS_PROXY` for `https` destinations, `HTTP_PROXY` for `http`, `ALL_PROXY` for either when the scheme's variable is unset; the lowercase form of a variable takes precedence over the uppercase, and an empty variable counts as unset — it neither proxies nor suppresses the fallback; `NO_PROXY` is a comma-separated list of entries, each a host name (a leading `.` matches subdomains too), an IP literal or a CIDR block, optionally `:port` — an IPv6 literal with a port MUST be bracketed, `[::1]:9736`, and an unbracketed entry with more than one `:` is an IPv6 literal without a port — or `*` for every destination, and an entry exempts a destination whose host equals or is a subdomain of the name, or whose address lies in the block, and whose port matches when one is given; no destination is exempt that no entry matches, loopback included, so an operator who sets a proxy owns the exemption for the daemon's own address (`SEC-3`). The sidecar is the exception and ignores them (`SEC-22`) | a proxy URL that does not parse fails startup (`HST-29`) |
+| `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` (and lowercase), `NO_PROXY` | `walletd`, `wallet-cli` | every outgoing HTTP connection the two make — the CLI's connection to the daemon, gateway `routing_info` (`FMI-11`), the Observer (`FMI-28`) — with these semantics: `HTTPS_PROXY` for `https` destinations, `HTTP_PROXY` for `http`, `ALL_PROXY` for either when the scheme's variable is unset; the lowercase form of a variable takes precedence over the uppercase, and an empty variable counts as unset — it neither proxies nor suppresses the fallback; `NO_PROXY` is a comma-separated list of entries, each a host name (a leading `.` matches subdomains too), an IP literal or a CIDR block, optionally `:port` — an IPv6 literal with a port MUST be bracketed, `[::1]:9736`, and an unbracketed entry with more than one `:` is an IPv6 literal without a port — or `*` for every destination, and an entry exempts a destination whose host equals or is a subdomain of the name, or whose address lies in the block, and whose port matches when one is given; no destination is exempt that no entry matches, loopback included, so an operator who sets a proxy owns the exemption for the daemon's own address (`SEC-3`). The sidecar is the exception and ignores them (`SEC-22`) | a proxy URL MUST be `http://` or `https://` (an HTTP proxy, reached over plain TCP or TLS respectively; the CONNECT method for `https` destinations); any other scheme, or a value that does not parse as a URL, fails startup (`HST-29`) |
 
 **HST-3** `walletd.toml` has five keys and MUST reject any other — including the retired
 `gateway` key (`ADR-0030`), so a file that still carries it fails startup loudly:
@@ -105,9 +105,8 @@ to start — exit non-zero with an error naming the cause, before any file, stor
 network request — on: an environment variable set to a non-empty value it cannot parse
 (`HST-2`); a config key it does not know or cannot parse (`HST-3`, `HST-26`); a path it cannot
 resolve to an absolute one (`HST-3`, `HST-4`); and, for the standalone process alone, a store
-lock a resident host holds (`HST-9`), whether found at the probe or taken between the probe and
-the open — `init` is the one one-shot command that blocks on the lock instead (`HST-4`,
-`API-3`). It MUST NOT substitute a default for a value it could not parse, and MUST NOT leave
+lock a resident host holds (`HST-9`) — `init` is the one one-shot command that blocks on the
+lock instead (`HST-4`, `API-3`). It MUST NOT substitute a default for a value it could not parse, and MUST NOT leave
 a partial `init` behind: every path `init` writes is resolved before the first write. The
 reason is `HST-3`'s: a stale key fails "loudly", and a knob that falls back silently is a
 misconfiguration nobody sees.
@@ -127,12 +126,12 @@ read by the CLI. It resolves `data_dir` from
 `--data-dir`, else `walletd.toml` (parsed with the daemon's own closed schema, so a stale
 `gateway` key fails here too, `HST-3`), else the default. The lock comes first — after
 creating the data directory `0700` if it does not exist, the one write a lock file needs:
-open-or-create `<data_dir>/client.db.lock` and attempt a non-blocking exclusive lock;
-contention MUST exit 1 with `another process owns the wallet store (walletd?); stop it, or use
-client mode (drop --standalone)` before an existing directory's mode or anything else is
-touched, and a lock taken
-between that probe and the store open is an exit-1 error too, never an indefinite wait
-(`HST-29`). Holding the lock, it asserts the directory `0700` (`HST-19`) and opens the stores.
+open-or-create `<data_dir>/client.db.lock` and take it with a non-blocking exclusive lock
+that is then held until both stores are closed (`STO-2`) — the probe is the acquisition, not a
+check released before the open; contention MUST exit 1 with `another process owns the wallet
+store (walletd?); stop it, or use client mode (drop --standalone)` before an existing
+directory's mode or anything else is touched, never an indefinite wait (`HST-29`). Holding the
+lock, it asserts the directory `0700` (`HST-19`) and opens the stores.
 
 **HST-10** The standalone-only verb shapes and flags are the set `API-25` enumerates (client
 mode refuses exactly those with exit 1). The break-glass `--gateway` (`ADR-0030` owns its
