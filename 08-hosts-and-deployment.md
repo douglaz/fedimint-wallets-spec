@@ -128,8 +128,11 @@ on: an environment variable set to a non-empty value it cannot parse
 (`HST-2`); a config key it does not know or cannot parse (`HST-3`, `HST-26`); a path it cannot
 resolve to an absolute one (`HST-3`, `HST-4`); and, for the standalone process alone, a store
 lock a resident host holds (`HST-9`) — `init` is the one one-shot command that blocks on the
-lock instead (`HST-4`, `API-3`). It MUST NOT substitute a default for a value it could not parse, and MUST NOT leave
-a partial `init` behind: every path `init` writes is resolved before the first write. The
+lock instead (`HST-4`, `API-3`). It MUST NOT substitute a default for a value it could not parse, and an `init` that fails
+validation MUST leave nothing behind: every path it writes is resolved and every value checked
+before its first write. An `init` interrupted after a write is a different case — each file is
+atomic on its own (`HST-19`), the mixed state is what `HST-33` refuses, and re-running `init`
+repairs it. The
 reason is `HST-3`'s: a stale key fails "loudly", and a knob that falls back silently is a
 misconfiguration nobody sees.
 
