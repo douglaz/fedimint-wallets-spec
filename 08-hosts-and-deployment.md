@@ -262,8 +262,9 @@ timeout without a non-polling request, and unconditionally at the absolute timeo
 polling request — one the page issues on its own timer rather than on a user action, which
 the page marks with the request header `X-Polling: 1`, and which the sidecar classifies by that
 header alone — MUST NOT extend the idle timer. Every state-changing request MUST — after the session has been authenticated, so an
-unauthenticated one gets the `401` or `303` above — be refused unless its `Origin` header
-equals `public_origin` (`HST-27`'s form); every one but
+unauthenticated one gets the `401` or `303` above, except `POST /login`, which is checked
+before the credential is verified — be refused unless its `Origin` header equals
+`public_origin` (`HST-27`'s form); every one but
 `POST /login` — the request that creates the session, so it has no token yet — MUST also carry
 the session's CSRF token: a second value minted with the session from the same source and
 entropy as the session token, bound to that session for its lifetime, delivered only inside
@@ -339,8 +340,9 @@ MUST be written atomically, by whatever primitive the platform offers: at every 
 crashes included, a reader at the target path finds either the previous complete file or the
 new complete one — or, on the file's first creation, nothing — never a partial one, and a
 first creation publishes only while the target is still absent, failing rather than replacing
-one that appeared in the meantime (so two `init`s racing on an absent file cannot both
-succeed); the new file has mode `0600` from the first instant it
+one that appeared in the meantime (so two `wallet-web init`s racing on an absent config cannot both
+succeed; two `walletd init`s serialise on the store lock instead, `HST-4`, and the second
+rotates the token as any re-run does, `API-3`); the new file has mode `0600` from the first instant it
 is visible at that path, whatever the umask; once the write returns the contents are on
 stable storage; and a temporary an interrupted earlier write had not yet published MUST NOT
 block the next (a target it had published is the file, and `HST-26`'s refuse-if-exists applies). **Non-secret files** — `walletd.toml`, `client.toml` — carry the same old-or-new
