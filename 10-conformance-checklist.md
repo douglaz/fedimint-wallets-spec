@@ -94,7 +94,8 @@ send went through. Demonstrates `OPS-28`, `OPS-20`, `OPS-24`, `OPS-25`, `FMI-17`
 `OVR-2`.
 
 **CNF-53** *Given* the environment except that B's vetted list is **empty** throughout and an
-operator gateway **X** — on A's list, on no list of B's — serves both A and B, *when* an automated move into B
+operator gateway **X** — on A's list, on no list of B's — answers `routing_info` for both A
+and B, quotes viable fees and performs for both, *when* an automated move into B
 is admitted with no override, *then* it stays `Pending`, retryable, with nothing minted; *when*
 the operator awaits that move with the break-glass armed for its key naming X, *then* exactly
 that move completes through X; *when* a move, a receive into B and a pay from B are each issued
@@ -105,7 +106,8 @@ Demonstrates `FMI-10`, `FMI-12`, `FMI-14`, `HST-10`, `ADR-0030`.
 
 ## Evacuation
 
-**CNF-14** *Given* the environment with A holding a balance, *when* A begins to report a
+**CNF-14** *Given* the environment with A holding a balance and B eligible as the destination
+with cap room above that balance, *when* A begins to report a
 corroborated shutdown — the `/status` signal corroborated as `FMI-26` requires, or a config
 expiry within `ALC-19`'s trigger lead — and a tick runs, *then* the tick emits an
 `Evacuate` from A into B keyed by the occurrence, B rises by what the evacuation delivered, and A
@@ -306,8 +308,8 @@ invocations create two distinct operations while two nonce-less `direct-inflow` 
 one amount attach to one operation and re-yield its invoice, a nonce-less `move` sends
 `occurrence` `0`, and an omitted `--fee-cap` or `--to`/`--fed` is absent from the request;
 *given* a history whose newest rows do not match a filter and whose matching rows span more
-than one page, `history --limit N` with that filter prints the N newest matching rows, and
-`candidates` prints newest first; every error envelope, usage error and journaled failure maps to the exit code `API-28`
+than one page, `history --limit N` with that filter prints the N newest matching rows, and, over candidates
+in mixed states, `candidates --state` prints only the selected state, newest first; every error envelope, usage error and journaled failure maps to the exit code `API-28`
 gives it; the stdout of every
 verb whose shape `API-29` or `API-39` fixes is that shape — `health` printing all five fields of
 `API-16`, `status` rendering `deferred` and `suppressed`, `show` printing `fee_cap_msat`,
@@ -348,8 +350,9 @@ under `status=open`, polls each through its operation route, and says the set is
 *when* a session goes without a non-polling request for the idle timeout,
 or reaches the absolute timeout — requests marked `X-Polling: 1` extending neither — or the
 sidecar restarts, *then* the session is gone and the next request is `303` or `401` as above; *when* an authenticated state-changing request other than `POST /login` arrives without
-the session's CSRF token, or any state-changing request arrives from another `Origin`,
-*then* it is `403` with no change; *when* `/v1/recover` is requested
+the session's CSRF token, or an authenticated one — or `POST /login` — arrives from another
+`Origin`, *then* it is `403` with no change, while an unauthenticated one gets the `401` or
+`303` above before its `Origin` is looked at; *when* `/v1/recover` is requested
 through the sidecar, *then* it is not reachable by any route or page; *when* the daemon is stopped, its token rotated by `walletd init`, and the daemon restarted
 while the sidecar keeps running, *then* the sidecar's next forwarded request uses the new
 token; and *when* the sidecar is started on a config with no password hash, a non-loopback
