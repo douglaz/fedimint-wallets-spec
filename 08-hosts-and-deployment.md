@@ -394,7 +394,11 @@ lock file, both stores and the token file through one handle to the data directo
 once before the checks, so that a swap of the directory entry by whoever can write its parent
 cannot separate the lock a process holds from the stores it guards or from the token it reads
 or rotates; and likewise the pointer, its lock and the host config through one handle to each
-checked config directory, so the pointer a daemon holds locked is the one a frontend reads.
+checked config directory. A handle binds one process to one directory; what binds two
+processes to the same one is the path, so every ancestor of the data directory and of each
+checked config directory MUST be writable by no user other than root and the running user,
+checked with the directory itself, else the command fails (`HST-29`) — with that, the pointer
+a daemon holds locked is the one every later frontend reads.
 
 **HST-21** Data directory layout:
 
