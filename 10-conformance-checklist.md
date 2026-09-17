@@ -166,10 +166,18 @@ by `docs/devimint-runbook.md` §1.
 - [ ] **CNF-42** A crash at `after-receive-commit` on a supersession **child**, then restart and
       reconcile. The supersession smoke covers restart-and-reconcile but not a mid-flight kill
       (`F25`, `br-supersession-child-killpoint-gate-7c9`).
-- [ ] **CNF-43** The evacuation smoke discriminating the cap **basis**: its flat cap is far above
-      the fee it asserts, so a return to sizing off `max_fee` would pass; and the delivered-net
-      basis is unpinned at the pre-mint gate and the post-receive recompute because the test route
-      cannot produce `delivered ≠ ask` (`ALC-20`, `ALC-21`, `OPS-25`; `F22`, `F23`).
+- [ ] **CNF-43** The evacuation cap **basis** (`ALC-20`, `ALC-21`, `OPS-25`). *Given* a dying
+      federation with a balance to evacuate, a route whose receive-side fee makes the delivered
+      net smaller than the sized ask, a policy whose evacuation cap `(base, bps)` has `bps > 0`
+      and whose flat `max_fee` exceeds every fee below, and a route fee at the sized amount that
+      lies strictly between `ALC-20`'s cap at the delivered net and the same cap at the sized ask,
+      *when* the evacuation is planned, sized and driven, *then* no fee above the cap at the
+      delivered net is paid, at the pre-mint gate or at the post-receive recompute — the leg is
+      refused or resized, and an implementation that bounds by the ask or by `max_fee` pays the
+      fee and fails. *Given* a receive committed under that cap, *when* the wallet restarts with
+      its cache lost and replays the attempt, *then* the cap it enforces is the one persisted
+      with the receive, not a recomputed planning cap. Unrun against the current implementation
+      (`F22`, `F23`).
 - [ ] **CNF-45** A human reading of the four supersession money-path boundaries (`F26`).
 - [ ] **CNF-46** The browser sidecar's route manifest and live gate (`F27`).
 - [ ] **CNF-47** Seed at rest (`SEC-25`, `SEC-11`). *Given* a store holding the plaintext seed

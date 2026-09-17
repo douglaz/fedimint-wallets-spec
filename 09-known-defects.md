@@ -114,8 +114,8 @@ exact bytes — to repair a stale-checkpoint condition that did not exist.
 
 ### DEF-13 — A persisted type MUST NOT be exempt from `STO-30` and `STO-31`
 
-The types `STO-30` and `STO-31` bind are the ones on `STO-29`'s list, transitively through every
-type embedded in one; a type is on that list because the wallet writes it, not because someone
+The types bound by `STO-30` and `STO-31` are the ones on `STO-29`'s list, including every type
+embedded transitively in one; a type is on that list because the wallet writes it, not because someone
 remembered to add it. A hand-maintained list that named the policy, the actions and the move
 records but not the ledger rows is how `DEF-10` shipped.
 
