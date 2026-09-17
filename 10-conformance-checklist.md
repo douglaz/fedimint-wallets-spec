@@ -166,10 +166,11 @@ by the allocator and named by no one, carrying `ALC-7`'s proportional cap and no
 and terminalized after, as `ALC-34` requires, and B rises by the move's amount. Demonstrates `ALC-4`,
 `ALC-5`, `ALC-7`, `ALC-32`, `ALC-34`, `ALC-53`, `OPS-11`, `DEF-1`.
 
-**CNF-20** *Given* the environment with `auto_join` on, a discovery source announcing a third
-federation **C**, and the operator touching nothing but policy from then on, *when* the resident
-scheduler runs for as long as the policy's probe span requires, *then*, in order: C is
-auto-joined and probe-gated; scheduled probes run on C until its verdict is `Passed`; an
+**CNF-20** *Given* the environment with `auto_join` on and a discovery source announcing a
+third federation **C**, *when* the resident scheduler runs for as long as the policy's probe
+span requires and the operator's only action is to pin C as standby in place of B once C is
+joined, *then*, in order: C is auto-joined and probe-gated, and the pin does not bypass the
+gate; scheduled probes run on C until its verdict is `Passed`; an
 autonomous funding move fills C toward its standby target and **never over** it; and *when* C
 then reports a corroborated shutdown and the wallet is restarted, *then* an autonomous
 evacuation drains C back with no operator action. Demonstrates `ALC-28`, `ALC-29`, `ALC-37`,
@@ -187,8 +188,8 @@ verdict is `Passed`; and *given* a candidate that is not joined, *when* a probe 
 **CNF-17** *Given* a discovery source announcing a federation the wallet has not joined and
 `auto_join` on, *when* a discovery pass runs, *then* the federation is discovered, previewed with
 the Sybil check, auto-joined and marked `AutoJoined`, with the discover, auto-join and agent join
-rows in `history`; *when* a tick runs — with the federation pinned as standby or not — *then* it
-is refused funding with a `NotProbed` refusal row: a pin does not bypass the gate; *when*
+rows in `history`; *when* the operator pins it as standby in place of B and a tick runs, *then* it is refused
+funding with a `NotProbed` refusal row: a pin does not bypass the gate; *when*
 `probe_min_successes` probes have passed over `probe_min_span_secs`, *then* the same tick funds it. Demonstrates
 `ALC-28`, `ALC-29`, `ALC-37`, `FMI-28`, `SEC-16`, `OVR-5`.
 
@@ -223,10 +224,10 @@ it publishes `automation_blocked {cycle_failed}` with a detail naming the reconc
 
 **CNF-37** *Given* a route whose two gateway schedules and two federation fees are such that a
 proportional cap admits only moves above some break-even, *when* the wallet prices the pair and
-`/v1/status` reports the deferred goal's `floor_msat`, *then* that floor never under-estimates
-the true break-even: at every amount below it the modelled fee of the route exceeds
-`move_fee_cap(amount, bps)`, and a funding shortfall below it is deferred with that floor and
-its `floor_source`, not moved. Demonstrates `ALC-12`, `ALC-10`, `ALC-13`, `API-15`.
+`/v1/status` reports the deferred goal's `floor_msat`, *then* that floor is never below the true break-even: at the reported floor the modelled fee
+of the route is within `move_fee_cap(floor, bps)` — a floor above the first viable amount is
+conservative and conformant, one below it is not — and a funding shortfall below the reported
+floor is deferred with that floor and its `floor_source`, not moved. Demonstrates `ALC-12`, `ALC-10`, `ALC-13`, `API-15`.
 
 ## Concurrency and responsiveness
 
@@ -267,9 +268,9 @@ reconstructible from `history` and `show` alone: each row's kind, actor, reason,
 pay's row carrying its error and each `OverCap` refusal its figures. Demonstrates `OVR-4`, `STO-15`, `STO-16`, `STO-19`,
 `API-10`, `API-11`, `API-12`, `ALC-34`.
 
-**CNF-47** *Given* a store holding the plaintext seed
-and the key source available, *when* the wallet starts and is killed at each of three
-boundaries of the one-time re-encryption — before the slot commit; after the commit
+**CNF-47** *Given* a fresh copy of one store holding the plaintext seed for each of three
+boundaries of the one-time re-encryption, and the key source available, *when* the wallet
+starts on that copy and is killed at its boundary — before the slot commit; after the commit
 while the plaintext still sits in a superseded store file; after the store is clean but
 before the wallet serves — *then* on the restart that follows each: the slot holds
 exactly one form of the same entropy (plaintext after the first, encrypted after the
