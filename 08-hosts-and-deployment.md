@@ -191,8 +191,10 @@ does); an idle timeout above 4h or an absolute timeout above 24h, or either unpa
 
 **HST-31** The sidecar's request-time surface, from `ADR-0028`. The complete unauthenticated
 surface is exactly `GET /login`, `POST /login` and `GET /healthz` (`ADR-0028`: "There is otherwise no unauthenticated surface — not even
-balance"); `/healthz` returns exactly two booleans, sidecar alive and daemon reachable, and no
-wallet data. Login verifies the password against the stored hash in constant time and MUST be
+balance"); `/healthz` answers `200` with the JSON object `{"sidecar_alive": true,
+"daemon_reachable": <bool>}` — exactly those two keys, `daemon_reachable` `true` only when
+`GET /v1/health` on `daemon_url` answered `200` with the configured token — and no wallet
+data. Login verifies the password against the stored hash in constant time and MUST be
 rate-limited (`ADR-0028`: "Rate limiting is required, not optional"); the limit's observable
 parameters are an open question (`11-open-questions.md`, question 3) and the set is silent on
 them until it is answered. A session is an opaque random token held in memory only — no signing key at rest,
@@ -229,7 +231,7 @@ on its own output.
 
 ## What a stranded move leaves for the operator
 
-**HST-28** A `Stranded` move (`DOM-10`; the transition is `OPS-27`) is terminal: nothing
+**HST-32** A `Stranded` move (`DOM-10`; the transition is `OPS-27`) is terminal: nothing
 re-drives it (`OPS-35` re-drives `Pending` and `Executing` intents only, and a `Stranded` move
 is neither) and the wallet MUST NOT admit a second send
 for the same key — the executor's dedup on the existing key (`OPS-43`) is what stands between
@@ -237,10 +239,12 @@ the operator and a double send. The only recovery is the explicit re-claim `FMI-
 and the operator's response before it is **evidence preservation**: the preimage is not a
 recovery procedure (`DEF-20`). What the wallet MUST guarantee for that response: the move
 record with both leg operation ids, the invoice, the gateway and the preimage (`STO-11`) and
-the receive leg's error detail anchored on "send settled but receive was not credited"
-(`OPS-27`) stay in the journal unchanged by stranding and by every later cycle, readable
-offline through standalone `show <key>` (`API-30`), whose timestamps date the move's window;
-and the destination federation's client state, which holds the funded contract `FMI-41` can
+the operation record with the receive leg's error detail anchored on "send settled but receive
+was not credited" (`OPS-27`) stay in the journal unchanged by stranding and by every later
+cycle; standalone `show <key>` (`API-30`) reads the operation record offline — the leg
+operation ids, the gateway, the error detail, and the timestamps that date the move's window —
+while the invoice and the preimage survive only in the move record (`STO-11`) and no verb is
+required to display them; and the destination federation's client state, which holds the funded contract `FMI-41` can
 still claim, stays in the client store, where a running daemon keeps transacting on it — which
 is why the operator's procedure begins with stopping the daemon. The data directory is then
 the whole of the evidence, and a copy of it run elsewhere is a second spender (`SEC-23`). The

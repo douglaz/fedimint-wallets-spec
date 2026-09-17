@@ -15,7 +15,7 @@ one of four **outcome classes** the whole set uses: `Retryable` — nothing term
 a later perform may succeed; `Permanent` — the intent fails; `StructuralEvacuationRefusal` — a
 `Retryable` that carries refusal evidence (`DOM-19`); `Unsupported` — the action cannot be
 performed at all. Error text quoted below is what the wallet records as the ledger row's `error`
-(`STO-35`); where another requirement anchors on that text (`FMI-37`'s prefixes, `HST-28`'s
+(`STO-35`); where another requirement anchors on that text (`FMI-37`'s prefixes, `HST-32`'s
 "send settled but receive was not credited"), the anchored part is normative and the rest of the
 wording is informative.
 
@@ -715,4 +715,4 @@ reason a condition yields; how an implementation derives the reason is its own:
 records or emits: the ledger `error` (`STO-35`) and the operation views (`API-12`) state what the
 state **is** — `Stranded` is "a settled send with a preimage and an op-terminal non-claim on the
 receive" (`OPS-27`) — and never why it arose or what would recover it (`DEF-20`). The operator's
-account of causes and responses is the runbook's (`HST-28`).
+account of causes and responses is the code repository's runbook (`HST-32`).
