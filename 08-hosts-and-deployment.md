@@ -254,8 +254,8 @@ and the operator's response before it is **evidence preservation**: the preimage
 recovery procedure (`DEF-20`). What the wallet MUST guarantee for that response: the move
 record with both leg operation ids, the invoice, the gateway and the preimage (`STO-11`) and
 the operation record with the receive leg's error detail anchored on "send settled but receive
-was not credited" (`OPS-27`) stay in the journal unchanged by stranding and by every later
-cycle; standalone `show <key>` (`API-30`) reads the operation record offline — the leg
+was not credited" (`OPS-27`) stay in the journal unchanged, once the stranding write of
+`OPS-27` has completed them, by every later cycle; standalone `show <key>` (`API-30`) reads the operation record offline — the leg
 operation ids, the gateway, the error detail, and the timestamps that date the move's window —
 while the invoice and the preimage survive only in the move record (`STO-11`) and no verb is
 required to display them; and the destination federation's client state — what a re-claim (`FMI-41`) reads to learn
