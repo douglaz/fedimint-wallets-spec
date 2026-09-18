@@ -72,6 +72,19 @@ and every observable behaviour the same. And it describes no deployment of any i
   review decides whether the ADR's decision is a behaviour of the wallet (it stays cited) or a
   choice of that implementation (the citation goes).
 
+### Amendment, 2026-09-18: the review closed
+
+The review ran as one pull request per chapter, in dependency order, and closed with every
+gated document at zero in `tools/codebase-refs-baseline.txt`. Every consequence above happened
+as written: the descriptive sense is gone from `README.md`; `HST-23`, `HST-24` and the
+deployment question are withdrawn; `09` carries prohibitions without provenance; `10` is the
+scenario suite; `08` kept the host contracts; `11-open-questions.md` holds two product
+questions (numbered 1 and 2 today — the "question 1" this ADR names above was the deployment
+question, since removed); the withdrawn ids are in `README.md`'s index. The ratchet **stays**:
+at zero it is a plain prohibition, and CI's mutation step keeps proving the gate rejects a
+reference. The code repository owns the hand-off lists each chapter's pull request produced,
+one work item per chapter.
+
 ## The boundary: the refactor test
 
 A sentence is a requirement only if a rewrite of the code that keeps every byte on disk, every

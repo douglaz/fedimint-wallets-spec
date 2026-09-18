@@ -112,6 +112,12 @@ requires an explicitly advanced `--occurrence`. This preserves the old evidence 
 identity, does not turn evidence into route-unavailability proof, and is not a general retry
 or policy-edit escape hatch.
 
+**Funding floor**:
+The smallest shortfall the allocator will move for a pair: `max(route.min_viable_amount,
+min_move)` when the pair is routable, else `min_move`. A shortfall below it is **deferred**, not
+refused, and the floor is recomputed every tick, never cached (`ALC-10`).
+_Avoid_: "minimum move" for the floor — `min_move` is one of its two inputs.
+
 **Sized ask**:
 The amount the sizing search committed to for a move — the largest candidate that fit the
 cap and the source's spendable balance. It is an INTENTION: the amount the executor will
@@ -234,6 +240,24 @@ _Avoid_: "direct" for the shared route — it invites the idea that the hop is
 indirect and therefore less safe, which is not the difference; "pair scan" for a hop — the
 legs are priced separately and only the node rule couples them.
 
+**Reassembly**:
+Rebuilding a move's working record after a restart from the cached record plus the operation
+log of its federations, under `OPS-20`'s precedence. It is how a **committed route** and the
+enforced cap survive a cache loss: once a leg has committed, the amount and cap come from the
+leg's metadata, never from the plan.
+_Avoid_: "recovery" for this — Recovery rebuilds ecash from the seed.
+
+**Killpoint**:
+One of the four points at which a move MUST survive an uncatchable abort and complete exactly
+once on resume (`OPS-28`; `CNF-12` demonstrates all four). A scenario names the killpoint as
+something the environment does to the wallet; how an implementation induces it is `SEC-18`'s.
+
+**Stranded**:
+A move whose send settled with a preimage while its receive reached a terminal non-claim —
+exactly `OPS-27`'s definition. Terminal: both reservations are released, nothing retries it, and
+what it leaves for the operator is `HST-32`.
+_Avoid_: "stuck" — a stuck move is retryable; a stranded one is terminal.
+
 **Lightning Address**:
 A human-readable receive handle (`user@domain`) that resolves via LNURL-pay to
 fresh invoices. On Fedimint it is provided by **recurringd**, not a
@@ -293,6 +317,37 @@ and "resolves a route" are different tests: ADR-0030 binds the break-glass to on
 by verb, not by intent actor. Never appears in API type
 names or user copy.
 _Avoid_: exposing "intent" outside the engine
+
+**Occurrence**:
+The allocation epoch stamped into every agent decision's key, from one of three sources — a
+resident cycle's checked increment of the stored floor, an operator's `--occurrence` on a
+standalone tick, a probe's nonce head (`DOM-16`). The floor never decreases and is raised in the
+same transaction as any agent ledger append (`STO-21`).
+_Avoid_: "epoch" or "round" in requirements — the key shape says `occurrence`.
+
+**Generation**:
+A counter — per federation for balances, one for membership, one for the policy — advanced
+under the serialized admission point by every write that changes what an allocator plan reads,
+so an agent batch computed over older state is refused whole rather than applied (`OPS-13`,
+`OPS-11`, `ALC-41`).
+
+**Fence**:
+Two uses. A *fenced write* applies only for the intent at the expected key and attempt and
+otherwise writes nothing, which the drive treats as `Retryable` (`OPS-13`). *Fence A* and *fence B* are the two points of the scheduler cycle where
+a corrupt registry row or an unopened federation stops planning and is reported as
+`automation_blocked` (`ALC-38`, `ALC-45`).
+
+**Partition**:
+One federation client's own key range inside `client.db`, under a fixed-length prefix so no two
+alias (`STO-3`); one live client per open federation, each in its own (`FMI-6`). Recovery lands
+in a fresh partition and an orphaned one is never opened or reused (`FMI-30`, `CNF-23`).
+_Avoid_: "database" for a partition — the store is one database.
+
+**Readiness**:
+`automation_ready` and `automation_blocked {reason, detail}` on `/v1/health`: whether the last
+cycle planned and, if not, why (`ALC-45`, `API-16`). A reader that finds neither field treats
+readiness as unknown, never as healthy (`API-16`, `HST-30`).
+_Avoid_: `scheduler_alive` as readiness — it is liveness, and a live scheduler can be blocked.
 
 **Policy**:
 The **Standing instruction**'s parameters — the user-decided targets, caps,
