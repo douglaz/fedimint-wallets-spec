@@ -113,10 +113,9 @@ identity, does not turn evidence into route-unavailability proof, and is not a g
 or policy-edit escape hatch.
 
 **Funding floor**:
-The smallest shortfall the allocator will move for a pair: `max(route.min_viable_amount,
-min_move)` when the pair is routable, else `min_move`. A shortfall below it is **deferred**, not
-refused, and the floor is recomputed every tick, never cached (`ALC-10`).
-_Avoid_: "minimum move" for the floor — `min_move` is one of its two inputs.
+The smallest shortfall the allocator will move for a pair; a shortfall below it is **deferred**,
+not refused. Its formula and its recomputation rule are `ALC-10`'s.
+_Avoid_: "minimum move" for the floor — `min_move` is one of its inputs, not the floor.
 
 **Sized ask**:
 The amount the sizing search committed to for a move — the largest candidate that fit the
@@ -242,20 +241,18 @@ legs are priced separately and only the node rule couples them.
 
 **Reassembly**:
 Rebuilding a move's working record after a restart from the cached record plus the operation
-log of its federations, under `OPS-20`'s precedence. It is how a **committed route** and the
-enforced cap survive a cache loss: once a leg has committed, the amount and cap come from the
-leg's metadata, never from the plan.
+log of its federations. What wins when they disagree is `OPS-20`'s precedence; it is how a
+**committed route** and the enforced cap survive a cache loss.
 _Avoid_: "recovery" for this — Recovery rebuilds ecash from the seed.
 
 **Killpoint**:
-One of the four points at which a move MUST survive an uncatchable abort and complete exactly
-once on resume (`OPS-28`; `CNF-12` demonstrates all four). A scenario names the killpoint as
-something the environment does to the wallet; how an implementation induces it is `SEC-18`'s.
+One of the four points at which a move MUST survive an uncatchable abort (`OPS-28`; `CNF-12`).
+A scenario names the killpoint as something the environment does to the wallet; how an
+implementation induces it is `SEC-18`'s.
 
 **Stranded**:
-A move whose send settled with a preimage while its receive reached a terminal non-claim —
-exactly `OPS-27`'s definition. Terminal: both reservations are released, nothing retries it, and
-what it leaves for the operator is `HST-32`.
+The move phase `OPS-27` defines as "a settled send with a preimage and an op-terminal
+non-claim on the receive". Terminal; what it leaves for the operator is `HST-32`.
 _Avoid_: "stuck" — a stuck move is retryable; a stranded one is terminal.
 
 **Lightning Address**:
@@ -319,34 +316,30 @@ names or user copy.
 _Avoid_: exposing "intent" outside the engine
 
 **Occurrence**:
-The allocation epoch stamped into every agent decision's key, from one of three sources — a
-resident cycle's checked increment of the stored floor, an operator's `--occurrence` on a
-standalone tick, a probe's nonce head (`DOM-16`). The floor never decreases and is raised in the
-same transaction as any agent ledger append (`STO-21`).
-_Avoid_: "epoch" or "round" in requirements — the key shape says `occurrence`.
+"The allocation epoch stamped into every agent decision's key" (`DOM-16`, which names its three
+sources); its floor and the floor's transaction rule are `STO-21`'s.
+_Avoid_: "round" — the key shape says `occurrence`.
 
 **Generation**:
-A counter — per federation for balances, one for membership, one for the policy — advanced
-under the serialized admission point by every write that changes what an allocator plan reads,
-so an agent batch computed over older state is refused whole rather than applied (`OPS-13`,
-`OPS-11`, `ALC-41`).
+The counters an allocator plan is computed against — a balance generation per federation, a
+membership generation, a policy generation. Which writes advance them is `OPS-13`'s; a batch
+over stale ones is refused whole (`OPS-11`, `ALC-41`).
 
 **Fence**:
-Two uses. A *fenced write* applies only for the intent at the expected key and attempt and
-otherwise writes nothing, which the drive treats as `Retryable` (`OPS-13`). *Fence A* and *fence B* are the two points of the scheduler cycle where
-a corrupt registry row or an unopened federation stops planning and is reported as
-`automation_blocked` (`ALC-38`, `ALC-45`).
+Two uses. A *fenced write* is `OPS-13`'s attempt-fenced write: it "requires the intent at the
+expected key and attempt, else writes nothing". *Fence A* and *fence B* are the two named
+points of the scheduler cycle where a corrupt registry row or an unopened federation stops
+planning (`ALC-38`, reported through `ALC-45`).
 
 **Partition**:
-One federation client's own key range inside `client.db`, under a fixed-length prefix so no two
-alias (`STO-3`); one live client per open federation, each in its own (`FMI-6`). Recovery lands
-in a fresh partition and an orphaned one is never opened or reused (`FMI-30`, `CNF-23`).
+One federation client's own key range inside `client.db` (`STO-3`); one live client per open
+federation, each in its own (`FMI-6`). Recovery lands in a fresh partition (`FMI-30`; `CNF-23`).
 _Avoid_: "database" for a partition — the store is one database.
 
 **Readiness**:
 `automation_ready` and `automation_blocked {reason, detail}` on `/v1/health`: whether the last
-cycle planned and, if not, why (`ALC-45`, `API-16`). A reader that finds neither field treats
-readiness as unknown, never as healthy (`API-16`, `HST-30`).
+cycle planned and, if not, why (`ALC-45`, `API-16`). A body that "lacks `automation_ready`"
+means readiness unknown, "not healthy" (`API-16`; the probe contract is `HST-30`).
 _Avoid_: `scheduler_alive` as readiness — it is liveness, and a live scheduler can be blocked.
 
 **Policy**:

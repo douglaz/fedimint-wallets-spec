@@ -27,9 +27,9 @@ and the gate keeps it there.
 |---|---|
 | [`executive-summary.md`](./executive-summary.md) | **Start here.** What the wallet is and the four ideas everything else follows from |
 | [`00-overview.md`](./00-overview.md) | The problem, the shape of the solution, the system context, decided non-goals |
-| [`01-domain-model.md`](./01-domain-model.md) | Entities and their states: federation, intent, operation, ledger row, move record, policy, candidate, occurrence |
-| [`02-fedimint-integration.md`](./02-fedimint-integration.md) | The SDK boundary: clients and partitions, gateways, the two Lightning legs, recovery, the signals a federation emits |
-| [`03-operation-lifecycle.md`](./03-operation-lifecycle.md) | How an intent is admitted, executed, resumed and terminalized; the killpoints; supersession; reconcile |
+| [`01-domain-model.md`](./01-domain-model.md) | Entities and their states: federation, intent, operation, ledger row, move record, policy, candidate, occurrence, route economics, evacuation refusal evidence and supersession |
+| [`02-fedimint-integration.md`](./02-fedimint-integration.md) | The SDK boundary: the protocol behaviours the wallet depends on, clients and partitions, gateways, the two Lightning legs, recovery, the signals a federation emits, the active probe at the protocol level |
+| [`03-operation-lifecycle.md`](./03-operation-lifecycle.md) | How an intent is admitted, executed, resumed and terminalized; the killpoints; supersession; reconcile; the error classes |
 | [`04-api-contract.md`](./04-api-contract.md) | Every HTTP route and field, the error envelope, the CLI verbs and exit codes |
 | [`05-persistence.md`](./05-persistence.md) | The two stores, the key tags, every persisted row, the transaction model, the ledger's write discipline, the compatibility rules, and what a move writes into the federation client's operation log |
 | [`06-allocator-and-automation.md`](./06-allocator-and-automation.md) | The pure decision core, route economics, scoring, probes, discovery, evacuation, the tick, the scheduler cycle, and the readiness signal |

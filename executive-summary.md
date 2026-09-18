@@ -83,8 +83,8 @@ admits a linked successor. An unopened federation fences all planning and report
 
 **Host.** The daemon owns both stores exclusively — a second process that opens them is refused —
 serves the HTTP API behind a bearer token,
-runs the scheduler, which sleeps until its next deadline, wakes early for a federation's announced expiry, restarts
-itself on a settlement stall, and refuses to start on an invalid stored policy. The CLI's
+runs the scheduler, which sleeps until its next deadline, wakes early for a federation's announced expiry, exits
+on a settlement stall for its supervisor to restart it, and refuses to start on an invalid stored policy. The CLI's
 `--standalone` mode drives the same engine one-shot under the same exclusive ownership.
 
 ## 4. How to use this set

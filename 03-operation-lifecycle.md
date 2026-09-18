@@ -404,10 +404,9 @@ cached cap only when the cache holds a receive or send operation id, > the actio
 at the reassembled `amount` (`OPS-21`: the components, or `{base: the intent's fee_cap, bps:
 0}` for an intent without them). So a committed leg whose metadata carries no `fee_cap` (an
 operation an older build wrote, `STO-33`) reconstructs the cap enforced at the net it was
-committed at (`DEF-4`; `ADR-0029`: "the cap enforced at that net"; `CONTEXT.md` **Delivered
-net**), never the planning cap at the planned amount, which for an `Evacuate` is the looser of
-the two; only a pre-artifact record, whose reassembled `amount` is still the planned one, takes
-the planning cap, and `OPS-21` re-sizes it before anything commits. A leg the
+committed at (`STO-17`, `DEF-4`; `ADR-0029`: "the cap enforced at that net"; `CONTEXT.md`
+**Delivered net**), never the planning cap at the planned amount; a pre-artifact record is
+re-sized by `OPS-21` before anything commits. A leg the
 artifacts do not supply keeps the cached operation id and invoice; `outcome`, `preimage` and both
 quoted fees come only from the cache. Phase: a cached terminal phase (`Settled | Refunded |
 Failed | Stranded`) is preserved; otherwise a send operation id → `Sending`, else an invoice →
