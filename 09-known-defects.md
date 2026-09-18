@@ -69,7 +69,7 @@ cap increase (`DOM-20`; `ALC-23` says what qualifies, `OPS-30` is the transactio
 a refusal whose fixed fee component exceeded the admitted cap base retried forever against the
 cap it was admitted with; the operator raised the only knob the wallet exposed and nothing
 changed. Terminalizing the retryable intent would not have fixed it: that strands the balance
-evacuation exists to sweep.
+evacuation exists to drain.
 
 ### DEF-8 — The settlement-stall watchdog MUST NOT count an unexpired invoice
 

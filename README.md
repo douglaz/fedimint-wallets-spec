@@ -17,9 +17,9 @@ short of a requirement, the code repository says so in its
 one `Fn` item per tracked issue.
 
 Until 2026-09-12 this set was descriptive — a record of what one codebase did, function names
-included. `ADR-0032` records the change of posture and the review it started; while that review
-runs, a chapter may still carry sentences that fail the refactor test below, and
-`tools/codebase-refs-baseline.txt` says how many.
+included. `ADR-0032` records the change of posture and the review it started; that review
+closed on 2026-09-18 with every gated document at zero in `tools/codebase-refs-baseline.txt`,
+and the gate keeps it there.
 
 ## How to read this
 
@@ -27,11 +27,11 @@ runs, a chapter may still carry sentences that fail the refactor test below, and
 |---|---|
 | [`executive-summary.md`](./executive-summary.md) | **Start here.** What the wallet is and the four ideas everything else follows from |
 | [`00-overview.md`](./00-overview.md) | The problem, the shape of the solution, the system context, decided non-goals |
-| [`01-domain-model.md`](./01-domain-model.md) | Entities and their states: federation, intent, operation, ledger row, move record, policy, candidate, occurrence |
-| [`02-fedimint-integration.md`](./02-fedimint-integration.md) | The SDK boundary: clients and partitions, gateways, the two Lightning legs, recovery, the signals a federation emits |
-| [`03-operation-lifecycle.md`](./03-operation-lifecycle.md) | How an intent is admitted, executed, resumed and terminalized; the killpoints; supersession; reconcile |
+| [`01-domain-model.md`](./01-domain-model.md) | Entities and their states: federation, intent, operation, ledger row, move record, policy, candidate, occurrence, route economics, evacuation refusal evidence and supersession |
+| [`02-fedimint-integration.md`](./02-fedimint-integration.md) | The SDK boundary: the protocol behaviours the wallet depends on, clients and partitions, gateways, the two Lightning legs, recovery, the signals a federation emits, the active probe at the protocol level |
+| [`03-operation-lifecycle.md`](./03-operation-lifecycle.md) | How an intent is admitted, executed, resumed and terminalized; the killpoints; supersession; reconcile; the error classes |
 | [`04-api-contract.md`](./04-api-contract.md) | Every HTTP route and field, the error envelope, the CLI verbs and exit codes |
-| [`05-persistence.md`](./05-persistence.md) | The two stores, the key tags, every persisted row, the transaction model, the ledger's write discipline, the compatibility rules |
+| [`05-persistence.md`](./05-persistence.md) | The two stores, the key tags, every persisted row, the transaction model, the ledger's write discipline, the compatibility rules, and what a move writes into the federation client's operation log |
 | [`06-allocator-and-automation.md`](./06-allocator-and-automation.md) | The pure decision core, route economics, scoring, probes, discovery, evacuation, the tick, the scheduler cycle, and the readiness signal |
 | [`07-security-requirements.md`](./07-security-requirements.md) | The threat model and what MUST be enforced against it |
 | [`08-hosts-and-deployment.md`](./08-hosts-and-deployment.md) | The daemon, the standalone mode, the CLI as a frontend, the browser sidecar, and the operator-facing contracts of each |
@@ -185,7 +185,9 @@ rather than decoration.
   references that do not exist.
 - **Codebase references** — per document, the number of lines naming the codebase, checked
   against `tools/codebase-refs-baseline.txt`. A ratchet: more than the baseline fails, and so does
-  fewer, so the baseline is lowered in the change that earns it and never drifts upward.
+  fewer, so the baseline is lowered in the change that earns it and never drifts upward. Every
+  line has been 0 since the `ADR-0032` review closed, so the gate is now a plain prohibition, and
+  CI's mutation step keeps proving it rejects a reference.
 
 ## Relationship to the code repository
 

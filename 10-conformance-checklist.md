@@ -39,7 +39,11 @@ wallet reports it joined with no network call and no second registry row. Demons
 initialised, the seed restored through `restore-mnemonic` before the wallet first serves, and
 A recovered through the recovery verb, *then* the recovered federation holds **exactly** the
 ecash the lost wallet held on A — zero slack — is registered, `UserApproved`, and spendable: a
-pay from it succeeds. *Given* the same wallet, *when* only the journal is lost — the client
+pay from it succeeds. *Given* that fresh wallet before its restore, *when* `restore-mnemonic` is
+given the words as an argument rather than on stdin, eleven words, or twelve words that fail
+the BIP-39 checksum, *then* each is refused and the seed slot stays empty; *given* the restored
+wallet, *when* it is given twelve valid words again, *then* it is refused and the slot still
+holds the first seed (`SEC-11`). *Given* the same wallet, *when* only the journal is lost — the client
 store survives with its partitions, the registry does not — and A is recovered again, *then* the
 recovery lands in a fresh partition, the orphaned partition is never opened and never reused, and
 the recovered balance is again exact. Demonstrates `FMI-30`, `FMI-31`, `FMI-32`, `FMI-35`,
@@ -171,8 +175,9 @@ and terminalized after, as `ALC-34` requires, and B rises by the move's amount. 
 
 **CNF-20** *Given* the environment with `auto_join` on and a discovery source announcing a
 third federation **C** that passes `ALC-14`'s floor under its announced id and lists G, which
-serves it, on its vetted list, and A holding, after the probes' fees, a surplus above its
-spending target that covers C's standby shortfall plus its cap, *when* the resident scheduler runs for as long as the policy's probe
+serves it, on its vetted list, C's standby shortfall clearing `ALC-10`'s funding floor for the
+route, and A holding, after the probes' fees, a surplus above its
+spending target that covers that shortfall plus its cap, *when* the resident scheduler runs for as long as the policy's probe
 span requires and the operator's only action is to pin C as standby in place of B once C is
 joined, *then*, in order: C is auto-joined and probe-gated, and the pin does not bypass the
 gate; scheduled probes run on C until its verdict is `Passed`; an
@@ -195,7 +200,8 @@ one whose authenticated config carries the announced id and passes `ALC-14`'s st
 floor, and whose vetted list holds G, which serves it — and `auto_join` on, *when* a discovery pass runs, *then* the federation is discovered, previewed with
 the Sybil check, auto-joined and marked `AutoJoined`, with the discover, auto-join and agent join
 rows in `history`; *when* the operator pins it as standby in place of B and a tick runs, *then* it is refused
-funding with a `NotProbed` refusal row: a pin does not bypass the gate — A holding, after the probes' fees, a surplus above its
+funding with a `NotProbed` refusal row: a pin does not bypass the gate — the shortfall clearing
+`ALC-10`'s funding floor for the route, and A holding, after the probes' fees, a surplus above its
 spending target that covers the shortfall plus its cap; *when*
 `probe_min_successes` probes have passed over `probe_min_span_secs` and a later tick runs,
 *then* that tick funds it. Demonstrates
@@ -307,7 +313,8 @@ print `<word> <key>`, and the await verbs print `claimed` and `success`. Demonst
 **CNF-26** *Given* a daemon reachable by the CLI in client mode, *when* each verb of `API-26`
 is invoked, *then*: the request each sends carries the fields and only the fields `API-18`–`API-24` name, and
 `reclaim` posts an empty body to the route `API-42` names; two nonce-less `receive`
-invocations create two distinct operations while two nonce-less `direct-inflow` invocations of
+invocations each send a nonce of 32 lower-hex characters (`API-41`'s generated shape) and
+create two distinct operations, while two nonce-less `direct-inflow` invocations of
 one amount attach to one operation and re-yield its invoice, a nonce-less `move` sends
 `occurrence` `0`, and an omitted `--fee-cap` or `--to`/`--fed` is absent from the request;
 *given* a history whose newest rows do not match a filter and whose matching rows span more

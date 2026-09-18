@@ -112,6 +112,12 @@ requires an explicitly advanced `--occurrence`. This preserves the old evidence 
 identity, does not turn evidence into route-unavailability proof, and is not a general retry
 or policy-edit escape hatch.
 
+**Funding floor**:
+The deferral threshold for a routable pair: a shortfall below it is **deferred**, not refused.
+Crossing it is not eligibility — an `Unroutable` or `UneconomicAtAnySize` pair is forced to
+zero whatever the shortfall. Its formula and its recomputation rule are `ALC-10`'s.
+_Avoid_: "minimum move" for the floor — `min_move` is one of its inputs, not the floor.
+
 **Sized ask**:
 The amount the sizing search committed to for a move — the largest candidate that fit the
 cap and the source's spendable balance. It is an INTENTION: the amount the executor will
@@ -234,6 +240,23 @@ _Avoid_: "direct" for the shared route — it invites the idea that the hop is
 indirect and therefore less safe, which is not the difference; "pair scan" for a hop — the
 legs are priced separately and only the node rule couples them.
 
+**Reassembly**:
+Rebuilding a move's working record from the cached record plus the operation log of its
+federations — on every perform and await that reaches it (`OPS-45`, `OPS-16`), not only after a
+restart. What wins when they disagree is `OPS-20`'s precedence; it is how a **committed route**
+and the enforced cap survive a cache loss.
+_Avoid_: "recovery" for this — Recovery rebuilds ecash from the seed.
+
+**Killpoint**:
+One of the four points at which a move MUST survive an uncatchable abort (`OPS-28`; `CNF-12`).
+A scenario names the killpoint as something the environment does to the wallet; how an
+implementation induces it is `SEC-18`'s.
+
+**Stranded**:
+The move phase `OPS-27` defines as "a settled send with a preimage and an op-terminal
+non-claim on the receive". Terminal; what it leaves for the operator is `HST-32`.
+_Avoid_: "stuck" — a stuck move is retryable; a stranded one is terminal.
+
 **Lightning Address**:
 A human-readable receive handle (`user@domain`) that resolves via LNURL-pay to
 fresh invoices. On Fedimint it is provided by **recurringd**, not a
@@ -293,6 +316,36 @@ and "resolves a route" are different tests: ADR-0030 binds the break-glass to on
 by verb, not by intent actor. Never appears in API type
 names or user copy.
 _Avoid_: exposing "intent" outside the engine
+
+**Occurrence**:
+"The allocation epoch stamped into every agent decision's key" (`DOM-16`, which names its three
+sources); its floor and the floor's transaction rule are `STO-21`'s.
+_Avoid_: "round" — the key shape says `occurrence`.
+
+**Generation**:
+The counters an allocator plan is computed against — a balance generation per federation, a
+membership generation, a policy generation. Each advance has its owner: a reservation-changing
+write advances the balance generation (`OPS-13`), a successful admission the membership
+generation (`OPS-6`), a policy update the policy generation (`ALC-41`); a batch over stale ones
+is refused whole (`OPS-11`).
+
+**Fence**:
+Two uses. A *fenced write* is `OPS-13`'s attempt-fenced write: it "requires the intent at the
+expected key and attempt, else writes nothing". *Fence A*, *fence B* and *fence C* are the
+named points of the scheduler cycle where it stops planning — a skipped registry row, an
+unopened federation, a failed occurrence allocation (`ALC-38`, reported through `ALC-45`).
+
+**Partition**:
+One federation client's own key range inside `client.db` (`STO-3`); one live client per open
+federation, each in its own (`FMI-6`). Recovery lands in a fresh partition (`FMI-30`; `CNF-23`).
+_Avoid_: "database" for a partition — the store is one database.
+
+**Readiness**:
+`automation_ready` and `automation_blocked {reason, detail}` on `/v1/health`: whether the last
+scheduler cycle ran to completion without a fault — "the signal describes the whole cycle" —
+and, if not, why (`ALC-45`, `API-16`). A body that "lacks `automation_ready`"
+means readiness unknown, "not healthy" (`API-16`; the probe contract is `HST-30`).
+_Avoid_: `scheduler_alive` as readiness — it is liveness, and a live scheduler can be blocked.
 
 **Policy**:
 The **Standing instruction**'s parameters — the user-decided targets, caps,

@@ -37,8 +37,9 @@ because CI also breaks a document on every run and asserts each gate rejects it.
 
 The codebase-reference gate is a **ratchet**: `tools/codebase-refs-baseline.txt` holds, per
 document, the number of lines that still name the codebase, and the gate fails when a document
-has more — or fewer, so the baseline is lowered in the same change that earns it. It reaches
-zero when the review that `ADR-0032` started is complete, and stays there.
+has more — or fewer, so the baseline is lowered in the same change that earns it. It reached
+zero when the review that `ADR-0032` started closed (2026-09-18) and stays there: a new
+reference fails the gate.
 
 ## Writing a requirement
 

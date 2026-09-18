@@ -39,8 +39,8 @@ attempt attach to the first (`03-operation-lifecycle.md`, `CNF-12`).
 
 **Nothing blocks anything else.** A Lightning payment can be held for hours. So no operation's
 network IO ever runs on the serialized admission point; admission is millisecond bookkeeping and
-per-operation driver tasks do the waiting. A pay issued while a probe is stuck reaches its first
-external call in under 250 ms (`ADR-0024`, `CNF-21`).
+per-operation driver tasks do the waiting. A pay issued while a probe is stuck reaches its
+endpoint while the probe's connection is still unanswered (`ADR-0024`, `CNF-21`).
 
 **The ledger is the user's record, and it is append-only.** Every operation — including every
 failure and every refusal — is one row in a sequence-numbered ledger; an intent-backed row is
@@ -57,7 +57,8 @@ already auto-joined it, in which case only the audited `approve` verb releases t
 
 ## 3. What the wallet does, in one paragraph each
 
-**Money.** Join a federation; receive (fee deducted from the invoice) and direct-inflow (invoice
+**Money.** Join a federation; receive (the invoice is for the amount asked and the fees come off
+what is credited) and direct-inflow (invoice
 grossed up so the destination is credited the requested amount, never over and at most one
 receive-fee step under); pay a BOLT11 invoice choosing the cheapest gateway that fits a fee cap;
 move between federations as an internal swap through a gateway both ends validate, or over a
@@ -82,8 +83,8 @@ admits a linked successor. An unopened federation fences all planning and report
 
 **Host.** The daemon owns both stores exclusively — a second process that opens them is refused —
 serves the HTTP API behind a bearer token,
-runs the scheduler with adaptive sleep, wakes early for a federation's announced expiry, restarts
-itself on a settlement stall, and refuses to start on an invalid stored policy. The CLI's
+runs the scheduler, which sleeps until its next deadline, wakes early for a federation's announced expiry, exits
+on a settlement stall for its supervisor to restart it, and refuses to start on an invalid stored policy. The CLI's
 `--standalone` mode drives the same engine one-shot under the same exclusive ownership.
 
 ## 4. How to use this set
@@ -91,6 +92,6 @@ itself on a settlement stall, and refuses to start on an invalid stored policy. 
 Read `00`, `01` and `03` first. Every requirement carries a stable identifier and is written to
 be checked at one of the wallet's boundaries; `10-conformance-checklist.md` holds the scenarios a
 conformant implementation must pass. Decisions and the alternatives they rejected are in
-`docs/adr/`; the vocabulary is `CONTEXT.md`; the one product decision still open is in
+`docs/adr/`; the vocabulary is `CONTEXT.md`; the product decisions still open are in
 `11-open-questions.md`. What the existing implementation has demonstrated, and where it falls
 short, is the code repository's to say.
