@@ -113,8 +113,9 @@ identity, does not turn evidence into route-unavailability proof, and is not a g
 or policy-edit escape hatch.
 
 **Funding floor**:
-The smallest shortfall the allocator will move for a pair; a shortfall below it is **deferred**,
-not refused. Its formula and its recomputation rule are `ALC-10`'s.
+The deferral threshold for a routable pair: a shortfall below it is **deferred**, not refused.
+Crossing it is not eligibility — an `Unroutable` or `UneconomicAtAnySize` pair is forced to
+zero whatever the shortfall. Its formula and its recomputation rule are `ALC-10`'s.
 _Avoid_: "minimum move" for the floor — `min_move` is one of its inputs, not the floor.
 
 **Sized ask**:
