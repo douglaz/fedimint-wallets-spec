@@ -322,14 +322,16 @@ _Avoid_: "round" — the key shape says `occurrence`.
 
 **Generation**:
 The counters an allocator plan is computed against — a balance generation per federation, a
-membership generation, a policy generation. Which writes advance them is `OPS-13`'s; a batch
-over stale ones is refused whole (`OPS-11`, `ALC-41`).
+membership generation, a policy generation. Each advance has its owner: a reservation-changing
+write advances the balance generation (`OPS-13`), a successful admission the membership
+generation (`OPS-6`), a policy update the policy generation (`ALC-41`); a batch over stale ones
+is refused whole (`OPS-11`).
 
 **Fence**:
 Two uses. A *fenced write* is `OPS-13`'s attempt-fenced write: it "requires the intent at the
-expected key and attempt, else writes nothing". *Fence A* and *fence B* are the two named
-points of the scheduler cycle where a corrupt registry row or an unopened federation stops
-planning (`ALC-38`, reported through `ALC-45`).
+expected key and attempt, else writes nothing". *Fence A*, *fence B* and *fence C* are the
+named points of the scheduler cycle where it stops planning — a skipped registry row, an
+unopened federation, a failed occurrence allocation (`ALC-38`, reported through `ALC-45`).
 
 **Partition**:
 One federation client's own key range inside `client.db` (`STO-3`); one live client per open
@@ -338,7 +340,8 @@ _Avoid_: "database" for a partition — the store is one database.
 
 **Readiness**:
 `automation_ready` and `automation_blocked {reason, detail}` on `/v1/health`: whether the last
-cycle planned and, if not, why (`ALC-45`, `API-16`). A body that "lacks `automation_ready`"
+scheduler cycle ran to completion without a fault — "the signal describes the whole cycle" —
+and, if not, why (`ALC-45`, `API-16`). A body that "lacks `automation_ready`"
 means readiness unknown, "not healthy" (`API-16`; the probe contract is `HST-30`).
 _Avoid_: `scheduler_alive` as readiness — it is liveness, and a live scheduler can be blocked.
 

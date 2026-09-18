@@ -399,10 +399,10 @@ plus the operation log of the destination (and of the source, when distinct), fi
 newest-first to exhaustion; per leg the **first** (newest) matching artifact wins; a receive
 artifact without an invoice is dropped entirely (never a receive operation id without its
 invoice); `amount` is the first matching artifact's, either leg; `fee_cap` the first artifact
-carrying one. Precedence: amount — artifact > cached > planned; cap — artifact > cached, but the
-cached cap only when the cache holds a receive or send operation id, > the action's cap rule
-at the reassembled `amount` (`OPS-21`: the components, or `{base: the intent's fee_cap, bps:
-0}` for an intent without them). So a committed leg whose metadata carries no `fee_cap` (an
+carrying one. Precedence: amount — artifact > cached > planned; cap — artifact > cached > the
+action's cap rule at the reassembled `amount` (`OPS-21`: the components, or `{base: the
+intent's fee_cap, bps: 0}` for an intent without them), where the cached cap counts only when
+the cache holds a receive or send operation id. So a committed leg whose metadata carries no `fee_cap` (an
 operation an older build wrote, `STO-33`) reconstructs the cap enforced at the net it was
 committed at (`STO-17`, `DEF-4`; `ADR-0029`: "the cap enforced at that net"; `CONTEXT.md`
 **Delivered net**), never the planning cap at the planned amount; a pre-artifact record is
