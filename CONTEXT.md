@@ -241,9 +241,10 @@ indirect and therefore less safe, which is not the difference; "pair scan" for a
 legs are priced separately and only the node rule couples them.
 
 **Reassembly**:
-Rebuilding a move's working record after a restart from the cached record plus the operation
-log of its federations. What wins when they disagree is `OPS-20`'s precedence; it is how a
-**committed route** and the enforced cap survive a cache loss.
+Rebuilding a move's working record from the cached record plus the operation log of its
+federations — on every perform and await that reaches it (`OPS-45`, `OPS-16`), not only after a
+restart. What wins when they disagree is `OPS-20`'s precedence; it is how a **committed route**
+and the enforced cap survive a cache loss.
 _Avoid_: "recovery" for this — Recovery rebuilds ecash from the seed.
 
 **Killpoint**:
