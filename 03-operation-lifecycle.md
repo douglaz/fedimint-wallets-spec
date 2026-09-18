@@ -400,7 +400,14 @@ newest-first to exhaustion; per leg the **first** (newest) matching artifact win
 artifact without an invoice is dropped entirely (never a receive operation id without its
 invoice); `amount` is the first matching artifact's, either leg; `fee_cap` the first artifact
 carrying one. Precedence: amount — artifact > cached > planned; cap — artifact > cached, but the
-cached cap only when the cache holds a receive or send operation id, > planned; a leg the
+cached cap only when the cache holds a receive or send operation id, > the action's cap rule
+at the reassembled `amount` (`OPS-21`: the components, or `{base: the intent's fee_cap, bps:
+0}` for an intent without them). So a committed leg whose metadata carries no `fee_cap` (an
+operation an older build wrote, `STO-33`) reconstructs the cap enforced at the net it was
+committed at (`DEF-4`; `ADR-0029`: "the cap enforced at that net"; `CONTEXT.md` **Delivered
+net**), never the planning cap at the planned amount, which for an `Evacuate` is the looser of
+the two; only a pre-artifact record, whose reassembled `amount` is still the planned one, takes
+the planning cap, and `OPS-21` re-sizes it before anything commits. A leg the
 artifacts do not supply keeps the cached operation id and invoice; `outcome`, `preimage` and both
 quoted fees come only from the cache. Phase: a cached terminal phase (`Settled | Refunded |
 Failed | Stranded`) is preserved; otherwise a send operation id → `Sending`, else an invoice →
@@ -536,8 +543,9 @@ the quoted contract amount; re-run under a fresh occurrence")`.
 
 **OPS-25** The enforced cap survives replay because it is **in the receive operation's
 `MoveMeta`** (`fee_cap`, absent meaning none and not zero, `STO-33`) and reassembly prefers that
-over the planned cap once a leg is committed (`DEF-3`). A crash plus cache loss cannot resurrect
-the planned-amount cap.
+over the planned cap once a leg is committed (`DEF-3`) — and, where a committed leg's metadata
+carries none, recomputes the cap at the committed net instead of reading the planned one
+(`OPS-20`). A crash plus cache loss cannot resurrect the planned-amount cap.
 
 **OPS-26** The pay step: verify the recovered receive contract (`OPS-23`; the destination
 federation not open → `Retryable`; missing or corrupt with it open → `Permanent`); parse the fixed
