@@ -9,6 +9,17 @@ status: accepted
 > never bounded (in-process code already holds the fedimint client) and that binding the override
 > to one operation key makes them unnecessary. The history is in git.
 
+> **Amended (2026-09-26).** The residual accepted in *What the break-glass skips, and what it
+> does not* — "an unvetted gateway can quote cheaply and charge dearly between quote and commit;
+> the cap bounds what the wallet knowingly agrees to, not what such a gateway does afterwards.
+> Vetting is what normally covers that" — is withdrawn. Vetting never covered it: the SDK's send
+> re-reads the gateway's terms and funds at whatever it reads then, and at the pinned revision its
+> fee-limit check is lexicographic, so a vetted gateway can overcharge the same way. The wallet
+> now binds the funded contract's fee to the admitted cap for every send, the break-glass
+> included: a gateway whose terms changed past the cap between quote and send funds nothing and
+> the operation is re-quoted (`OPS-29` owns the rule, `spec-azs` carries the edit). Everything
+> else the break-glass skips stays skipped.
+
 ## Decision
 
 1. **Automated routing resolves only from the federation's vetted list.** The allocator, the
