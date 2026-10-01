@@ -46,6 +46,7 @@ count. No automatic retry at all: every transient failure becomes operator work.
 **Consequences.** `FMI-41` owns the rule (the retry, the three definitive outcomes, the
 transient class, the backoff bound as an engineering value) and loses the expiry clause;
 `FMI-37`'s receive row, `OPS-16`'s receive map, `OPS-27`'s move mapping (a move strands only on
-a definitive non-claim), `API-42`'s outcomes, `ALC-40`'s count, `OPS-6`'s driver cap and `HST-32` align; a new prohibition says an
+a definitive non-claim), `API-42`'s outcomes (its `not_claimable` covers a contract this wallet consumed, and it gains a
+transient answer) and `CNF-26`'s exit code for each, `ALC-40`'s count, `OPS-6`'s driver cap and `HST-32` align; a new prohibition says an
 uneconomical claim ends in a state and never stops the client. The pinned SDK exposes no
 re-claim entry point, so the reference implementation needs one — a code-repository hand-off.

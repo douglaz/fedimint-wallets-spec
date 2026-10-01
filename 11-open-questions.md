@@ -22,11 +22,11 @@ was open can see where it landed.
 1. **Does the engine ship ON by default?** *Answered 2026-10-01 by `ADR-0039`: every wallet is
    auto-managed; accepting the standing instruction is how a wallet is created (`ADR-0035`).* `ADR-0014` makes the allocator the user's own
    on-device agent under a **standing instruction** given through an explicit acknowledgement
-   before any funds are received; that acknowledgement is decided and not in question. What is
-   undecided is whether automated management is the onboarding flow's default posture — the
+   before any funds are received; that acknowledgement is decided and not in question. The
+   open question was whether automated management is the onboarding flow's default posture — the
    acknowledgement presented to every user, declined to opt out — or an option a user turns on.
    It turns on a fee-vs-risk expected-value computation at small balances and a legal opinion on
-   the `ADR-0014` posture. Until answered, the set says what the standing instruction's
+   the `ADR-0014` posture. While it was open, the set said what the standing instruction's
    parameters are (`OVR-8`) and nothing about which flow presents it.
 
 2. **Is the wallet's total balance capped?** *Answered 2026-10-01 by `ADR-0040`: an optional
@@ -36,5 +36,5 @@ was open can see where it landed.
    balance between federations (`ALC-9`) — so a ceiling would bind the inflows the user
    initiates (`receive`, `direct-inflow`) and would be a new `Policy` parameter with a default
    (`STO-13`, `API-20`). `ADR-0026` names a "willing-to-lose" pilot ceiling as an operator
-   practice, not a wallet rule. Until answered, the set enforces the per-federation cap and is
-   silent on an aggregate one.
+   practice, not a wallet rule. While it was open, the set enforced the per-federation cap and
+   was silent on an aggregate one.

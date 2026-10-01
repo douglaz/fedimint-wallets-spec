@@ -16,9 +16,10 @@ status: accepted
 > re-reads the gateway's terms and funds at whatever it reads then, and at the pinned revision its
 > fee-limit check is lexicographic, so a vetted gateway can overcharge the same way. The wallet
 > now binds the funded contract's fee to the admitted cap for every send, the break-glass
-> included: a gateway whose terms changed past the cap between quote and send funds nothing and
-> the operation is re-quoted (`OPS-29` owns the rule, `spec-azs` carries the edit). Everything
-> else the break-glass skips stays skipped.
+> included: a gateway whose terms changed past the cap between quote and send funds nothing,
+> and the operation takes the outcome class `OPS-29` gives an over-cap route for its action
+> (`OPS-29` owns the rule and the class; `spec-azs` carries the edit). Everything else the
+> break-glass skips stays skipped; the residual paragraph below is kept as history.
 
 ## Decision
 
@@ -70,10 +71,11 @@ own liveness check (`routing_info` must answer for the source federation before 
 minted) or the fee cap, which is re-checked at the pay step however the route was chosen. An
 evacuation's pre-mint viability check (`total_fee <= delivered net`) also still runs; a manual
 `move` has no such check yet, break-glass or not — that arrives with `br-y2j` and will apply to
-every route. Residual, stated rather than papered
-over: an unvetted gateway can quote cheaply and charge dearly between quote and commit; the cap
-bounds what the wallet knowingly agrees to, not what such a gateway does afterwards. Vetting is
-what normally covers that, and setting vetting aside is the operator's explicit choice.
+every route. *Withdrawn 2026-09-26 (see the amendment above):* residual, stated rather than
+papered over: an unvetted gateway can quote cheaply and charge dearly between quote and commit;
+the cap bounds what the wallet knowingly agrees to, not what such a gateway does afterwards.
+Vetting is what normally covers that, and setting vetting aside is the operator's explicit
+choice.
 
 ## Why
 

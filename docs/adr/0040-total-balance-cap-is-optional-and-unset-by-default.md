@@ -12,11 +12,18 @@ an operator practice, not a wallet rule. Decided on 2026-10-01.
 
 **Decided.** `Policy` gains `total_cap`, an optional amount, **unset by default**. While it is
 unset the wallet has no aggregate limit, exactly as today. When it is set, the admission
-arithmetic gains one check for `Receive` and `DirectInflow`: the sum over joined federations of
-`balance + reservations.inbound`, plus the request's amount, MUST NOT exceed `total_cap`, else
-the request is refused `over_cap` like a per-federation over-cap, with the same re-checks at
-retry and perform time (`OPS-7`, `OPS-45`). Moves, evacuations and pays never trip it: they do
-not raise the total. Lowering the cap below the current total refuses new inflows and touches
+arithmetic gains one check for `Receive` and `DirectInflow`: the wallet's **aggregate**, plus the
+request's amount, MUST NOT exceed `total_cap`, else the request is refused `over_cap` like a
+per-federation over-cap, with the same re-checks at retry and perform time (`OPS-7`, `OPS-45`).
+The aggregate counts every sat exactly once: the balances of the joined federations, plus the
+inbound reservations of non-terminal `Receive` and `DirectInflow` intents (money arriving from
+outside), plus, for a non-terminal `Move` or `Evacuate`, its amount at the destination only once
+its send has left the source — its move record's phase is `Sending` or later — because before
+that the same sats are still in the source's balance. A move whose record is not trusted
+(`OPS-9`) counts at the destination as well: an over-count refuses an inflow, which is the safe
+side. `OPS-9`'s strict projection cannot be summed as it stands, since it reserves a pending
+move's amount at the destination while the source still holds it. Moves, evacuations and pays
+never trip the cap: they do not raise the total. Lowering the cap below the current total refuses new inflows and touches
 nothing already held. A receive retrying its claim (`ADR-0037`) holds its inbound reservation and
 counts.
 
