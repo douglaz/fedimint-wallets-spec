@@ -17,7 +17,9 @@ or a `DirectInflow` — fresh, on retry, and again at perform time, like the per
 NOT exceed `total_cap`, else the request is refused `over_cap`. Moves, evacuations and pays never
 trip the cap: they do not raise the total. Recovery from the seed (`FMI-31`) is never refused by
 it: recovery restores money the seed already owned, and `OPS-7` admits it without arithmetic; a
-recovered total above the cap refuses new inflows like any total above it. Lowering the cap
+recovered total above the cap refuses new inflows like any total above it. While a recovery is in progress
+(a non-terminal `Recover` intent), the balance it will add is unknown, so the check fails closed:
+every inflow is refused as a transient refusal until the recovery commits or fails. Lowering the cap
 below the current total refuses new inflows and touches nothing already held. A claim attempt on
 a receive already admitted (`ADR-0037`) issues no new funding, so neither pre-fund admission
 nor this check runs on it.
