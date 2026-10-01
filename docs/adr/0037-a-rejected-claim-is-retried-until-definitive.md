@@ -18,8 +18,8 @@ re-submits the claim with backoff (the retry cadence is the reconcile cadence, `
 one of the **definitive** answers arrives:
 
 - **claimed** — the notes are issued; the receive is `Done` (a move's receive leg `Settled`);
-- **not claimable** — the contract was consumed, by this wallet or another claimant, or was
-  never funded (`Expired`); the receive terminates `Failed` with `FMI-37`'s `receive failed:`
+- **not claimable** — the contract was consumed by another claimant, or was never funded
+  (`Expired`); the receive terminates `Failed` with `FMI-37`'s `receive failed:`
   anchor and its evidence kept, and a move with a settled send becomes `Stranded`;
 - **uneconomical** — the claim's federation fee is at least the contract's amount; the receive
   terminates `Failed` with that reason, without stopping the client.
@@ -30,9 +30,12 @@ outside the settlement-stall watchdog's count (`ALC-40`), so a federation that k
 claims cannot make the daemon exit and crash-loop, and it holds no slot of the external driver
 cap (`OPS-6`) between attempts; each attempt is one perform under the perform timeout (`OPS-15`). The explicit re-claim (`API-42`) stays as the operator's manual trigger for the
 same work and answers the same three outcomes plus a transient one; it is no longer the only
-recovery path. A contract consumed by this wallet whose note issuance failed is reported as not
-claimable by the federation; its recovery is the operation's issuance evidence, never a second
-claim.
+recovery path. A contract **this wallet** consumed whose note issuance failed is reported as
+not claimable by the federation, but that is not definitive for the wallet: its notes may still
+be recovered from the operation's issuance evidence, never by a second claim. The receive stays
+non-terminal, keeping its reservation, until that issuance resolves — credited (`Done`) or
+definitively lost (`Failed`) — so no inflow is admitted into room the recovered notes will
+fill.
 
 **Why.** A transient federation hiccup should not turn into operator work, and a user's
 already-settled payment should not wait on someone running a command (`Incoming contract`: "A
@@ -46,7 +49,7 @@ count. No automatic retry at all: every transient failure becomes operator work.
 **Consequences.** `FMI-41` owns the rule (the retry, the three definitive outcomes, the
 transient class, the backoff bound as an engineering value) and loses the expiry clause;
 `FMI-37`'s receive row, `OPS-16`'s receive map, `OPS-27`'s move mapping (a move strands only on
-a definitive non-claim), `API-42`'s outcomes (its `not_claimable` covers a contract this wallet consumed, and it gains a
-transient answer) and `CNF-26`'s exit code for each, `ALC-40`'s count, `OPS-6`'s driver cap and `HST-32` align; a new prohibition says an
+a definitive non-claim), `API-42`'s outcomes (a transient answer, and an in-recovery answer for a contract this wallet
+consumed whose issuance is unresolved — never `not_claimable`) and `CNF-26`'s exit code for each, `ALC-40`'s count, `OPS-6`'s driver cap and `HST-32` align; a new prohibition says an
 uneconomical claim ends in a state and never stops the client. The pinned SDK exposes no
 re-claim entry point, so the reference implementation needs one — a code-repository hand-off.
