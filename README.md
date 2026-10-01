@@ -40,7 +40,7 @@ and the gate keeps it there.
 | [`11-open-questions.md`](./11-open-questions.md) | Product decisions nobody has taken; the set is silent on what they govern until an ADR answers them |
 | [`docs/open-findings.md`](https://github.com/douglaz/fedimint-wallets/blob/main/docs/open-findings.md) *(code repository)* | Where the implementation does not meet this set, `F1`…, each tied to the issue that tracks it |
 | [`CONTEXT.md`](CONTEXT.md) | The glossary: the vocabulary the requirements are written in, and the words they avoid |
-| [`docs/adr/`](docs/adr/) | The thirty-eight decisions and what was rejected to reach them. Canonical where they conflict with older prose. Those before `ADR-0032` were written about one implementation and say so; a requirement cites one as its owner only where the decision is a behaviour of the wallet |
+| [`docs/adr/`](docs/adr/) | The forty decisions and what was rejected to reach them. Canonical where they conflict with older prose. Those before `ADR-0032` were written about one implementation and say so; a requirement cites one as its owner only where the decision is a behaviour of the wallet |
 
 Read `00`, `01` and `03` first. `03` is the part that distinguishes this wallet from a thin
 fedimint client: a money operation is a durable, idempotency-keyed intent that survives a crash

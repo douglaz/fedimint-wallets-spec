@@ -289,8 +289,9 @@ the user's own on-device agent rather than a service that controls funds (see
 Its parameters are the stored **Policy** (`OVR-8`). It is given when the wallet is created or
 restored from a mnemonic, and travels with any backup that carries it (Android's Block
 Store), never later: a store that exists was acknowledged
-([ADR-0035](./docs/adr/0035-standing-instruction-acknowledged-at-creation.md)). Whether the
-engine ships on by default is open (`11-open-questions.md`, question 1).
+([ADR-0035](./docs/adr/0035-standing-instruction-acknowledged-at-creation.md)). Every wallet is
+auto-managed: there is no manual-only wallet
+([ADR-0039](./docs/adr/0039-every-wallet-is-auto-managed.md)).
 _Avoid_: "terms of service" (this is a specific in-app consent gate, recorded), "unlock"
 (nothing is gated at runtime by it)
 

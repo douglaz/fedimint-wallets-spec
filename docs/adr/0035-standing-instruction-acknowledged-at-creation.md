@@ -47,5 +47,5 @@ grammar (`spec-ee9`) gains the flag; chapter 10's environment says its stores we
 with the acceptance. The backup unit gains the acceptance record wherever the backup can carry
 it: `ADR-0003`'s Block Store payload, `ADR-0025`'s backup unit, `SEC-24` and `FMI-32` change with
 it. Chapter 11's question 1 — whether onboarding presents automated
-management as the default posture or as an opt-in, and which flow presents it — stays open
-and unchanged.
+management as the default posture or as an opt-in — was answered by `ADR-0039`: every wallet
+is auto-managed.
