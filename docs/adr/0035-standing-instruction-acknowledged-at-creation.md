@@ -28,6 +28,12 @@ through `walletd restore-mnemonic` or Android's manual seed export — still req
 acceptance above. Either way the rule holds: every store was created with an acceptance, either
 given on that device or carried from the one that gave it.
 
+**Stores older than this decision.** The set is greenfield (`ADR-0033`, `ADR-0038`): it
+specifies no compatibility rule for a store created before the acceptance record existed. Such a
+store cannot be served anyway — it holds no encrypted seed slot, so `ADR-0033` refuses to start
+it — and its only path forward is restoring its mnemonic into a new store, which requires the
+acceptance like any other restore. No store therefore runs the agent without one.
+
 **Why.** "Before any funds are received" is satisfied at the earliest possible point — before
 the wallet that could receive them exists — with one gate instead of a per-operation one, and
 without a second consent state that recovery, migration and hosts would each have to carry.
