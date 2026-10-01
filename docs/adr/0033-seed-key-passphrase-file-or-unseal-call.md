@@ -34,9 +34,15 @@ Keystore (`ADR-0011`) and is outside this decision.
   one fixed `503` in `API-37`'s shape; the stores are not opened and the scheduler and
   watchdog are not started until the unseal call succeeds. A crash-restart of a daemon with
   no passphrase file stays sealed until the next unseal call.
-- `walletd init` requires the passphrase (from the file or a TTY prompt) and writes the
-  encrypted slot; the one-shot commands (`mnemonic`, `restore-mnemonic`, the standalone
-  mode) take it from the configured file, a flag naming a passphrase file (`HST-10`) — never
+- `walletd init` writes no seed: it creates the stores, the policy row and the token
+  (`HST-4`), and the store stays seedless so that `init → restore-mnemonic → serve` works
+  (`SEC-11`). The passphrase is first needed where the encrypted slot is first written —
+  by `restore-mnemonic`, or by the first serve, which mints the seed (`SEC-11`). The first
+  serve mints only from the configured passphrase file; with no file it refuses to start,
+  minting nothing (`SEC-11` already requires that when the key source is unavailable), and
+  the unseal call never mints — it only decrypts a slot that exists. The one-shot commands
+  (`mnemonic`, `restore-mnemonic`, the standalone mode) take the passphrase from the
+  configured file, a flag naming a passphrase file (`HST-10`) — never
   the passphrase itself, which argv and shell history would expose — or a TTY prompt, and
   fail without one.
 - **No plaintext-seed migration.** The set does not assume stores with a plaintext seed slot
@@ -52,11 +58,12 @@ Keystore (`ADR-0011`) and is outside this decision.
   round-trip in every restart, for a pilot with no such infrastructure. It can be added later
   as a second source without changing the slot.
 - Interactive unseal only (no file): incompatible with unattended supervisor restarts.
-- An lnd-style `create` call that makes the wallet over the API (decided 2026-09-30): `init`
-  is what mints the API token (`HST-4`), so a daemon with no store would have to accept the
-  call unauthenticated, from whoever reaches the port first. Creation stays `walletd init`, with
-  the passphrase from the mounted file or a prompt; a deployment without a shell runs `init` as
-  an init step with the file mounted. The API only unseals a wallet that already exists.
+- An lnd-style `create` call that makes the wallet over the API (decided 2026-09-30): every act
+  that chooses the passphrase stays on the host — the first serve from the mounted passphrase
+  file, or `restore-mnemonic` from a file or a prompt — so a mistyped passphrase sent over the
+  wire can never become the key of a new seed, and a daemon reachable before `init` has no
+  unauthenticated path to create anything. A deployment without a shell mounts the file for
+  the first serve. The API only unseals a wallet that already exists.
 - A raw 32-byte key file instead of a passphrase: no KDF to persist, but it moves key
   generation and protection onto the operator; the passphrase path is what operators expect.
 - Serving read-only views while sealed: opens the journal and the client store at different

@@ -25,7 +25,11 @@ side. `OPS-9`'s strict projection cannot be summed as it stands, since it reserv
 move's amount at the destination while the source still holds it. Moves, evacuations and pays
 never trip the cap: they do not raise the total. Lowering the cap below the current total refuses new inflows and touches
 nothing already held. A receive retrying its claim (`ADR-0037`) holds its inbound reservation and
-counts.
+counts. The aggregate shares the per-federation check's window (`OPS-7`): an inflow credited
+to a balance before its intent's terminal write lands is counted twice until that write
+lands. That over-count refuses an inflow for that window and never admits one past the cap;
+removing it would need credited evidence the reservation projection (`OPS-9`) does not carry,
+for this check and the per-federation one alike.
 
 **Why.** An operator — the pilot today, any cautious deployment later — gets the ceiling it
 already keeps by habit as a rule the wallet enforces, and a user who wants a hard "spending
