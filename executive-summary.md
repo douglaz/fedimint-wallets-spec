@@ -92,6 +92,6 @@ on a settlement stall for its supervisor to restart it, and refuses to start on 
 Read `00`, `01` and `03` first. Every requirement carries a stable identifier and is written to
 be checked at one of the wallet's boundaries; `10-conformance-checklist.md` holds the scenarios a
 conformant implementation must pass. Decisions and the alternatives they rejected are in
-`docs/adr/`; the vocabulary is `CONTEXT.md`; the product decisions still open are in
-`11-open-questions.md`. What the existing implementation has demonstrated, and where it falls
+`docs/adr/`; the vocabulary is `CONTEXT.md`; product decisions are opened, and
+recorded as answered, in `11-open-questions.md`. What the existing implementation has demonstrated, and where it falls
 short, is the code repository's to say.

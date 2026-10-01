@@ -121,4 +121,5 @@ requires that it fails rather than opening the store on another seed.
 
 ## What this document does not decide
 
-Whether the engine ships on by default is open at the product level (`11-open-questions.md`).
+No product decision is open today: `11-open-questions.md` records each question it held and the
+ADR that answered it. Every wallet is auto-managed (`ADR-0039`).

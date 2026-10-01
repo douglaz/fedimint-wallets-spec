@@ -37,8 +37,11 @@ two parts below and split on the third. Decided on 2026-09-24.
 **Why default on.** The residual risk while the knob is on is blind, fixed-shape Fedimint API
 requests to private hosts from a guardian- or feed-chosen destination; the metadata floor
 closes the credential-stealing case whatever the knob says. Against that, default-off locks
-out home-LAN and overlay (Tailscale, WireGuard) federations and the developer's devimint
-until the operator finds the key. The cloud operator — the pilot's `walletd` on Kubernetes —
+out home-LAN federations, overlays numbered from private ranges (a WireGuard network on
+`10.0.0.0/8`) and the developer's devimint on loopback until the operator finds the key.
+(Tailscale's `100.64.0.0/10` addresses are shared address space, which `FMI-40` never
+refused, so those overlays are unaffected either way; the metadata floor's `100.100.100.200`
+lies inside that range and stays refused.) The cloud operator — the pilot's `walletd` on Kubernetes —
 is expected to turn it off, and the setting is one line.
 
 **Rejected.**
