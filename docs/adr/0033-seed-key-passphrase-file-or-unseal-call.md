@@ -28,11 +28,15 @@ Keystore (`ADR-0011`) and is outside this decision.
   missing, unreadable or wrong fails startup (`HST-29`) — it never falls back to the sealed
   state. When no file is configured the daemon starts **sealed**.
 - **Sealed** is a state of the running daemon, not a refusal to run. Serve takes the store
-  lock and reads the token file under it (`HST-33`; the token is a file beside the stores,
-  not inside them), binds the listener, and only then waits for the passphrase, so the
-  listener and token auth come up first and the stores open after unseal; `GET /v1/health` answers with a sealed flag; every other route answers
-  one fixed `503` in `API-37`'s shape; the stores are not opened and the scheduler and
-  watchdog are not started until the unseal call succeeds. A crash-restart of a daemon with
+  lock, reads the token file under it (`HST-33`; the token is a file beside the stores, not
+  inside them) and opens both stores far enough to read **whether the seed slot exists**,
+  without decrypting it — the slot's presence and its discriminator are not secret, and the
+  start path depends on them: a seeded store with no passphrase file binds the listener and
+  waits sealed; a seedless store with no passphrase file refuses to start, minting nothing
+  (`SEC-11`). While sealed, `GET /v1/health` answers with a sealed flag; every other route
+  answers one fixed `503` in `API-37`'s shape; no federation client is opened, no store is
+  written, and the scheduler and watchdog are not started until the unseal call
+  succeeds. A crash-restart of a daemon with
   no passphrase file stays sealed until the next unseal call.
 - `walletd init` writes no seed: it creates the stores, the policy row and the token
   (`HST-4`), and the store stays seedless so that `init → restore-mnemonic → serve` works
