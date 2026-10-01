@@ -28,11 +28,13 @@ through `walletd restore-mnemonic` or Android's manual seed export — still req
 acceptance above. Either way the rule holds: every store was created with an acceptance, either
 given on that device or carried from the one that gave it.
 
-**Stores older than this decision.** The set is greenfield (`ADR-0033`, `ADR-0038`): it
-specifies no compatibility rule for a store created before the acceptance record existed. Such a
-store cannot be served anyway — its seed slot is the plaintext form, which `ADR-0033` refuses
-to start — and its only path forward is restoring its mnemonic into a new store, which requires the
-acceptance like any other restore. No store therefore runs the agent without one.
+**Stores older than this decision.** The set is greenfield (`ADR-0033`): it specifies no
+compatibility rule for a store created before the acceptance record existed, and it does not
+need one, because the seed is where a wallet comes into being. A store with a plaintext seed slot
+is refused by `ADR-0033`; a seedless store mints its seed at the first serve only when it holds
+the acceptance record (`ADR-0033`, `SEC-11`), and `init` is what writes that record. Either way
+the only path to a running wallet passes an acceptance. On Android the app's creation and
+restore screens are the same gate (`spec-11k`).
 
 **Why.** "Before any funds are received" is satisfied at the earliest possible point — before
 the wallet that could receive them exists — with one gate instead of a per-operation one, and
@@ -50,8 +52,9 @@ stating the acknowledgement's content, that creation and restoration require it,
 store records it, and that its existence is the proof; `HST-4` (`init`), `HST-10` (the
 standalone flag), the `restore-mnemonic` contract and `FMI-31`/`SEC-11` cite it; the CLI
 grammar (`spec-ee9`) gains the flag; chapter 10's environment says its stores were created
-with the acceptance. The backup unit gains the acceptance record wherever the backup can carry
-it: `ADR-0003`'s Block Store payload, `ADR-0025`'s backup unit, `SEC-24` and `FMI-32` change with
-it. Chapter 11's question 1 — whether onboarding presents automated
+with the acceptance; `SEC-11`'s first-serve mint requires the record. Only `ADR-0003`'s Block
+Store payload carries the acceptance record. The twelve-word mnemonic plus invite codes that
+`ADR-0025` and `SEC-24` define as the recovery unit carries none, so `restore-mnemonic` asks;
+`SEC-24` and `ADR-0025` say so. Chapter 11's question 1 — whether onboarding presents automated
 management as the default posture or as an opt-in — was answered by `ADR-0039`: every wallet
 is auto-managed.

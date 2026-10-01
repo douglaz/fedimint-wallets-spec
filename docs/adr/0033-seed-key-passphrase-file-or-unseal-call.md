@@ -26,27 +26,32 @@ Keystore (`ADR-0011`) and is outside this decision.
   uses the passphrase file, and a remote operator reaches a loopback bind through the
   authenticated tunnel `SEC-3` already treats as the only safe non-loopback exposure. When the file is configured, start unseals from it, and a file that is
   missing, unreadable or wrong fails startup (`HST-29`) — it never falls back to the sealed
-  state. When no file is configured the daemon starts **sealed**.
+  state. When no file is configured, a seeded store on a loopback bind starts **sealed**; a
+  seeded store bound beyond loopback fails startup (`HST-29`), since nothing could ever unseal
+  it; and a seedless store refuses to start (below).
 - **Sealed** is a state of the running daemon, not a refusal to run. Serve takes the store
   lock, reads the token file under it (`HST-33`; the token is a file beside the stores, not
   inside them) and opens both stores far enough to read **whether the seed slot exists**,
   without decrypting it — the slot's presence and its discriminator are not secret, and the
   start path depends on them: a seeded store with no passphrase file binds the listener and
   waits sealed; a seedless store with no passphrase file refuses to start, minting nothing
-  (`SEC-11`). While sealed, `GET /v1/health` answers with a sealed flag; every other route
-  answers one fixed `503` in `API-37`'s shape; no federation client is opened, no store is
-  written, and the scheduler and watchdog are not started until the unseal call
-  succeeds. A crash-restart of a daemon with
+  (`SEC-11`). While sealed, `GET /v1/health` answers with a sealed flag and `POST /v1/unseal`
+  is served; every other route answers one fixed `503` in `API-37`'s shape; no federation
+  client is opened, no store is written — the policy row (`STO-13`) is validated read-only and
+  seeded only after unseal — and the scheduler and watchdog are not started until the unseal
+  call succeeds. A crash-restart of a daemon with
   no passphrase file stays sealed until the next unseal call.
 - `walletd init` writes no seed: it creates the stores, the policy row and the token
   (`HST-4`), and the store stays seedless so that `init → restore-mnemonic → serve` works
   (`SEC-11`). The passphrase is first needed where the encrypted slot is first written —
   by `restore-mnemonic`, or by the first serve, which mints the seed (`SEC-11`). The first
-  serve mints only from the configured passphrase file; with no file it refuses to start,
+  serve mints only from the configured passphrase file, and only on a store that holds the
+  standing-instruction acceptance `init` records (`ADR-0035`); otherwise it refuses to start,
   minting nothing (`SEC-11` already requires that when the key source is unavailable), and
   the unseal call never mints — it only decrypts a slot that exists. The one-shot commands
-  (`mnemonic`, `restore-mnemonic`, the standalone mode) take the passphrase from the
-  configured file, a flag naming a passphrase file (`HST-10`) — never
+  (`walletd mnemonic` and `restore-mnemonic`, owned by `HST-5` and `HST-2`; the standalone
+  mode's flag, owned by `HST-10` and `API-25`) take the passphrase from the configured file, a
+  flag naming a passphrase file — never
   the passphrase itself, which argv and shell history would expose — or a TTY prompt, and
   fail without one.
 - **No plaintext-seed migration.** The set does not assume stores with a plaintext seed slot
@@ -77,7 +82,12 @@ Keystore (`ADR-0011`) and is outside this decision.
   flag and a supervisor that can unseal.
 
 **Consequences.** `SEC-25` names this ADR as the key-source decision and loses its migration
-clause; a new `STO` rule owns the slot bytes; `HST-3` gains a key and `HST-2` its
-override; `HST-6`'s serve order gains the unseal step and the sealed branch; `API-8`'s route
-table gains `/v1/unseal`; `API-16` gains the sealed flag; `CNF-47` is restated with fixed
-vectors and without the migration. `spec-iym` carries the edits.
+clause, and its fail-closed sentence is restated: a configured passphrase file that is missing,
+unreadable or wrong, no file on a seedless store, or no file on a seeded store bound beyond
+loopback refuses to start; no file on a seeded store bound to loopback is sealed. A new `STO`
+rule owns the slot bytes; `HST-3` gains a key and `HST-2` its override; `HST-5` and `HST-2`
+gain the `walletd` one-shot commands' passphrase-file flag and prompt, `HST-10` and `API-25`
+the standalone flag; `HST-6`'s serve order gains the unseal step and the sealed branch;
+`API-8`'s route table gains `/v1/unseal`; `API-16` gains the sealed flag; `API-37` gains the
+sealed `503` message; `CNF-47` is restated with fixed vectors, without the migration, and with
+the sealed case beside its key-unavailable case. `spec-iym` carries the edits.

@@ -17,7 +17,8 @@ do is bounded by the stored `Policy` (`OVR-8`) — its fee caps, its per-federat
 auto-join, which policy can switch off — not by a separate on/off switch.
 
 **Why.** It is what `ADR-0035` already implies, it adds no state, and it keeps one behaviour on
-every host: the resident scheduler already runs unconditionally and stopping it is fatal
+every host: once the daemon is unsealed (`ADR-0033`) the resident scheduler runs
+unconditionally and stopping it is fatal
 (`HST-6`, `ALC-42`). A manual-only wallet would need an off state on every host, a later
 acceptance (which `ADR-0035` rules out), and a second set of scenarios for a wallet the product
 does not intend to offer.

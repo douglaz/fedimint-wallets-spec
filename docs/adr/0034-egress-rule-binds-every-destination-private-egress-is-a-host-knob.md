@@ -19,7 +19,12 @@ two parts below and split on the third. Decided on 2026-09-24.
   join, open, recovery and later use — a user-supplied invite, a `Manual` source, vetted-list
   membership and the break-glass grant no exemption, and the exemption is not inferred from
   `SEC-16` (a user's funding decision is not a network authorisation). iroh endpoints have no
-  host and are outside the rule. The rule applies to the destination the wallet resolves
+  host and are outside the rule. Its two halves extend differently: the **address** rule
+  (resolution, the refused ranges, the connected address, IPv4-mapped forms) binds every class
+  alike, while the **scheme** rule is per class — `http`/`https` for gateways, the discovery
+  base and HTTP guardian endpoints; `ws`/`wss` for WebSocket guardian endpoints and Nostr
+  relays (`FMI-36` requires the WebSocket transport, so an `http`-only scheme rule would
+  refuse it). The rule applies to the destination the wallet resolves
   before a proxy `CONNECT`; the proxy is inside `SEC-3`'s trust boundary and `HST-2` states
   the operator's obligation that it connects to that destination.
 - The wallet never fetches `meta_override_url`. `FMI-26` has two shutdown inputs (the at-join

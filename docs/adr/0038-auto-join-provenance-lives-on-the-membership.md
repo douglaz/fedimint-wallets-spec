@@ -29,7 +29,9 @@ unproven slot and nothing else.
   is outside the window; a `joined_at` later than now is inside it). A registry row that cannot
   be read counts once in each. Neither count reads a candidate row or the ledger, so `approve`,
   a lost or repaired `join:` ledger row, and a reopen that writes no registry row change nothing.
-- `ALC-28` step 2's "agent-created" is `auto_joined` true.
+- `ALC-28` step 2's "agent-created" is `auto_joined` true, and its second branch uses the same
+  field: a joined federation with no candidate row gets `AutoJoined` when `auto_joined` is true
+  and `UserApproved` when it is false.
 - Losing the journal resets both counts, as it resets everything local; a federation recovered
   afterwards is user-owned (`FMI-31`, `ADR-0025`). 20, 5 and 3 are the inherited defaults, not
   re-derived here.

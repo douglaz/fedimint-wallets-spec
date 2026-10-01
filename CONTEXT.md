@@ -388,8 +388,8 @@ two frontends)
 **Sealed**:
 The state of a running `walletd` that has not yet obtained the passphrase that keys
 the seed at rest ([ADR-0033](./docs/adr/0033-seed-key-passphrase-file-or-unseal-call.md)).
-A sealed daemon listens and authenticates, reports the state on its health view, refuses
-every other request, and has opened no federation client, written no store and started no
+A sealed daemon listens and authenticates, reports the state on its health view, accepts the
+unseal call, refuses every other request, and has opened no federation client, written no store and started no
 scheduler. **Unseal** is the
 operator's act of supplying the passphrase — a configured file at start, or a call while
 sealed — after which the daemon is simply running.

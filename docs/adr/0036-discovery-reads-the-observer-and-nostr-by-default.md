@@ -39,7 +39,7 @@ scheduler, so a resident daemon has no operator knob at all. Decided on 2026-09-
 
 - The Observer alone, Nostr left dormant: the Observer is admin-curated (about seventeen
   mainnet federations in June 2026, not a census); Nostr is the one open feed.
-- No default source, operator must configure one: auto-join then does nothing out of the
+- No default source, operator must configure one: discovery then finds nothing out of the
   box, and every operator would type the same URLs.
 - Relay discovery (NIP-65 outbox, relay hints in announcements): an open-ended egress
   surface and an algorithm to bound, for coverage a fixed list already gives.
@@ -48,5 +48,7 @@ scheduler, so a resident daemon has no operator knob at all. Decided on 2026-09-
 **Consequences.** `spec-6w6` carries the edits: `HST-3` gains the Observer base and relay
 list keys, and
 `HST-10` the standalone flags; `FMI-28`, `FMI-43`, `ALC-28` step 1, `DOM-12` and `STO-15`
-align; the chapter-10 environment names its discovery sources. `ADR-0019`'s open bullet is
+align; `FMI-40`'s class list gains Nostr relays, a refused relay being a failure of that relay
+within the Nostr source, with its scenario; the chapter-10 environment names its discovery
+sources. `ADR-0019`'s open bullet is
 answered by this ADR.
