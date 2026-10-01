@@ -50,7 +50,9 @@ Keystore (`ADR-0011`) and is outside this decision.
   the passphrase itself, which argv and shell history would expose — or a TTY prompt, and
   fail without one.
 - **No plaintext-seed migration.** The set does not assume stores with a plaintext seed slot
-  exist: the encrypted slot is the only slot, a store without one is a startup failure, and
+  exist: the encrypted slot is the only slot form. A store whose seed slot is present but not
+  in the encrypted form (a plaintext slot) is a startup failure; a store with no seed slot at
+  all is a fresh store from `init` and follows the first-serve rule above; and
   `SEC-25`'s one-time re-encryption clause and `CNF-47`'s migration half are withdrawn. The
   rollback half stays: a build that predates `SEC-25` MUST fail to open the slot. An operator
   holding a store written before this decision retires it by restoring its mnemonic into a

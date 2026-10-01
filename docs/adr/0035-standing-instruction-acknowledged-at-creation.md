@@ -30,8 +30,8 @@ given on that device or carried from the one that gave it.
 
 **Stores older than this decision.** The set is greenfield (`ADR-0033`, `ADR-0038`): it
 specifies no compatibility rule for a store created before the acceptance record existed. Such a
-store cannot be served anyway — it holds no encrypted seed slot, so `ADR-0033` refuses to start
-it — and its only path forward is restoring its mnemonic into a new store, which requires the
+store cannot be served anyway — its seed slot is the plaintext form, which `ADR-0033` refuses
+to start — and its only path forward is restoring its mnemonic into a new store, which requires the
 acceptance like any other restore. No store therefore runs the agent without one.
 
 **Why.** "Before any funds are received" is satisfied at the earliest possible point — before
