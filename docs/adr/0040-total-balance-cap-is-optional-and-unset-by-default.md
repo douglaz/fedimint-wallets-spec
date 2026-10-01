@@ -16,7 +16,9 @@ arithmetic gains one check for `Receive` and `DirectInflow`: the wallet's **aggr
 request's amount, MUST NOT exceed `total_cap`, else the request is refused `over_cap` like a
 per-federation over-cap, with the same re-checks at retry and perform time (`OPS-7`, `OPS-45`).
 The aggregate needs a balance for **every** joined federation, so it fails closed: when any
-joined federation is registered but not open (`DOM-2`) or its balance read fails, the inflow
+joined federation is registered but not open (`DOM-2`), its balance read fails, or a registry
+row cannot be read (the poison-tolerant listing `STO-14` keeps for other readers skips it; this
+check does not), the inflow
 is refused as a transient refusal — retryable, nothing minted — and never admitted on a sum
 over the federations that could be read; `OPS-39` gives the refusal its reason. The aggregate
 counts every sat exactly once: the balances of the joined federations, plus the
