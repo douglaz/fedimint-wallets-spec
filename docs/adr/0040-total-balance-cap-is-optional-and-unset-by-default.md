@@ -11,31 +11,27 @@ between federations and never raises the total (`ALC-9`); only the inflows a use
 an operator practice, not a wallet rule. Decided on 2026-10-01.
 
 **Decided.** `Policy` gains `total_cap`, an optional amount, **unset by default**. While it is
-unset the wallet has no aggregate limit, exactly as today. When it is set, the admission
-arithmetic gains one check for `Receive` and `DirectInflow`: the wallet's **aggregate**, plus the
-request's amount, MUST NOT exceed `total_cap`, else the request is refused `over_cap` like a
-per-federation over-cap, with the same re-checks at retry and perform time (`OPS-7`, `OPS-45`).
-The aggregate needs a balance for **every** joined federation, so it fails closed: when any
-joined federation is registered but not open (`DOM-2`), its balance read fails, or a registry
-row cannot be read (the poison-tolerant listing `STO-14` keeps for other readers skips it; this
-check does not), the inflow
-is refused as a transient refusal — retryable, nothing minted — and never admitted on a sum
-over the federations that could be read; `OPS-39` gives the refusal its reason. The aggregate
-counts every sat exactly once: the balances of the joined federations, plus the
-inbound reservations of non-terminal `Receive` and `DirectInflow` intents (money arriving from
-outside), plus, for a non-terminal `Move` or `Evacuate`, its amount at the destination only once
-its send has left the source — its move record's phase is `Sending` or later — because before
-that the same sats are still in the source's balance. A move whose record is not trusted
-(`OPS-9`) counts at the destination as well: an over-count refuses an inflow, which is the safe
-side. `OPS-9`'s strict projection cannot be summed as it stands, since it reserves a pending
-move's amount at the destination while the source still holds it. Moves, evacuations and pays
-never trip the cap: they do not raise the total. Lowering the cap below the current total refuses new inflows and touches
-nothing already held. A receive retrying its claim (`ADR-0037`) holds its inbound reservation and
-counts. The aggregate shares the per-federation check's window (`OPS-7`): an inflow credited
-to a balance before its intent's terminal write lands is counted twice until that write
-lands. That over-count refuses an inflow for that window and never admits one past the cap;
-removing it would need credited evidence the reservation projection (`OPS-9`) does not carry,
-for this check and the per-federation one alike.
+unset the wallet has no aggregate limit, exactly as today. When it is set, admitting a `Receive`
+or a `DirectInflow` — fresh, on retry, and again at perform time, like the per-federation check
+(`OPS-7`, `OPS-45`) — gains one check: the wallet's **aggregate** plus the request's amount MUST
+NOT exceed `total_cap`, else the request is refused `over_cap`. Moves, evacuations and pays never
+trip the cap: they do not raise the total. Lowering the cap below the current total refuses new
+inflows and touches nothing already held.
+
+The aggregate is an upper bound on what the wallet holds or may still come to hold, and it must
+keep three properties; the arithmetic that keeps them is `OPS-7`'s, not this ADR's:
+
+- **Every sat once.** Money in flight is counted where it can land, exactly once: an inflow
+  arriving from outside, an internal move or evacuation that has left its source, and a pay
+  whose outgoing contract may still be refunded. The request being admitted counts once — its
+  own reservation, on a retry or at perform time, is not added again.
+- **Fail closed.** Any membership, balance, registry row, move record or projection the check
+  cannot read or classify refuses the inflow as a transient refusal — retryable, nothing minted —
+  and is never left out of the sum; `OPS-39` gives the refusal its reason. Where a move's state is
+  ambiguous, the check counts it on the side that refuses.
+- **Over-counts only refuse.** Where the projection briefly counts money twice — an inflow
+  credited before its intent's terminal write, as the per-federation check already does — the
+  effect is a refused inflow, never an inflow admitted past the cap.
 
 **Why.** An operator — the pilot today, any cautious deployment later — gets the ceiling it
 already keeps by habit as a rule the wallet enforces, and a user who wants a hard "spending
