@@ -25,8 +25,11 @@ two parts below and split on the third. Decided on 2026-09-24.
   base and HTTP guardian endpoints; `ws`/`wss` for WebSocket guardian endpoints and Nostr
   relays (`FMI-36` requires the WebSocket transport, so an `http`-only scheme rule would
   refuse it). The rule applies to the destination the wallet resolves
-  before a proxy `CONNECT`; the proxy is inside `SEC-3`'s trust boundary and `HST-2` states
-  the operator's obligation that it connects to that destination.
+  before any proxy is involved, and the wallet **pins** every proxied request to the address it
+  checked — `CONNECT` names the IP literal, and a plain-HTTP request names the IP with the
+  original `Host` — so the proxy has nothing to re-resolve and cannot reach a refused address
+  (decided 2026-10-02, replacing an operator obligation no proxy could meet from a hostname
+  alone). The proxy stays inside `SEC-3`'s trust boundary.
 - The wallet never fetches `meta_override_url`. `FMI-26` has two shutdown inputs (the at-join
   authenticated config expiry and corroborated `/status`), `SEC-14` and `ALC-39` lose the
   override-served value and its wake, and the threat model's malicious-guardian item says so.
