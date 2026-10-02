@@ -98,8 +98,8 @@ the world before this admission can commit (`OPS-13`, `ALC-32`), any probe preem
 and the intent is driven (`OPS-14`).
 
 **OPS-7** The arithmetic admission MUST run with sampled balances on every fresh admission, every
-retry (`OPS-10`) and every agent decision (`OPS-11`), and again at perform time before any new
-funding (`OPS-45`): for `Move` and `Pay`, `amount + fee_cap ≤ balance[from] −
+retry (`OPS-10`) and every agent decision (`OPS-11`), and again at perform time where `OPS-45`
+requires it: for `Move` and `Pay`, `amount + fee_cap ≤ balance[from] −
 reservations.outbound(from)`, else `insufficient_after_reservations`; for `Move`, `Evacuate`,
 `DirectInflow` and `Receive`, `balance[to] + reservations.inbound(to) + amount ≤ per_fed_cap`,
 else `over_cap`. **`Evacuate` has no source-balance check at admission and no pre-fund admission
@@ -256,20 +256,35 @@ intent stays `Executing` with its side effect done, the next reconcile pass norm
 correlation key (`OPS-18`). A failing retryable reset likewise leaves `Executing`; the reset
 requires the current `Executing` attempt, else `Permanent`.
 
-**OPS-45** Pre-fund admission runs inside every perform before any new funding is issued: for a
-raw `Pay` after the hash lookup and invoice validation, for a raw `Receive` after the correlation
-lookup, for `Move` and `DirectInflow` before reassembly (`OPS-20`). Endpoints: `Move` → source and
-destination; `DirectInflow`, `Receive` → destination only; `Pay` → source only; `Evacuate`,
-`Join`, `Recover` → none. It is skipped when the cached move record is trusted (`OPS-9`) and its
-phase is `Sending | Settled | Refunded | Failed | Stranded`. Reservations are every other
-non-terminal intent's; a scan failure → `Retryable("reservation scan failed before funding;
+**OPS-45** Pre-fund admission runs inside perform before new funding is issued. A raw `Pay`
+reaches it after the hash lookup and invoice validation (`OPS-17`), with source arithmetic only;
+a raw `Receive` after the correlation lookup (`OPS-18`), with destination arithmetic only.
+`Evacuate`, `Join` and `Recover` have no pre-fund admission.
+
+For `Move` and `DirectInflow`, every perform MUST reassemble under `OPS-20` **before** deciding
+which pre-fund arithmetic applies. The decision MUST use the reassembled artifacts, including
+those recovered from the federation operation logs after a crash or cache loss, as follows:
+
+| Action | Reassembled evidence | Required pre-fund arithmetic (`OPS-7`) |
+|---|---|---|
+| `Move` | a send operation id exists | skip both source and destination checks; the send is already committed |
+| `Move` | no send operation id exists | run both checks, even if an invoice or receive operation id exists |
+| `DirectInflow` | a receive artifact exists (invoice or receive operation id valid under `OPS-20`) | skip the destination check; the external payer may already have paid |
+| `DirectInflow` | no receive artifact exists | run the destination check before issuing the receive |
+
+`DirectInflow` has no source check. These exemptions apply only to pre-fund arithmetic;
+contract verification (`OPS-23`), fee caps (`OPS-29`), routing (`OPS-20`, `FMI-14`), attempt
+fencing (`OPS-10`, `OPS-13`) and all other checks retain their own applicability.
+
+For checks that run, reservations are every other non-terminal intent's, excluding the current
+intent's own reservations; a scan failure → `Retryable("reservation scan failed before funding;
 leaving the intent pending: …")`. An intent carrying an allocator goal (`DOM-17`: an agent `Move`
 with a funding reason, or an agent `Evacuate`) uses the allocator projection, built from the move
 records of the other live `Move`/`Evacuate`/`DirectInflow` intents (a record that fails to decode
 keeps that intent strict, with a warning; any other read error → the same `Retryable`); every
-other intent uses the strict projection. The source balance, and the destination's for an action
-with a destination endpoint, are sampled fresh. Then the arithmetic of `OPS-7` under the stored
-cap; its refusal is `Permanent` and terminalizes the intent.
+other intent uses the strict projection. Each checked endpoint's balance is sampled fresh. Then
+the arithmetic of `OPS-7` under the stored cap; its refusal is `Permanent` and terminalizes the
+intent. `CNF-55` demonstrates admission on crash resume and before new funding.
 
 **OPS-16** An **awaiter** owns an `Awaiting` intent. For a raw `Pay` or `Receive` it MUST:
 require the intent's recorded operation id (absent → `Permanent`); wait for the protocol's final
@@ -388,10 +403,12 @@ invoice **first**, so the orphan is recorded, then `Permanent("raw receive commi
 msat exceeds fee cap {cap} msat")`. Persist the operation id and invoice (fenced; stale →
 `Retryable`), return `Awaiting`.
 
-**OPS-19** `DirectInflow`, `Move` and `Evacuate` share one plan and one step loop: `Move` and
-`Evacuate` are send-required with a source; `DirectInflow` is receive-only; only `Evacuate`
-carries `fee_cap_components`. The gateway hint is not on the plan. Where pre-fund admission runs
-in the loop, and when it is skipped, is `OPS-45`.
+**OPS-19** `DirectInflow`, `Move` and `Evacuate` share the receive minting, contract verification
+and persistence semantics of `OPS-22`, `OPS-23` and `OPS-24`, and the settlement semantics of
+`OPS-27`. `Move` and `Evacuate` are send-required with a source (`OPS-26`); `DirectInflow` is
+receive-only (`OPS-16`). Only `Evacuate` carries `fee_cap_components` (`OPS-21`). Reassembly and
+committed routes are governed by `OPS-20`, route selection by `FMI-14`, and pre-fund admission's
+placement and applicability by `OPS-45`.
 
 **OPS-20** Reassembly reconstructs the working move record from the cached record (`STO-11`)
 plus the operation log of the destination (and of the source, when distinct), filtered by
@@ -581,7 +598,7 @@ complete exactly once on resume (`CNF-12` demonstrates all four):
 | before the move record | receive committed; the record has no invoice or receive operation id | backfill by `move_id` (`OPS-20`); no second mint |
 | after the receive commit | the record has the invoice, no send | proceed to the pay step (`OPS-26`) |
 | before the send | invoice exists, no send | pay exactly once, by the protocol's dedup (`FMI-17`) |
-| after the send commit | send committed; the record lacks the send operation id | backfill, or a re-pay deduplicates to already in flight |
+| after the send commit | the federation operation log holds the committed send; the cached record is `Invoiced`, lacking the send operation id | recover the send under `OPS-20`; admission applicability is `OPS-45`'s, then await settlement (`OPS-27`) |
 
 At the first killpoint the gateway replays from the pre-receive draft `OPS-24` wrote; if that
 cache is also lost, the committed route is recovered with the leg (`OPS-20`). How an
@@ -675,8 +692,9 @@ marker untouched), and drive (`OPS-14`); then scan the `Awaiting` intents and sp
 every unowned key. A pass performs at most **one** drive step (`OPS-43`) per intent; a step that
 ends `Retryable` or with a structural refusal leaves the intent `Pending` for a later pass.
 Before stepping, a pass MAY backfill the move record of every pending and awaiting move-shaped
-intent from the operation log (`OPS-20`; a failure is logged and that intent skipped). What
-`POST /v1/reconcile` runs after the pass is `API-24`.
+intent from the operation log (`OPS-20`; a failure is logged and that intent skipped). This
+optional backfill does not replace the reassembly required at perform by `OPS-45` or at await by
+`OPS-16`. What `POST /v1/reconcile` runs after the pass is `API-24`.
 
 **OPS-36** Reconcile never re-performs: `Awaiting` intents (re-attached only), `Done`, `Failed`,
 keys a live driver owns, and planner-owned markers under the preserve or capture modes.

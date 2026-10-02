@@ -97,6 +97,61 @@ payable invoice was ever minted, and the route recorded with the committed leg i
 send went through. Demonstrates `OPS-28`, `OPS-20`, `OPS-24`, `OPS-25`, `FMI-17`, `OPS-35`,
 `OVR-2`.
 
+**CNF-55** *Given* the move environment, a fixed stored `per_fed_cap`, valid committed contracts
+and routes whose fees fit the admitted cap, with no other live reservations, exercise the
+following crash-resume cases independently. Balances and fees follow `CNF-11` for moves and
+`CNF-10` for direct inflows; gross-up, contract verification and settlement remain those of
+`OPS-22`, `OPS-23` and `OPS-27`.
+
+1. **Committed send, tight source.** *Given* an admitted `Move` from A to B for which A holds
+   exactly `amount + fee_cap` before funding and B has ample cap room, *when* its send commits
+   and debits A, and an uncatchable abort occurs at `OPS-28`'s fourth killpoint before the send
+   id reaches the cached record, *then* on restart and reconcile the wallet recovers that send
+   and completes the move exactly once, with no `insufficient_after_reservations`
+   terminalization. Keep the receive uncredited until after the resumed admission decision,
+   so only the source's already-debited balance could cause the false refusal.
+2. **Committed send, credited destination.** *Given* a separately admitted `Move` for which
+   B initially holds `per_fed_cap - amount` and A is sufficiently funded that even after the
+   send debit it still covers `amount + fee_cap`, *when* the same fourth-killpoint abort occurs
+   and the existing receive credits B before the resumed admission decision, *then* restart
+   and reconcile complete the move exactly once, with no `over_cap` terminalization. The source
+   check would still pass, so it cannot mask an erroneous destination check.
+
+Run each of cases 1 and 2 with the `Invoiced` cache present, lacking the send operation id, and
+again with that cache removed while the intent and both federation operation logs survive.
+Exercise each without reconcile's optional pre-step backfill (`OPS-35`). In every run, the
+intent reaches `Done`, there is one source debit and one destination credit across the crash,
+no second payable invoice and no second send, and the committed route is retained under
+`OPS-20` and `STO-33`.
+
+3. **Unfunded Move controls.** *Given* an admitted `Move` aborted separately at each of
+   killpoints 2 and 3, with an invoice and receive operation id but no committed send, change
+   the balances before resume in two independent cases: (a) reduce A below the amount plus
+   cap required by `OPS-7`, leaving B ample room; (b) leave A well funded and credit B from an
+   unrelated settled inflow until it has less than `amount` of cap room. *When* the wallet
+   restarts and reconciles, *then* (a) terminalizes `Failed` with
+   `insufficient_after_reservations`, and (b) terminalizes `Failed` with `over_cap`, as `OPS-45`
+   requires. Neither issues a send or pays the move's existing invoice; the invoice is not
+   surfaced to an external payer. Its presence alone does not exempt either check.
+4. **Paid DirectInflow resume.** *Given* an admitted `DirectInflow` into B, initially at
+   `per_fed_cap - amount`, with a receive artifact and its invoice already supplied to the
+   external payer, *when* an uncatchable abort occurs before `Awaiting` is journaled, the payer
+   pays that invoice, and its positive credit is reflected in B's balance before the resumed
+   admission decision, *then* restart and reconcile recover the existing receive, without
+   `over_cap` even though adding `amount` again would exceed the cap. Exercise this with the
+   cache present and with it lost while the intent and destination operation log survive.
+   The recovered contract is verified under `OPS-23`, the intent follows `OPS-27`'s `Awaiting`
+   path and `OPS-16`'s settlement to `Done`, and there is one invoice and one credit across
+   the crash, with the balance change required by `CNF-10`.
+5. **New DirectInflow control.** *Given* an admitted `DirectInflow` with no receive artifact,
+   and an unrelated settled inflow that leaves B less than `amount` of cap room after admission
+   but before perform, *when* that perform runs, *then* destination admission terminalizes it
+   `Failed` with `over_cap` before any invoice or receive operation is issued. With sufficient
+   room instead, it issues one receive and follows `CNF-10` when paid.
+
+Demonstrates `OPS-7`, `OPS-16`, `OPS-19`, `OPS-20`, `OPS-22`, `OPS-23`, `OPS-24`, `OPS-27`,
+`OPS-28`, `OPS-35`, `OPS-45`, `STO-33`, `FMI-17`, `OVR-2`.
+
 **CNF-53** *Given* the environment except that B's vetted list is **empty** throughout and an
 operator gateway **X** — on A's list, on no list of B's — answers `routing_info` for both A
 and B, quotes viable fees and performs for both, *when* an automated move into B
