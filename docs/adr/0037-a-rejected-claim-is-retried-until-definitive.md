@@ -35,7 +35,11 @@ not claimable by the federation, but that is not definitive for the wallet: its 
 be recovered from the operation's issuance evidence, never by a second claim. The receive stays
 non-terminal, keeping its reservation, until that issuance resolves — credited (`Done`) or
 definitively lost (`Failed`) — so no inflow is admitted into room the recovered notes will
-fill.
+fill. "This wallet consumed it" is the wallet's own evidence, not the federation's answer: its
+issuance evidence holds an accepted claim transaction for the contract. `FMI-41` names what
+counts as definitively lost. While issuance is being recovered, the receive has the same
+standing as a retrying claim: outside `ALC-40`'s count and holding no `OPS-6` driver-cap slot
+between attempts.
 
 **Why.** A transient federation hiccup should not turn into operator work, and a user's
 already-settled payment should not wait on someone running a command (`Incoming contract`: "A

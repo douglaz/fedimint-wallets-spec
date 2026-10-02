@@ -45,8 +45,7 @@ Keystore (`ADR-0011`) and is outside this decision.
   (`HST-4`), and the store stays seedless so that `init → restore-mnemonic → serve` works
   (`SEC-11`). The passphrase is first needed where the encrypted slot is first written —
   by `restore-mnemonic`, or by the first serve, which mints the seed (`SEC-11`). The first
-  serve mints only from the configured passphrase file, and only on a store that holds the
-  standing-instruction acceptance `init` records (`ADR-0035`); otherwise it refuses to start,
+  serve mints only from the configured passphrase file; otherwise it refuses to start,
   minting nothing (`SEC-11` already requires that when the key source is unavailable), and
   the unseal call never mints — it only decrypts a slot that exists. The one-shot commands
   (`walletd mnemonic` and `restore-mnemonic`, owned by `HST-5` and `HST-2`; the standalone

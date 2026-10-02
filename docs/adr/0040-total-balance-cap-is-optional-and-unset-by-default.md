@@ -30,7 +30,10 @@ the operations it has admitted, and it must keep three properties; the arithmeti
 - **Every sat at least once, and once where it can be.** Money in flight is counted where it can
   land, exactly once except for the brief over-count the third property allows: an inflow
   arriving from outside, an internal move or evacuation that has left its source, and a pay
-  whose outgoing contract may still be refunded. The request being admitted counts once — its
+  whose outgoing contract may still be refunded. A pay that ended in `FMI-37`'s ambiguous send
+  `Failure` no longer counts (decided 2026-10-02): nothing in the set ever resolves it, so
+  counting it would hold that room forever, and the residual — a rare late refund carrying the
+  total above the cap — is accepted. The request being admitted counts once — its
   own reservation, on a retry or at perform time, is not added again.
 - **Fail closed.** Any membership, balance, registry row, move record or projection the check
   cannot read or classify refuses the inflow as a transient refusal — retryable, nothing minted —

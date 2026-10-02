@@ -286,9 +286,9 @@ received) authorizing the on-device software to auto-manage funds across
 federations on a best-effort, no-guarantees basis. It is what makes the Allocator
 the user's own on-device agent rather than a service that controls funds (see
 [ADR-0014](./docs/adr/0014-on-device-agent-standing-instruction.md)).
-Its parameters are the stored **Policy** (`OVR-8`). It is given when the wallet is created or
-restored from a mnemonic, and travels with any backup that carries it (Android's Block
-Store), never later: a store that exists was acknowledged
+Its parameters are the stored **Policy** (`OVR-8`). It is given where a store is created — `walletd
+init`, the standalone mode's first run, the Android app — and travels with any backup that
+carries it (Android's Block Store), never later: a store that exists was acknowledged
 ([ADR-0035](./docs/adr/0035-standing-instruction-acknowledged-at-creation.md)). Every wallet is
 auto-managed: there is no manual-only wallet
 ([ADR-0039](./docs/adr/0039-every-wallet-is-auto-managed.md)).
