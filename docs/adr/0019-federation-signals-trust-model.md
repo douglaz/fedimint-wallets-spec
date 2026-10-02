@@ -3,6 +3,10 @@ status: accepted
 ---
 # Federation signals: trust probes + authenticated config; Observer is an untrusted prior; Nostr is discovery only
 
+> **Amended (2026-09-25).** The open bullet below — consume the Observer API as a bootstrap prior
+> or run our own collection — is answered by [ADR-0036](./0036-discovery-reads-the-observer-and-nostr-by-default.md):
+> discovery reads the Observer and Nostr by default, both as untrusted priors.
+
 Grounded by live research (June 2026; see
 [../federation-data-sources-spec.md](https://github.com/douglaz/fedimint-wallets/blob/main/docs/federation-data-sources-spec.md)). The scorer
 (ADR-0016/0017) derives TRUST only from (a) the **authenticated `ClientConfig`** (guardian

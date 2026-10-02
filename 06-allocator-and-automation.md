@@ -138,7 +138,7 @@ evacuation amount; an evacuation destination needs `cap_room > 0`; a federation 
 cap gets the advisory refusal of `ALC-4`; `want > cap_room` gets an `OverCap` refusal with
 figures. The cap is re-checked with fresh balances at commit (`ALC-53`, `OPS-7`) and again
 before minting (`OPS-22`). The allocator moves balance between federations and never raises the
-wallet's total; whether that total is capped is open (`11-open-questions.md`, question 2).
+wallet's total; an optional cap on that total, unset by default, is `ADR-0040`'s decision.
 
 ## Route economics
 

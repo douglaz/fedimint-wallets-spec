@@ -254,7 +254,9 @@ implementation induces it is `SEC-18`'s.
 
 **Stranded**:
 The move phase `OPS-27` defines as "a settled send with a preimage and an op-terminal
-non-claim on the receive". Terminal; what it leaves for the operator is `HST-32`.
+non-claim on the receive". Terminal; what it leaves for the operator is `HST-32`. A rejected
+claim alone never strands a move: the wallet keeps claiming until the federation answers
+definitively ([ADR-0037](./docs/adr/0037-a-rejected-claim-is-retried-until-definitive.md)).
 _Avoid_: "stuck" — a stuck move is retryable; a stranded one is terminal.
 
 **Lightning Address**:
@@ -284,9 +286,13 @@ received) authorizing the on-device software to auto-manage funds across
 federations on a best-effort, no-guarantees basis. It is what makes the Allocator
 the user's own on-device agent rather than a service that controls funds (see
 [ADR-0014](./docs/adr/0014-on-device-agent-standing-instruction.md)).
-Its parameters are the stored **Policy** (`OVR-8`); whether the engine ships on by default is
-open (`11-open-questions.md`, question 1).
-_Avoid_: "terms of service" (this is a specific in-app consent gate, recorded)
+Its parameters are the stored **Policy** (`OVR-8`). It is given once, when a store is created,
+so a store that exists was acknowledged
+([ADR-0035](./docs/adr/0035-standing-instruction-acknowledged-at-creation.md)). Every wallet is
+auto-managed: there is no manual-only wallet
+([ADR-0039](./docs/adr/0039-every-wallet-is-auto-managed.md)).
+_Avoid_: "terms of service" (this is a specific in-app consent gate, recorded), "unlock"
+(nothing is gated at runtime by it)
 
 **Incoming contract**:
 The federation-held contract a gateway funds when someone pays your Lightning
@@ -377,6 +383,13 @@ resident loop, or platform wakes), restart supervision, and deployment config �
 it decides *when* the engine runs, never *what* the engine decides.
 _Avoid_: conflating with **Frontend** (walletd is a host that also transports
 two frontends)
+
+**Sealed**:
+The state of a running `walletd` that has not yet obtained the passphrase that keys
+the seed at rest; what it serves meanwhile is
+[ADR-0033](./docs/adr/0033-seed-key-passphrase-file-or-unseal-call.md)'s. **Unseal** is the
+operator's act of supplying that passphrase, after which the daemon is simply running.
+_Avoid_: "locked" (the store lock of `STO-2` is a different thing), "logged in"
 
 **Frontend**:
 A user surface over the engine's operation API — `wallet-cli`, the web UI, the
