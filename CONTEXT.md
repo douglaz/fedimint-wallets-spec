@@ -315,9 +315,10 @@ _Avoid_: "intent" in any user-facing surface, "transaction"
 **Intent**:
 The internal durable, executable record inside an executable **Operation**'s
 lifecycle: an idempotency-keyed, decision-driven record that may be `Pending`,
-`Executing`, or subscription/external-payment-owned `Awaiting` until terminal,
-and is crash-resumable via reconcile. Reconcile does not re-perform `Awaiting`
-work. NOT money-only — a join and a recovery are Intents too, which is why "user-initiated"
+`Executing`, or `Awaiting` until terminal, and is crash-resumable via reconcile.
+For `Awaiting`, `OPS-36` says reconcile "never re-issues the original effect": ordinary
+settlement follows `OPS-16`, and bounded claim or issuance recovery follows `FMI-41`
+(`CNF-26`). NOT money-only — a join and a recovery are Intents too, which is why "user-initiated"
 and "resolves a route" are different tests: ADR-0030 binds the break-glass to one operation key
 by verb, not by intent actor. Never appears in API type
 names or user copy.

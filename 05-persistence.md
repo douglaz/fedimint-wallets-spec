@@ -202,7 +202,8 @@ supplies, `None` clearing it, and the deliberate clear blanks it and nothing els
 intents; **`Done` is never indexed**, which is what makes finished work unscannable. Index and
 intent row move in one transaction. The scan of re-drivable intents returns `[Pending,
 Executing]` — it **includes `Executing`** — and tolerates a corrupt entry; the scan of awaiting
-intents returns `[Awaiting]` and is never re-driven (`OPS-36`); the reservation scan returns
+intents returns `[Awaiting]`: `OPS-36`'s "never re-issues the original effect" applies, with
+bounded recovery under `FMI-41` (`CNF-26`); the reservation scan returns
 `[Pending, Executing, Awaiting]` and **fails closed** on any corrupt entry, so admission stops
 rather than under-reserve (`OPS-9`).
 

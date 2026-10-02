@@ -485,6 +485,17 @@ settled-send cases for `Move` and `Evacuate`.
    same result without another invoice. Run ledger repair while the stored failure remains
    unresolved: it must not terminalize the receive or release its reservation.
 
+   In the raw `Receive` fixture, leave the original SDK operation at final `Failure`
+   throughout recovery and completion. While the claim is unresolved, exercise `OPS-46`
+   preparation: it prepares no terminal failure, leaves the intent and ledger non-terminal,
+   and retains the reservation. After recovery issues notes, preparation and finalization
+   commit `Done` and ledger `Succeeded` for the original operation at the same intent
+   attempt, with its definitive fee, despite that unchanged SDK `Failure`. Credit once,
+   retain the earlier failure evidence, and release the reservation only on actual
+   completion. Repeated `reclaim <key>` then answers `claimed`, exit 0, without another
+   credit. Observe that any federation IO precedes the terminal hold and that the ledger
+   and intent advance atomically.
+
 2. **Own accepted claim, issuance pending.** *Given* the wallet's stored issuance evidence
    holds an accepted claim transaction, its notes have not issued, and the federation answers
    that the contract is consumed, *when* reconcile or reclaim runs, *then* it retrieves
@@ -496,6 +507,10 @@ settled-send cases for `Move` and `Evacuate`.
    exit 2), minting nothing. Ledger repair leaves the recovery non-terminal too. Once notes
    issue, the original receive completes once and manual reclaim answers `claimed`, exit 0;
    no retry or restart submitted another claim or created another invoice.
+   Repeat the raw terminal-preparation fixture from case 1 with this accepted-claim
+   evidence: the original SDK operation remains at final `Failure`, preparation cannot
+   terminalize pending issuance, and eventual issuance permits `Done` and `Succeeded`,
+   one credit, retained failure evidence and reservation release only on completion.
 
 3. **Bounded attempts, no stalled-settlement exit.** *Given* three old live receives in claim
    retry, invoices expired beyond the settlement-stall deadline, no recent successful
@@ -509,8 +524,21 @@ settled-send cases for `Move` and `Evacuate`.
    the same slot and watchdog observations hold, and no new claim is submitted. A recovery
    attempt whose IO does not finish is abandoned at the perform timeout, emits no further IO
    from that abandoned drive, and resumes through a later eligible reconcile pass without
-   changing its intent attempt or releasing its reservation. Race manual reclaim, an attach
-   and reconcile on one key: they never overlap recovery work or duplicate a monetary effect.
+   changing its intent attempt or releasing its reservation.
+
+   For both recovery classes, exercise ordinary same-key attaches with raw `Receive` and
+   `DirectInflow` in `Awaiting`, and with send-required moves in `Pending` and `Executing`.
+   Attach during backoff: it must neither reissue the original effect nor start an ordinary
+   perform or re-await loop, shorten the backoff or defer the first due pass. The key remains
+   recoverable at the same attempt, with its reservation and evidence intact; passes before
+   the delay elapses do no recovery IO, and the first due reconcile pass resumes the bounded
+   recovery step. Also attach while a recovery step owns the key, then let that step return
+   unresolved: the requested re-drive is retained through ownership release and honored at
+   the next eligible recovery opportunity, without immediate re-entry. Repeat across a
+   restart. Separately, during backoff, explicit reclaim may trigger the one bounded attempt
+   permitted by `FMI-41`'s manual exception. Race that manual call, an ordinary attach and a
+   due reconcile pass on one key: they never overlap recovery work or duplicate a monetary
+   effect; unresolved work continues under the same automatic cadence.
    As a control, three otherwise-qualifying old `Awaiting` receives that are in neither
    recovery class, with no recent success, still produce `ALC-40`'s non-zero daemon exit.
 
@@ -535,6 +563,22 @@ settled-send cases for `Move` and `Evacuate`.
    paths sends again. A stored never-funded `Expired` receive retains its existing expiry
    result; a planted settled-send/expired-receive move takes the definitive-expiry branch
    of `OPS-27`, without requiring an honest payer to create that combination.
+
+   For a probe `Move` leg, plant each recovery class separately: a settled send with a
+   funded unconsumed receive in claim retry, and a settled send with this wallet's accepted
+   claim whose issuance is pending. Remove the probe session, then run reconcile before
+   and after the recovery backoff is due, restart, and reconcile again. Repeat with session
+   loss caused by evacuation preemption; the umbrella records the preemption failure,
+   while the recovering leg remains non-terminal. In each variant, due recovery continues
+   at the same intent attempt, retaining the inbound reservation, preimage, operation ids
+   and claim/issuance and failure evidence. No second send or invoice is issued; pending
+   issuance submits no second claim. Eventual notes settle the receive leg and complete
+   its move once, crediting once and releasing the reservation only then. Also restart
+   after notes issue but before wallet completion: the next scan completes the leg rather
+   than failing it as orphaned. The session is not recreated and no remaining probe leg or
+   other new probe work is admitted by this
+   exception. As a control, an orphaned probe leg with no recoverable funded receive still
+   becomes `Failed` with `probe session is no longer active`.
 
 5. **Manual surface, replay and audit.** For each eligible class in `API-42` — live receive
    or receive leg in claim retry, pending issuance, a stored receive `Failed` with
@@ -565,7 +609,9 @@ settled-send cases for `Move` and `Evacuate`.
 
    A never-funded `Expired` receive is refused `422 refused`, message exactly
    `incoming contract was never funded`, no `refuse_reason`, CLI exit 2, with no monetary
-   attempt and no reclaim row. An unknown key returns `404 not_found`, exit 1; other
+   attempt and no reclaim row. Repeat for the planted `Stranded` move whose receive leg
+   was never funded and ended `Expired`: the same refusal overrides the broad stranded-leg
+   eligibility, with no attempt or audit row. An unknown key returns `404 not_found`, exit 1; other
    ineligible targets (a pay, or a receive still awaiting funding) return `422 refused`,
    exit 2. Each attempts and journals nothing. Without the bearer token, the route returns
    401 and CLI exit 5, attempting and journaling nothing.
@@ -573,7 +619,8 @@ settled-send cases for `Move` and `Evacuate`.
 Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`, `API-33`, `API-38`, `API-39`,
 `API-40`, `API-41`, `API-42`, `API-36`, `FMI-37`, `FMI-41`, `FMI-23`, `DOM-8`, `DOM-10`,
 `OPS-3`, `OPS-6`, `OPS-8`, `OPS-9`, `OPS-14`, `OPS-15`, `OPS-16`, `OPS-27`, `OPS-35`,
-`OPS-36`, `OPS-40`, `OPS-43`, `STO-15`, `STO-24`, `ALC-38`, `ALC-40`, `HST-32`, `DEF-26`.
+`OPS-36`, `OPS-40`, `OPS-43`, `OPS-46`, `STO-10`, `STO-15`, `STO-24`, `ALC-38`, `ALC-40`,
+`HST-32`, `DEF-26`.
 
 **CNF-54** *Given* a running daemon, *when* `wallet-web init` is run, *then* it takes the
 password twice on the controlling terminal with echo disabled and refuses — writing nothing —
