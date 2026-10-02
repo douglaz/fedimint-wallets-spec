@@ -764,12 +764,18 @@ admissions are not poisoned (`OPS-32`); **re-drive without planner** (a recovery
 drives it, still skipping while poisoned, and suppresses the wake of its next renewed marker once
 — then fail an orphaned probe leg whose session is gone only if it has no funded receive
 requiring recovery or completion under `FMI-41` (`Failed` "probe session is no longer active").
-Before this cleanup, classify any recorded receive under `FMI-41`; unreadable evidence MUST NOT be treated
-as absence of recoverable funds. Session loss or preemption ends the probe workflow, but
+Eligibility for this cleanup MUST be established from available stored evidence alone;
+evaluating it MUST NOT cause federation IO. Inconclusive or unreadable local evidence MUST NOT
+be treated as absence of recoverable funds or authorize orphan terminalization: the leg,
+its reservation and retained evidence MUST be preserved while the recovery path resolves the
+evidence. Any needed remote claim or issuance classification belongs only in the existing due
+`FMI-41` recovery perform (`OPS-43`), under `OPS-14`'s per-key exclusion and `OPS-15`'s
+timeout. Session loss or preemption ends the probe workflow, but
 MUST NOT terminalize a leg in unresolved receive recovery: it continues through the due
 recovery step below under `OPS-14`, retaining `FMI-41`'s attempt, reservation and evidence.
-Any definitive recovery conclusion completes the leg under `OPS-27`, including when notes
-have already issued at the time of the scan; orphan cleanup MUST NOT replace that conclusion.
+A definitive recovery conclusion established by stored evidence or that recovery step
+completes the leg under `OPS-27`, including when notes have already issued at the time of
+the scan; orphan cleanup MUST NOT replace that conclusion.
 This exception authorizes no new probe admission or send and MUST NOT recreate the session
 or resume its remaining workflow. Then skip registry-owned keys, normalize `Executing → Pending`
 (a plain status write, the marker untouched), and drive (`OPS-14`); then scan the `Awaiting`

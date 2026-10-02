@@ -566,19 +566,43 @@ settled-send cases for `Move` and `Evacuate`.
 
    For a probe `Move` leg, plant each recovery class separately: a settled send with a
    funded unconsumed receive in claim retry, and a settled send with this wallet's accepted
-   claim whose issuance is pending. Remove the probe session, then run reconcile before
-   and after the recovery backoff is due, restart, and reconcile again. Repeat with session
-   loss caused by evacuation preemption; the umbrella records the preemption failure,
-   while the recovering leg remains non-terminal. In each variant, due recovery continues
-   at the same intent attempt, retaining the inbound reservation, preimage, operation ids
-   and claim/issuance and failure evidence. No second send or invoice is issued; pending
-   issuance submits no second claim. Eventual notes settle the receive leg and complete
-   its move once, crediting once and releasing the reservation only then. Also restart
-   after notes issue but before wallet completion: the next scan completes the leg rather
-   than failing it as orphaned. The session is not recreated and no remaining probe leg or
-   other new probe work is admitted by this
-   exception. As a control, an orphaned probe leg with no recoverable funded receive still
-   becomes `Failed` with `probe session is no longer active`.
+   claim whose issuance is pending. Remove the probe session. For both recovery classes,
+   run each observation below also with session loss caused by evacuation preemption:
+   the umbrella records the preemption failure, while the recovering leg remains
+   non-terminal. Run reconcile before the recovery backoff is due: orphan cleanup and
+   recovery classification cause no federation IO, no terminalization occurs, and the
+   intent attempt, inbound reservation, preimage, operation ids and retained claim/issuance
+   and failure evidence remain unchanged. Repeat across a restart.
+
+   Separately make the local evidence unreadable and inconclusive. Neither condition
+   establishes absence of recoverable funds, produces a terminal orphan failure, nor
+   triggers a federation read outside the eligible recovery perform. Before the backoff
+   is due, observe no federation IO caused by cleanup or recovery classification; the
+   same attempt, reservation and retained evidence remain intact. Restore readable,
+   conclusive local evidence and run an eligible pass: recovery progresses through the
+   existing path.
+
+   At the due pass, require remote contract or issuance classification to make progress.
+   Observe that its federation IO occurs only within the bounded recovery perform under
+   per-key ownership. Make the federation unreachable, and separately let classification
+   time out: no extra unbounded wait occurs in the preliminary cleanup scan, no terminal
+   failure or reservation release occurs, and no further IO comes from the perform after
+   its timeout; a later eligible pass can resume at the same attempt. Race another recovery
+   owner against the scan: cleanup starts no separate federation read, and recovery IO
+   never overlaps work owning that key. These observations concern IO caused by orphan
+   cleanup and receive recovery classification; unrelated reconcile work may proceed.
+
+   In every variant, due recovery continues at the same intent attempt, retaining the
+   inbound reservation, preimage, operation ids and claim/issuance and failure evidence.
+   No second send or invoice is issued; pending issuance submits no second claim.
+   Eventual notes settle the receive leg and complete its move once, crediting once and
+   releasing the reservation only then. Also restart after notes issue but before wallet
+   completion: with stored evidence establishing issuance, the next scan completes the
+   leg under `OPS-27` rather than failing it as orphaned. The session is not recreated and
+   no remaining probe leg or other new probe work is admitted by this exception. As a
+   control, an orphaned probe leg whose stored evidence establishes no recoverable funded
+   receive requiring recovery or completion still becomes `Failed` with
+   `probe session is no longer active`, without a federation read for that cleanup decision.
 
 5. **Manual surface, replay and audit.** For each eligible class in `API-42` — live receive
    or receive leg in claim retry, pending issuance, a stored receive `Failed` with
