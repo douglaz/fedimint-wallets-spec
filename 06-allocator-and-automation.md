@@ -563,7 +563,8 @@ cycle in a loop, a wake-driven host runs it once per wake (`OVR-10`).
 1. A reconcile pass in **preserve** mode (`OPS-35`). This is the retry cadence of a `Retryable`
    intent (`OPS-14`): once per cycle, with one exception — a re-drive requested while a driver
    owns the key is honoured by that driver when it leaves the intent `Pending` at the same
-   attempt, without waiting for the cycle (`OPS-14`). The cycle interval is the sleep `ALC-39`
+   attempt, without waiting for the cycle (`OPS-14`). Incoming claim and issuance recovery
+   instead follows `FMI-41`'s bounded-backoff cadence (`CNF-26`). The cycle interval is the sleep `ALC-39`
    computes — at most `base_interval_secs`, at least `min_interval_secs` (`STO-13`), earlier
    on an expiry or probe deadline, a policy change, or an expiry wake.
 2. Ledger repair (`OPS-37`).
@@ -633,6 +634,10 @@ deadline window among the newest 4 096 rows → the scheduler MUST stop, and the
 that as fatal and exit non-zero for its supervisor to restart it (`ALC-42`, `HST-7`). The exit
 is its artifact; it writes no ledger row. A journal or record read fault disarms the watchdog
 for that cycle only and is reported as a cycle fault (`ALC-48`).
+
+The count MUST exclude receives in claim retry or with issuance pending under `FMI-41`,
+regardless of invoice age or the time since any receive succeeded. `CNF-26` demonstrates
+both exclusions; the threshold and fatal behavior for other qualifying states are unchanged.
 
 **ALC-41** `PUT /v1/policy` (`API-20`) validates, stores, applies the new caps to every later
 sizing, bumps the policy generation (`STO-27`) and wakes the scheduler at once (`ALC-39`). A

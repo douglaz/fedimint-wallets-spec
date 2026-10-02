@@ -254,10 +254,9 @@ A scenario names the killpoint as something the environment does to the wallet; 
 implementation induces it is `SEC-18`'s.
 
 **Stranded**:
-The move phase `OPS-27` defines as "a settled send with a preimage and an op-terminal
-non-claim on the receive". Terminal; what it leaves for the operator is `HST-32`. A rejected
-claim alone never strands a move: the wallet keeps claiming until the federation answers
-definitively ([ADR-0037](./docs/adr/0037-a-rejected-claim-is-retried-until-definitive.md)).
+The move phase `OPS-27` defines as "a settled send with a preimage and a definitive
+non-claim on the receive". Terminal; what it leaves for the operator is `HST-32`.
+Claim retry and pending issuance are governed by `FMI-41`, demonstrated by `CNF-26`.
 _Avoid_: "stuck" — a stuck move is retryable; a stranded one is terminal.
 
 **Lightning Address**:

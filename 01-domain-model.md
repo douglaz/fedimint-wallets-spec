@@ -63,8 +63,9 @@ owned by no driver, re-drivable. `Executing`: claimed from `Pending` by one driv
 transition is exclusive, and a losing claimant performs no IO (`OPS-43`); how an intent found
 `Executing` after a restart is resumed is the lifecycle's (`OPS-35`, `OPS-43`), and it never
 pays twice (`OVR-2`). `Awaiting`: the effect was issued and completion depends on an external
-event — a direct-inflow payer, or a raw pay's or receive's settlement — so it is never
-re-performed. `Done`: terminal success, held in no status index, so finished work is never
+event — a direct-inflow payer, or a raw pay's or receive's settlement — so its original effect
+is never re-issued; incoming claim and issuance recovery follows `FMI-41` (`CNF-26`).
+`Done`: terminal success, held in no status index, so finished work is never
 scanned (`STO-10`). `Failed`: terminal and indexed; retryable only by an explicit user action
 that mints a new attempt (`OPS-2`, `OPS-10`).
 
@@ -77,9 +78,9 @@ ids, the invoice, the gateway, the enforced fee cap, the quoted fees, the preima
 `MovePhase ∈ Created, Invoiced, Sending, Settled, Refunded, Failed, Stranded`. `STO-11` owns
 the field list and which fields the wallet rebuilds from the fedimint operation log; `STO-33`
 owns the operation metadata they are rebuilt from.
-**Stranded** means exactly what `OPS-27` states — "a settled send with a preimage and an
-op-terminal non-claim on the receive". It is not a gateway failure and the preimage does not
-recover it (`DEF-20`).
+**Stranded** means exactly what `OPS-27` states — "a settled send with a preimage and a
+definitive non-claim on the receive". It is not a gateway failure and the preimage does not
+recover it (`DEF-20`; `CNF-26` demonstrates the distinction).
 
 ## The ledger row
 

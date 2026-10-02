@@ -19,7 +19,7 @@ much the design defends against them:
 2. **A misbehaving or malicious gateway.** It sees both legs of every move (`SEC-13`) and can
    quote without performing; the wallet bounds the loss to one operation's amount and
    terminalizes honestly (`FMI-23`). A move it carries strands only when its send settles and
-   the receive reaches a terminal non-claim (`FMI-23`, `OPS-27`).
+   the receive reaches a definitive non-claim (`FMI-23`, `OPS-27`; `CNF-26`).
 3. **A malicious or misconfigured guardian.** Cannot place a gateway in the vetted list on its
    own (`SEC-17`, `FMI-10`); with enough colluding guardians can list any URL, so the wallet
    restricts where a gateway request may go — loopback, link-local, RFC 1918, cloud metadata

@@ -465,13 +465,115 @@ verb whose shape `API-29` or `API-39` fixes is that shape — `health` printing 
 `history --json` and `show --json` carrying `fee_cap`; and `policy set` of each of the twenty-eight flags in turn PUTs every key the GET returned,
 unchanged where no flag named it, refuses as a usage error a flag for a field the GET did
 not return, a pin flag with its clear flag, a boolean flag without an explicit value, and a
-bps flag outside its range before any PUT; and `reclaim <key>` on an operation whose incoming contract
-reached a terminal non-claim prints the outcome and exits 0 on `claimed` and 3 on
-`not_claimable`, a repeat of the same `reclaim` returns the same outcome with the balance
-unchanged and one more `reclaim:` ledger row, while on any other operation it exits as
-`API-28` maps the refusal.
+bps flag outside its range before any PUT.
+
+Incoming recovery and reclaim additionally demonstrate these cases. Fixtures may plant a
+stored SDK final claim failure or accepted-claim issuance evidence, as `CNF-33` and `CNF-51`
+plant store states. Contract disposition and issuance responses must be controlled consistently
+with that evidence; no case requires an honest federation to reject a valid claim at consensus
+to create the fixture. Run live-receive cases for raw `Receive` and `DirectInflow`, and the
+settled-send cases for `Move` and `Evacuate`.
+
+1. **Funded after expiry.** *Given* a live receive with a stored failed-claim observation,
+   stored claim material, a funded unconsumed contract whose funding expiry has passed, and
+   no accepted-claim issuance evidence, *when* reconcile runs, *then* it submits a claim
+   automatically. With transient responses it remains non-terminal, keeping its inbound
+   reservation and the same intent attempt; when the federation accepts and issues notes,
+   it completes `Done` and credits exactly once. Its earlier `receive failed:` observation
+   remains in the durable evidence. Repeat with a daemon restart before recovery, and with
+   `reclaim <key>` triggering recovery instead of the next scheduled pass; both reach the
+   same result without another invoice. Run ledger repair while the stored failure remains
+   unresolved: it must not terminalize the receive or release its reservation.
+
+2. **Own accepted claim, issuance pending.** *Given* the wallet's stored issuance evidence
+   holds an accepted claim transaction, its notes have not issued, and the federation answers
+   that the contract is consumed, *when* reconcile or reclaim runs, *then* it retrieves
+   issuance from that evidence and sends no second claim. A manual call answers
+   `issuance_pending`, exit 4. Repeated failed retrievals, timeouts and an SDK final issuance
+   failure, each exercised separately and across restarts, leave the receive non-terminal
+   with the same inbound reservation. With destination balance plus that reservation filling
+   the per-federation cap, an otherwise-valid fresh inflow is refused `over_cap` (409, CLI
+   exit 2), minting nothing. Ledger repair leaves the recovery non-terminal too. Once notes
+   issue, the original receive completes once and manual reclaim answers `claimed`, exit 0;
+   no retry or restart submitted another claim or created another invoice.
+
+3. **Bounded attempts, no stalled-settlement exit.** *Given* three old live receives in claim
+   retry, invoices expired beyond the settlement-stall deadline, no recent successful
+   `Receive` ledger row, and repeated transient claim-submission failures, *when* scheduler
+   cycles continue, *then* each is retried on the first pass after its chosen 1–60 second
+   backoff, remains non-terminal and reserved, and does not make the daemon exit. Observe
+   multiple attempts beyond funding expiry and across a restart. Between attempts, with no
+   other drivers active and enough balance and cap room, all 32 otherwise-valid external
+   drivers can be admitted; a 33rd meets the ordinary driver-cap refusal. Repeat with all
+   three receives holding accepted-claim evidence and repeatedly failing issuance retrieval:
+   the same slot and watchdog observations hold, and no new claim is submitted. A recovery
+   attempt whose IO does not finish is abandoned at the perform timeout, emits no further IO
+   from that abandoned drive, and resumes through a later eligible reconcile pass without
+   changing its intent attempt or releasing its reservation. Race manual reclaim, an attach
+   and reconcile on one key: they never overlap recovery work or duplicate a monetary effect.
+   As a control, three otherwise-qualifying old `Awaiting` receives that are in neither
+   recovery class, with no recent success, still produce `ALC-40`'s non-zero daemon exit.
+
+4. **Definitive evidence and send-first moves.** *Given* a funded contract consumed by another
+   claimant, with the wallet's issuance evidence successfully read and showing no own
+   accepted claim, *when* recovery classifies it, *then* it answers `not_claimable` and the
+   live receive becomes `Failed` with `receive failed:` and the evidence retained. Separately,
+   with a funded unconsumed contract whose claim federation fee equals its amount, and then
+   one whose fee exceeds it, recovery answers `uneconomical`, records that reason with the
+   receive failure anchor, and does not submit that claim. The same client remains running
+   and can complete a different affordable receive afterwards.
+
+   For each send-required move variant, observe the send first and persist its verifying
+   preimage before receive handling. Rejected claims and own accepted claims with pending
+   issuance leave the move non-terminal and its inbound reservation intact, even across
+   restart; eventual issuance settles its receive leg and completes the move once. In the
+   definitive `not_claimable` and `uneconomical` cases it instead becomes `Stranded`, with
+   both operation ids, invoice, gateway, preimage, and the error anchor
+   `send settled but receive was not credited` plus the `receive failed:` detail preserved.
+   Later cycles and manual reclaim preserve those terminal records. A same-key request to
+   retry the stranded move is refused `conflict` (409, CLI exit 2); none of these recovery
+   paths sends again. A stored never-funded `Expired` receive retains its existing expiry
+   result; a planted settled-send/expired-receive move takes the definitive-expiry branch
+   of `OPS-27`, without requiring an honest payer to create that combination.
+
+5. **Manual surface, replay and audit.** For each eligible class in `API-42` — live receive
+   or receive leg in claim retry, pending issuance, a stored receive `Failed` with
+   `receive failed:`, a `Stranded` receive leg, and a receive already claimed by this wallet —
+   submit the empty-body POST with the bearer token and check that `operation_key` is the
+   target key. Exercise the following observations on fixtures where each is applicable;
+   every response is HTTP 200, prints the wire outcome and has the indicated CLI exit:
+
+   | Observation | Wire outcome | CLI exit |
+   |---|---|---|
+   | Notes issued, including already-issued notes | `claimed` | 0 |
+   | Contract consumed by another claimant | `not_claimable` | 3 |
+   | Claim fee at least the unconsumed contract amount | `uneconomical` | 3 |
+   | Unreachable federation, claim rejection, or timeout without known accepted-claim evidence, each separately | `transient` | 4 |
+   | Own accepted claim, notes not yet issued, including failed retrieval | `issuance_pending` | 4 |
+
+   Each non-claimed CLI message carries the target key. Permit transient and pending
+   observations to become claimed after the evidence changes. Repeat a successful reclaim,
+   also after deliberately losing the first response and after spending the issued notes:
+   it still answers `claimed`, exit 0, and leaves the balance unchanged. Each eligible
+   call adds exactly one `Reclaim` audit row with its own nonce key and the target receive
+   id; its status and error follow `STO-15`. Unresolved audit rows do not terminalize a live
+   target; a later success does advance a live target normally. A planted already-terminal
+   failed target recovered manually keeps its original terminal row and failure evidence.
+   With only the best-effort audit write failing, the monetary outcome and response are
+   unchanged and the row may be absent; absent that storage error, no eligible call may
+   omit its audit row.
+
+   A never-funded `Expired` receive is refused `422 refused`, message exactly
+   `incoming contract was never funded`, no `refuse_reason`, CLI exit 2, with no monetary
+   attempt and no reclaim row. An unknown key returns `404 not_found`, exit 1; other
+   ineligible targets (a pay, or a receive still awaiting funding) return `422 refused`,
+   exit 2. Each attempts and journals nothing. Without the bearer token, the route returns
+   401 and CLI exit 5, attempting and journaling nothing.
+
 Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`, `API-33`, `API-38`, `API-39`,
-`API-40`, `API-41`, `API-42`.
+`API-40`, `API-41`, `API-42`, `API-36`, `FMI-37`, `FMI-41`, `FMI-23`, `DOM-8`, `DOM-10`,
+`OPS-3`, `OPS-6`, `OPS-8`, `OPS-9`, `OPS-14`, `OPS-15`, `OPS-16`, `OPS-27`, `OPS-35`,
+`OPS-36`, `OPS-40`, `OPS-43`, `STO-15`, `STO-24`, `ALC-38`, `ALC-40`, `HST-32`, `DEF-26`.
 
 **CNF-54** *Given* a running daemon, *when* `wallet-web init` is run, *then* it takes the
 password twice on the controlling terminal with echo disabled and refuses — writing nothing —

@@ -43,8 +43,9 @@ Failed    → Failed
 
 **OPS-3** `Awaiting` is the state of an intent whose effect was issued and whose completion
 depends on an external event: a direct inflow waiting for its payer, **and** a raw pay or receive
-waiting for settlement. Reconcile MUST NOT re-perform an `Awaiting` intent; an awaiter owns it
-(`OPS-16`). A raw pay that attaches to a send operation already settled goes `Executing → Done`
+waiting for settlement. Reconcile MUST NOT re-issue its original effect; ordinary settlement
+is owned by an awaiter (`OPS-16`), while incoming claim recovery is driven under `FMI-41`
+(`CNF-26`). A raw pay that attaches to a send operation already settled goes `Executing → Done`
 within the same perform and never enters `Awaiting` (`OPS-17`).
 
 **OPS-4** How a perform's end is journaled: `Done` → `Done`; `Awaiting` → `Awaiting`;
@@ -97,6 +98,11 @@ touches and the membership generation MUST be advanced so that no allocator plan
 the world before this admission can commit (`OPS-13`, `ALC-32`), any probe preemption is applied,
 and the intent is driven (`OPS-14`).
 
+A receive or receive leg in `FMI-41` claim retry or pending issuance MUST hold no driver-cap
+slot between recovery attempts, whatever its actor. Each actual recovery attempt counts as
+one perform under `OPS-15`; only its active work may occupy a slot under the rule above.
+`CNF-26` demonstrates the exclusion.
+
 **OPS-7** The arithmetic admission MUST run with sampled balances on every fresh admission, every
 retry (`OPS-10`) and every agent decision (`OPS-11`), and again at perform time where `OPS-45`
 requires it: for `Move` and `Pay`, `amount + fee_cap ≤ balance[from] −
@@ -119,7 +125,8 @@ except that a user request whose key resolves to an intent an active probe admit
 leg whose key resolves to a user's intent, MUST be refused `conflict` with nothing journaled
 (`DOM-21`). By the existing status: `Done` → deduplicated with the existing outcome; `Pending` →
 driven; `Executing` → re-performed without a claim (`OPS-43`); `Awaiting` → re-awaited
-(`OPS-16`), counted against the driver cap (`OPS-6`) whatever its actor; a key a live driver
+(`OPS-16`), with driver-cap occupancy governed by `OPS-6`, including its recovery exclusion
+(`CNF-26`); a key a live driver
 already owns → a re-drive is requested of that driver (`OPS-14`); `Failed` → the retry path
 (`OPS-10`) for a `User` request. An `Agent` decision never attaches to a terminal key: in a batch
 it is dropped as `conflict` (`ALC-53`); a probe leg or any other agent request that meets one
@@ -146,7 +153,9 @@ action: `Move`/`Evacuate` outbound `amount + fee_cap` on the source, inbound and
 projection weakens by move-record phase when the record is trusted (`Invoiced` keeps all three;
 `Sending` drops the outbound; a terminal phase drops all; a `Pay` with an operation id reserves
 nothing) and is what agent planning and commit use (`ALC-35`). User admission MUST use the strict
-view.
+view. In both projections, `FMI-41` governs retention of the inbound reservation during claim
+retry and pending issuance; neither an SDK final failure nor funding expiry releases it
+(`CNF-26`).
 
 **OPS-10** Retry. Only a `Failed` intent, only by a `User` request, only preserving the anchor
 fields of `OPS-8`, never a `Failed` pay that recorded an operation id — refused `conflict`,
@@ -212,7 +221,7 @@ Which task or thread does this is the implementation's (`ADR-0032`).
 (`OPS-43`), and at most one await (`OPS-16`). Ownership does not survive a restart and need not:
 cross-restart exactly-once rests on the deterministic operation ids, the protocol's send dedup
 and the operation-log backfill (`ADR-0024`), never on who owned the key. A re-drive requested
-while a key is being driven (`OPS-8`) MUST NOT be lost: when that drive ends with the same
+while a key is being driven (`OPS-8`) MUST NOT be lost. Outside `FMI-41` recovery, when that drive ends with the same
 attempt, or a newer one, `Pending`, the intent MUST be re-performed without waiting for the next
 reconcile pass; when it ends `Awaiting`, an awaiter MUST take the key over at once. Absent such
 a request, a drive that ends `Retryable` leaves its `Pending` key unowned until the next
@@ -220,6 +229,14 @@ reconcile pass: there is no in-driver retry loop, so the retry cadence is the re
 (`ALC-38`). Nothing on this path re-drives a planner-owned marker (`OPS-35`). A read fault while
 ownership is released MUST cause a reconcile pass in preserve mode (`OPS-35`), retried with
 bounded backoff until a scan completes.
+
+For `FMI-41` recovery, automatic and manual triggers MUST share per-key exclusion with all
+perform and await work; they MUST NOT submit overlapping claims or issuance retrievals.
+After an unresolved recovery attempt they release ownership for reconcile's bounded-backoff
+cadence, retaining the existing intent attempt and durable recovery evidence. A raw receive
+or direct inflow stays `Awaiting`; a send-required move resumes through its existing
+`Pending | Executing` drive path. Neither a re-drive request nor awaiter handoff starts an
+endless recovery loop or holds a slot between attempts (`CNF-26`).
 
 **OPS-15** The per-intent perform timeout (`FMI-22`; `HST-2` names the daemon's setting) bounds
 one perform. On expiry the wallet MUST abandon the drive — no further IO is issued from the
@@ -230,10 +247,18 @@ the executor's idempotency (`OPS-43`); whether it rests `Executing` until reconc
 be timed out (`FMI-21` and `FMI-30` bound them). The transport bound `FMI-38` is the inner bound
 and is not replaced by this one.
 
+An incoming recovery attempt under `FMI-41` has the same timeout and abandonment rule. An
+`Awaiting` receive remains `Awaiting`, ready for a later recovery step at the same attempt;
+it is not reset to `Pending` or terminalized by the timeout (`CNF-26`).
+
 **OPS-43** The drive step is the only path by which a journaled intent is **performed** — issued
 or re-issued to a federation or gateway — on every host. The one other route to network IO is
-the awaiter of an `Awaiting` raw pay, receive or direct inflow, which awaits and never re-performs
-(`OPS-16`). In order:
+the awaiter of an `Awaiting` raw pay, receive or direct inflow, which awaits without re-issuing
+the original effect (`OPS-16`). Incoming recovery uses a bounded perform under `FMI-41`:
+for an `Awaiting` intent it re-reads and fences on that status and the same attempt, runs only
+the claim or issuance recovery, and leaves unresolved work `Awaiting`. It shares `OPS-14`'s
+exclusion; it does not take the `Pending → Executing` transition below or re-issue the
+original receive. `CNF-26` demonstrates this recovery path. For ordinary drives, in order:
 
 1. `Pending` → **claim**: one atomic `Pending → Executing` transition conditioned on the key and
    attempt, which blanks `evacuation_refusal` in the same transaction (`STO-9`). A claim that
@@ -286,21 +311,26 @@ other intent uses the strict projection. Each checked endpoint's balance is samp
 the arithmetic of `OPS-7` under the stored cap; its refusal is `Permanent` and terminalizes the
 intent. `CNF-55` demonstrates admission on crash resume and before new funding.
 
-**OPS-16** An **awaiter** owns an `Awaiting` intent. For a raw `Pay` or `Receive` it MUST:
+**OPS-16** An **awaiter** owns an `Awaiting` intent outside `FMI-41`'s recovery work. For a raw `Pay` or `Receive` it MUST:
 require the intent's recorded operation id (absent → `Permanent`); wait for the protocol's final
 state of that operation (`FMI-38` bounds each wait); map it to a ledger status — a send's
 `Success → Succeeded`, `Refunded → Failed "send refunded"`, `Failed → Failed` with the detail; a
-receive's `Claimed → Succeeded`, `Expired → Failed "receive expired"`, `Failed → Failed` with the
-detail — under the error prefixes `FMI-37` requires; prepare the terminal (`OPS-46`) **before**
+receive's `Claimed → Succeeded`, never-funded `Expired → Failed "receive expired"`, and
+**any other final receive state → `FMI-41` handling**, including an SDK `Uneconomical` state.
+An unresolved recovery yields ownership to reconcile under `OPS-14`, without preparing a
+terminal; a definitive failure carries `FMI-37`'s receive prefix. For a wallet terminal
+conclusion, prepare the terminal (`OPS-46`) **before**
 taking any exclusive hold, since preparation may read the federation; then, under the terminal
 hold (`OPS-41`), finalize — the ledger advance and `Awaiting → Done | Failed` in one transaction,
 adopting the observed operation id — and release the hold. A `DirectInflow` awaiter MUST: re-read
 the intent (`Done | Failed` → finished; any status other than `Awaiting` → `Permanent`); backfill
 the move record from the operation log (`OPS-20`); only when reassembly is not unknown under
 `OPS-20`, require the receive operation id (absent → `Permanent`); wait for the receive's final
-state; then under the hold settle the record — phase
-`Settled`, or `Failed` with the outcome "receive invoice expired before payment" or the
-protocol's detail; a fenced write that does not apply → `Retryable` — and finalize (`Awaiting →
+state; apply the same `Claimed`, never-funded `Expired`, and any-other-final-state mapping
+to `FMI-41`. Only a wallet terminal conclusion settles the record under the hold — `Settled`
+on claimed, or `Failed` with "receive invoice expired before payment" on never-funded expiry,
+or with `FMI-41`'s definitive failure detail; a fenced write that does not apply → `Retryable`
+— and finalize (`Awaiting →
 Done | Failed` conditioned on the attempt; a conditional write that does not apply is success,
 the intent being already terminal).
 
@@ -313,7 +343,10 @@ was observed — preparation, finalization, taking or releasing the hold — is
 1 s, off the admission point, and retries ownership: a new awaiter runs only while the same
 attempt is still `Awaiting`. A `Permanent` outcome writes `Failed` with `error = "service
 awaiter permanent failure: …"`; if that write errors, the awaiter waits 1 s and retries ownership
-instead.
+instead. Once `FMI-41` recovery is identified, its outcome classification and reconcile
+cadence govern instead of this one-second awaiter loop; an issuance retrieval failure cannot
+be converted into an awaiter permanent failure. `CNF-26` covers raw receives, direct inflows
+and their recovery handoff.
 
 A caller awaits an operation by key, target and deadline: an unknown key is not found
 (`API-11`); target **invoice** resolves as soon as the intent's `invoice` or the move record's
@@ -599,16 +632,23 @@ send through that same send-leg gateway, accepting a started or an already-in-fl
 
 **OPS-27** Awaiting settlement: await the **send first**. Any await error → `Retryable`,
 reservations retained. `Success(preimage)` → persist the preimage **before** awaiting the receive;
-any receive await error → `Retryable`; `Claimed → Settled`; `Expired | Failed → Stranded` with the
-anchor string "send settled but receive was not credited". `Refunded → Refunded`; `Failed(msg) →
+any receive await error → `Retryable`; `Claimed → Settled`; never-funded `Expired` is a
+definitive non-claim; **any other final receive state → `FMI-41` handling**. Only a definitive
+non-claim — never-funded expiry, `not_claimable` or `uneconomical` — yields `Stranded` with
+the anchor string "send settled but receive was not credited" and the receive detail
+(`receive failed:` for `FMI-41` failures). Claim retry and pending issuance remain
+`Retryable`, with the receive's reservation and the settled send's preimage and evidence
+retained; recovery MUST NOT send again. The send mapping stays `Refunded → Refunded`; `Failed(msg) →
 Failed` — what each `Failed` proves is `FMI-37`, and a forfeited send can still arrive as
 `Success` (`FMI-23`). `Settled → Done`; every other terminal phase → `Permanent(outcome)`.
-**Stranded is therefore exactly: a settled send with a preimage and an op-terminal non-claim on
+**Stranded is therefore exactly: a settled send with a preimage and a definitive non-claim on
 the receive.** It is terminal; the allocator view releases both reservations for it. A move
-perform is synchronous to `Done`; a direct inflow returns `Awaiting` after minting and is
+perform awaits settlement until completion or a bounded return for later recovery (`FMI-41`,
+`OPS-15`); a direct inflow returns `Awaiting` after minting and is
 finalized by its awaiter. A direct inflow that resumes with its invoice and receive operation id
 recovered re-verifies the committed contract (`OPS-23`), re-persists the reassembled record and
-returns `Awaiting` with no further IO.
+returns `Awaiting` with no further IO. `CNF-26` demonstrates the receive outcomes and retained
+evidence, alongside `CNF-12`'s crash recovery.
 
 **OPS-28** Four killpoints. A move MUST survive an uncatchable abort at each of these points and
 complete exactly once on resume (`CNF-12` demonstrates all four):
@@ -709,15 +749,22 @@ drives it, still skipping while poisoned, and suppresses the wake of its next re
 — then fail an orphaned probe leg whose session is gone (`Failed` "probe session is no longer
 active"), skip registry-owned keys, normalize `Executing → Pending` (a plain status write, the
 marker untouched), and drive (`OPS-14`); then scan the `Awaiting` intents and spawn an awaiter for
-every unowned key. A pass performs at most **one** drive step (`OPS-43`) per intent; a step that
-ends `Retryable` or with a structural refusal leaves the intent `Pending` for a later pass.
+every unowned key, except that `FMI-41` claim retry or pending issuance schedules only its
+bounded recovery step when its backoff is due. The same due check applies before driving a
+send-required move in that recovery state. A pass performs at most **one** drive step
+(`OPS-43`) per intent; an ordinary drive that ends `Retryable` or with a structural refusal
+leaves the intent `Pending` for a later pass. Unresolved `Awaiting` recovery stays `Awaiting`
+under `OPS-14`.
 Before stepping, a pass MAY backfill the move record of every pending and awaiting move-shaped
 intent from the operation log (`OPS-20`; a failure is logged and that intent skipped). This
 optional backfill does not replace the reassembly required at perform by `OPS-45` or at await by
-`OPS-16`. What `POST /v1/reconcile` runs after the pass is `API-24`.
+`OPS-16`. `CNF-26` demonstrates resuming claim and issuance recovery after restart.
+What `POST /v1/reconcile` runs after the pass is `API-24`.
 
-**OPS-36** Reconcile never re-performs: `Awaiting` intents (re-attached only), `Done`, `Failed`,
-keys a live driver owns, and planner-owned markers under the preserve or capture modes.
+**OPS-36** Reconcile never re-performs `Done`, `Failed`, keys a live driver owns, or
+planner-owned markers under the preserve or capture modes. For `Awaiting` intents it never
+re-issues the original effect: it re-attaches for ordinary settlement or schedules only
+`FMI-41`'s bounded recovery step (`CNF-26`).
 
 **OPS-37** Repair. Ledger repair (`STO-24`) — its scan and its ledger-row repair — runs off the
 admission point, while the one reservation-releasing write it makes, the raw terminal repair of
@@ -761,6 +808,7 @@ reason a condition yields; how an implementation derives the reason is its own:
 
 **OPS-40** The wallet MUST NOT attach a cause to a money state it did not observe in what it
 records or emits: the ledger `error` (`STO-35`) and the operation views (`API-12`) state what the
-state **is** — `Stranded` is "a settled send with a preimage and an op-terminal non-claim on the
+state **is** — `Stranded` is "a settled send with a preimage and a definitive non-claim on the
 receive" (`OPS-27`) — and never why it arose or what would recover it (`DEF-20`). The operator's
-account of causes and responses is the code repository's runbook (`HST-32`).
+account of causes and responses is the code repository's runbook (`HST-32`). `CNF-26`
+demonstrates the evidence reported for receive recovery and stranding.

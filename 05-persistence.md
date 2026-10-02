@@ -322,10 +322,18 @@ same key is a no-op).
 
 A re-claim (`API-42`, `FMI-41`) writes one `Reclaim` row per attempt, keyed
 `reclaim:<nonce>:<key>` (`STO-6`): `actor User`, `reason UserInitiated`, `fees` default,
-`repaired false`; `status Succeeded` with `error` `None` on the outcome `claimed`, and `status
-Failed` on `not_claimable` — the attempt claimed nothing — with an `error` that states only
-what the attempt observed (`OPS-40`; the text is informative). It describes no
-intent and is written best-effort (`OVR-4`); the reclaimed operation's own row is not touched. `Reclaim`
+`repaired false`; `status Succeeded` with `error` `None` on `claimed`, and `status Failed`
+on `not_claimable`, `uneconomical`, `transient` or `issuance_pending`. The latter rows record
+that the manual attempt did not obtain issued notes; their `error` begins with the wire
+outcome followed by `:` and states only what was observed (`OPS-40`; the remaining text is
+informative). A failed audit attempt MUST NOT terminalize a still-recoverable receive.
+Every eligible manual call gets a row, including claimed replay; refused calls get none
+(`API-42`). The row describes no intent and is written best-effort (`OVR-4`). Recording it
+does not itself update the target operation's row. Normal terminalization of a **live** target
+under `FMI-41` still advances its intent and ledger together (`STO-16`), retaining the earlier
+failure evidence `FMI-41` requires even when the ledger's current error changes. An already
+terminal target keeps its record under `STO-16`'s existing terminal-write protection;
+reclaim introduces no terminal-history rewrite. `CNF-26` demonstrates these audit cases. `Reclaim`
 is a variant added to a persisted enum, which `OVR-14` allows for `OperationKind` alone: a
 build without it cannot decode the row and skips it as unreadable (`STO-19`, `STO-22`), and
 nothing else about that build changes.
@@ -448,6 +456,9 @@ are:
 | a tick or discovery row is interrupted | `interrupted — no terminal report` |
 | a raw row has no operation after one hour | `never reached the federation` |
 | a raw row is matched by payment hash rather than by attempt | `correlated by payment hash to an existing payment of this invoice; attempt-level correlation uncertain (deduped retry or never-sent attempt); the matched operation is authoritative` |
+
+An observed receive follows `FMI-41`'s evidence classification; repair MUST NOT turn claim
+retry or pending issuance into a terminal receive failure (`CNF-26`).
 
 When a note accompanies an operation's own terminal error the stored text is `"{note}
 ({err})"`. A raw terminal repair re-drives the intent to its terminal (`OPS-37`) except for the

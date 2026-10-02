@@ -377,8 +377,8 @@ range-checked `1..=10000` and `--evac-fee-bps` `0..=10000` **at parse time** (`A
 | 0 | success |
 | 1 | usage, not found, any non-JSON 4xx other than 401, argument parse error |
 | 2 | refused at decision time; nothing journaled |
-| 3 | failed; a journaled terminal failure, message carries the key |
-| 4 | transport: connection refused, timeout, any 5xx, missing pointer or token, await deadline |
+| 3 | failed; a journaled terminal failure, including a definitive unsuccessful reclaim attempt (`API-42`); message carries the key |
+| 4 | transport or unresolved reclaim: connection refused, timeout, any 5xx, missing pointer or token, await deadline; `API-42`'s `transient` and `issuance_pending` outcomes |
 | 5 | authentication (401) |
 
 The mapping from an error envelope (`API-5`) is by `kind`, with one status edge:
@@ -392,6 +392,8 @@ prefixed by layer: `refused: <message>: <reason>`, `failed: <message> (operation
 `auth error: <message>`; transport and usage messages carry no prefix, and the not-running case
 is the two-line `walletd is not running (or not initialized): <detail>` / `start walletd, or
 rerun with --standalone`. stderr text is informative; the exit code is the contract.
+The five successful-HTTP reclaim responses map by `API-42`'s outcome table, not by the
+target operation's ledger status. `CNF-26` demonstrates each exit code.
 
 **API-29** Output shapes are frozen: a money verb prints `<word> <key>` to stdout and `key: <key>`
 to stderr; `receive`/`direct-inflow` print the invoice to stdout; await verbs print `claimed`,
@@ -503,6 +505,10 @@ verbatim `422` message (no `refuse_reason`) unless stated:
 | `limit`/`before_seq` not unsigned integers | `history` | `invalid query parameters: …` (`API-10`) |
 | `wait` not a bool literal | `operations/{key}` | `invalid query parameters: …` (`API-11`) |
 | policy body not an object / unknown key / missing or mistyped field | `policy` PUT | `API-20` |
+| receive ended never-funded `Expired` | `reclaim` | `incoming contract was never funded` |
+
+The never-funded reclaim refusal attempts nothing and journals no reclaim row (`API-42`,
+demonstrated by `CNF-26`).
 
 Balance sampling then reads the live balance of every *open* federation the verb names; a
 federation that is joined but not open is omitted from the sample (admission treats it as zero
@@ -578,22 +584,46 @@ omitted from the request when not given, so the daemon-side policy defaults of
 `API-18`/`API-19`/`API-21` apply.
 
 **API-42** `POST /v1/operations/{key}/reclaim`, with an empty body, and the CLI verb
-`reclaim <key>` carry the re-claim `FMI-41` requires. `{key}` MUST name an operation whose
-incoming contract reached a terminal non-claim — a `receive` whose state is `Expired` or
-`Failed`, or a `direct-inflow`, `move` or `evacuation` whose receive leg did, a `Stranded` move
-included (`OPS-27`); an unknown key is `404 not_found`, and any other operation is `422 refused`
-with nothing attempted (`API-6`). The wallet attempts the claim synchronously; the response is
-`200 {operation_key, outcome}`, where `operation_key` is `{key}` — the reclaimed operation's,
-never the attempt's own `reclaim:` row key, which `history` lists (`STO-6`, `STO-15`) — and
-`outcome ∈ claimed, not_claimable`: `claimed` when the
-wallet holds the contract's notes after the call, whether this call or an earlier one claimed
-them; `not_claimable` when the contract is expired or was consumed by another claimant. The
-call is idempotent — repeating it returns the same outcome and never claims twice — and every
-attempt leaves a ledger row, written best-effort, so it "MAY be absent after a storage error
-and for no other reason" (`OVR-4`) and its absence never changes the response. It requires the bearer token like every route (`API-2`),
-and the break-glass gateway override is ignored on it, as on every verb that resolves no route
-(`ADR-0030`). The verb prints the outcome and exits 0 on `claimed`, 3 on `not_claimable` with
-the key in the message, and per `API-28` otherwise.
+`reclaim <key>` manually trigger `FMI-41` recovery. `{key}` MUST name one of:
+
+- a receive or receive leg in claim retry or with issuance pending;
+- a receive `Failed` with `FMI-37`'s `receive failed:` anchor;
+- the receive leg of a `Stranded` move;
+- a receive whose contract this wallet claimed, for claimed replay.
+
+Receive legs include `direct-inflow`, `move` and `evacuation`. An unknown key is
+`404 not_found`; other ineligible operations are `422 refused` under `API-6`, with nothing
+attempted or journaled. In particular, a never-funded `Expired` receive is refused with
+`API-36`'s fixed message, CLI exit 2.
+
+The wallet synchronously runs one bounded recovery attempt (`FMI-41`, `OPS-15`), or observes
+the result of work already owning the key under `OPS-14`, without overlapping it. The response
+is `200 {operation_key, outcome}`, where `operation_key` is `{key}` — the target operation's,
+never the manual attempt's `reclaim:` row key (`STO-6`, `STO-15`). `outcome` is one of these
+five wire strings; the evidence classification and resulting live-operation transitions
+belong to `FMI-41`:
+
+| `outcome` | Meaning | CLI exit |
+|---|---|---|
+| `claimed` | This contract's notes have issued to this wallet, in this call or earlier. | 0 |
+| `not_claimable` | Definitive consumption by another claimant. | 3 |
+| `uneconomical` | The claim's federation fee is at least the funded, unconsumed contract's amount. | 3 |
+| `transient` | No definitive result or accepted-claim evidence is established; recovery remains unresolved, including on unreachability, rejection or timeout. | 4 |
+| `issuance_pending` | The wallet has its own accepted-claim issuance evidence, but the notes have not issued. | 4 |
+
+With known pending issuance, a failed retrieval or timeout still answers `issuance_pending`,
+never `not_claimable` or a terminal receive failure. The CLI prints the wire outcome to stdout;
+for any non-claimed outcome its stderr message carries the target key. Other errors follow
+`API-28`. Idempotency forbids duplicate monetary effects and requires stable `claimed`
+replay, including after a lost response; a `transient` or `issuance_pending` observation may
+later become `claimed`.
+
+Every eligible manual call, including an unresolved observation or repeated `claimed` call,
+leaves its own audit row under `STO-15`, written best-effort: it "MAY be absent after a
+storage error and for no other reason" (`OVR-4`); its absence never changes the response.
+The route requires bearer authentication (`API-2`), and ignores the break-glass gateway
+override as a verb that resolves no route (`ADR-0030`). `CNF-26` demonstrates eligibility,
+all outcomes, replay and audit behavior.
 
 **API-43** The open-history filter. `GET /v1/history?status=open` (`ADR-0028`:
 "`/v1/history` gains a `?status=open` filter — a read-only journal query") returns only rows
