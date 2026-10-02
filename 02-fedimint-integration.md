@@ -238,8 +238,8 @@ NOT fund a second outgoing contract; it reports the original operation, which th
 attach to as **already in flight** rather than treat as an error. Re-issuing a send after a crash
 therefore cannot double-pay as long as the source client's store survives; a seed recovery
 mid-send discards that dedup and is the one real double-pay hazard (`FMI-32`). The wallet always
-names the gateway. The protocol's own pre-fund refusals, and the class each MUST take
-(`OPS-17`):
+names the gateway. The following pre-fund outcomes and classifications are wallet requirements,
+whether enforced by the SDK or by the wallet around it (`OPS-17`):
 
 | Refusal | Condition | Wallet class |
 |---|---|---|
@@ -249,11 +249,15 @@ names the gateway. The protocol's own pre-fund refusals, and the class each MUST
 | wrong currency | invoice network ≠ the federation's network | `Permanent` (invoice defect) |
 | federation not served | the gateway's `routing_info` returned `null` | `Permanent` (route defect) |
 | gateway fee over limit | the send fee schedule exceeds the limit (`FMI-19`) | `Permanent` (route defect) |
-| gateway expiration over limit | the gateway's expiration delta exceeds 1 440 blocks | `Permanent` (route defect) |
+| gateway expiration over limit | the expiration delta of the terms to be funded exceeds 1 440 blocks, even if the earlier quote did not | `Permanent` (route defect); nothing funded |
+| terms changed | a selected quote fit but changed terms exceed the send allowance, or the implementation elects the permitted stricter refusal of any change (`OPS-29`) | `Retryable`; no outgoing contract funded; re-quote on the next eligible drive |
 | gateway unreachable, consensus read failed, funding failed | transport, consensus-read or funding fault | `Retryable` |
 
 A failure before the protocol call: an unparseable invoice is `Permanent` (an input defect that
 no retry changes); an unparseable gateway URL or a missing lnv2 module is `Retryable`.
+The expiration ceiling applies to the terms actually funded, independently of `OPS-29`'s
+cost guarantee; an in-ceiling expiration change does not itself require refusal. `CNF-9`
+demonstrates both boundaries and the permitted stricter changed-terms refusal.
 
 **FMI-18** Fee shapes. A gateway fee is `base + floor(amount × parts_per_million / 1 000 000)`,
 the multiplication saturating in `u64` before the division — the protocol's `PaymentFee`. The

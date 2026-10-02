@@ -76,6 +76,49 @@ falls once by the invoice amount plus a fee within the cap, and a third submit a
 is answered with the existing outcome. Demonstrates `FMI-16`, `FMI-17`, `OPS-8`, `OPS-17`,
 `OPS-18`, `OPS-29`.
 
+For the following independent Pay cases, use fresh invoices of 100 000 msat, a cap of
+10 000 msat, 200 000 msat spendable on A with no other reservations, and successful transport
+and settlement. Even the over-cap send could be funded from that balance if the cap were ignored.
+The gateway's applicable send schedule has zero proportional fee and the base named below;
+the federation send quote on **each actual outgoing contract amount** is 1 000 msat except
+in case 1's explicitly varied federation-quote control. All
+posted schedules stay within both components of `FMI-19` throughout, so its schedule filter
+cannot mask a wallet-cap refusal. Run each case first through ordinary vetted routing with
+one candidate, then as a manual `pay` with a valid break-glass gateway outside A's vetted list
+armed for that operation's key alone. That gateway answers valid `routing_info` for A and
+can pay the Lightning destination; no allocator decision into an ineligible federation is needed.
+
+1. *Given* a selected quote of 6 000 + 1 000 = 7 000 msat, *when* the gateway raises its fee
+   to 9 500 msat before funding, *then* the resulting 10 500 msat cost is refused as
+   `Retryable` under `OPS-29`: no outgoing contract and no corresponding source debit exist.
+   The operation retains its evidence, reservation and attempt; its next eligible drive
+   re-quotes. Restore the gateway fee to 6 000 and keep it stable: the operation completes
+   once within its cap, without a user retry or attempt increment. As a separate initial-quote
+   control, start with the sole candidate already quoting 9 500 + 1 000: that Pay instead
+   takes `OPS-17`'s `Permanent` over-cap result and funds nothing.
+   Repeat the changed-terms refusal with a send fee of 8 000 and a federation quote of 2 500
+   on the new outgoing amount, while the quote on the old amount remains 1 000: the new
+   10 500 total is still refused. Reusing the old federation quote would incorrectly admit it.
+2. *When* the selected 6 000-msat gateway fee changes before funding to 8 000 (an increase),
+   or independently to 4 000 (a decrease), *then* either the wallet funds safely at the changed
+   terms or it returns the permitted stricter `Retryable` with no outgoing funding and
+   re-quotes. Hold the new terms stable; each operation then completes once, with total fees
+   of 9 000 or 5 000 msat respectively. Refusal forever is not a passing outcome.
+3. *Given* the fitting 7 000-msat total fee, keep it unchanged and change only the applicable
+   expiration delta from 100 to 200 blocks between selection and funding. *Then* funding at
+   200 is permitted; a stricter implementation may instead return `Retryable` with nothing
+   funded and re-quote. With 200 held stable, the send completes once. Independently change
+   100 to 1 441 blocks: no outgoing contract or source debit may occur under `FMI-17`.
+   Its expiration-over-limit class is `Permanent`; if a stricter all-terms check first returns
+   `Retryable`, the next drive with 1 441 held stable reaches that `Permanent` refusal.
+4. *Given* a send funded at fitting terms, *when* the gateway changes its terms to the
+   over-allowance fee or above-ceiling expiration while settlement is pending, and the wallet
+   restarts and replays the same operation, *then* it attaches to the funded send and observes
+   its settlement. It does not terminalize it for the new terms or fund another send; one
+   source debit and one settled payment remain, including on a further replay after success.
+
+These cases additionally demonstrate `SEC-7`.
+
 **CNF-10** *Given* the environment, *when* the wallet issues a direct inflow of an amount into
 A and the invoice is paid, *then* A is credited **never more** than the amount and at most
 1 000 msat less — the gross-up's bounded shortfall plus the federation's mint output fee on the
@@ -88,6 +131,45 @@ claim — and the invoice amount is what the payer paid. Demonstrates `FMI-15`, 
 *then* B rises by exactly the amount, A falls by the amount plus the receive and send fees, the
 total fee is within the move's cap, and both legs' operation ids are on the move's ledger row.
 Demonstrates `OPS-19`, `OPS-22`, `OPS-24`, `OPS-26`, `OPS-27`, `OPS-29`, `STO-33`.
+
+For independent changed-terms cases, use a Move delivering 100 000 msat with an enforced cap
+of 10 000 msat and a committed invoice of 104 000 msat: a fixed receive cost of 4 000 msat
+(receive gateway base 4 000, zero proportional and federation receive fees). The source
+federation's send quote on each outgoing contract amount is 1 000 msat. Set the initial send
+gateway base to 4 000, zero proportional fee, so the initial combined cost is
+4 000 + (4 000 + 1 000) = 9 000 msat. Give A 200 000 msat spendable with no other reservations
+and B sufficient cap room, so even the over-cap send would be affordable. Keep all schedules
+within `FMI-19` and both legs otherwise able to complete. Repeat through ordinary vetted routing
+and a manual `move` whose valid single-operation break-glass gateway is outside the vetted lists
+but answers valid `routing_info` and performs for both ends. The receive artifact commits that
+route before the changes below; subsequent drives retain it under `OPS-20`.
+
+1. *When* the gateway raises the send base to 5 500 after the fitting send quote is selected
+   but before funding, *then* `OPS-29` refuses it as `Retryable`: the send cost of
+   6 500 is below the whole 10 000 cap but above the remaining 6 000 allowance. No outgoing
+   contract or corresponding source debit occurs. The committed invoice, receive operation
+   id, route, cap, evidence and reservations remain; neither the move nor its intent becomes
+   terminal, and the attempt does not increment. Its next eligible drive re-quotes. With the
+   original 4 000 send base restored and held stable, it pays that same invoice and completes
+   once, debiting A 109 000 and crediting B 100 000 msat.
+2. *When* the selected send base changes instead to 5 000, or independently to 3 000, *then*
+   either the wallet funds at the changed terms or it returns the permitted stricter
+   `Retryable`, retains the receive artifacts and re-quotes. Hold the new terms stable: each
+   completes once, at total fees of 10 000 or 8 000 msat respectively, without a new receive.
+3. *Given* a separate persisted-record fault fixture with that same committed receive but a
+   recorded enforced cap of 3 000 msat, *when* the pay step is reached, *then* the fixed receive
+   cost alone exceeds the cap and its refusal stays `Permanent`. This fixture supplies the
+   inconsistent cap as environmental input, not as an outcome of compliant receive admission.
+   With the original 10 000 cap, the 4 000 fixed receive cost above and a send already quoting
+   6 500 at the start of the pay step, the combined
+   over-cap refusal stays `Retryable`. Neither control funds an outgoing contract (`OPS-26`).
+4. *Given* a send funded within the cap, *when* the gateway raises its fee above the remaining
+   allowance and the wallet crashes before caching the send id, *then* restart with the cache
+   present or lost recovers and settles the existing send under `OPS-20`, `OPS-27` and
+   `CNF-12`. The fee change neither terminalizes it nor authorizes another send or receive;
+   the source is debited once and the destination credited once.
+
+These cases also demonstrate `FMI-17`, `OPS-20` and `SEC-7`.
 
 **CNF-12** *Given* a fresh move from A to B for each of the four killpoints of `OPS-28` —
 before the move record, after the receive commit, before the send, after the send commit —
@@ -274,7 +356,28 @@ sized ask, *when* the evacuation is planned, sized and driven, *then* no fee abo
 the delivered net is paid, at the pre-mint gate or at the post-receive recompute — the leg is
 refused or resized. *Given* a receive committed under that cap, *when* the wallet restarts with its cache
 lost and replays the attempt, *then* the cap it enforces is the one persisted with the receive,
-not a recomputed planning cap. Demonstrates `ALC-20`, `ALC-21`, `OPS-22`, `OPS-25`, `OVR-7`.
+not a recomputed planning cap.
+
+Independently, *given* an agent evacuation admitted while B is eligible, with a committed
+receive at delivered net `n`, nonzero fixed receive cost `r`, and enforced cap
+`C = cap.at(n)` persisted with that receive, choose `0 < r < C < n` and a larger planning
+cap `P > C`. Let a fitting selected send cost be `s0` with `r + s0 ≤ C`. *When* the gateway
+raises its send fee before funding so the new send cost `s1` (including the federation quote
+on the new outgoing amount) satisfies `C − r < s1 < C` and `r + s1 ≤ min(P, n)`, *then*
+the evacuation is `Retryable`, with no outgoing contract or source debit. The schedule stays
+within `FMI-19`; the total stays viable and fits the planning cap, isolating enforcement of
+the committed delivered-net cap and its remaining allowance under `OPS-29`.
+Choose destination cap room to limit sizing, leaving the source enough spendable balance to
+fund even `invoice + s1`; insufficient source balance must not mask the cap refusal.
+
+*When* the wallet restarts with its cache lost before any send is funded, *then* the receive
+artifacts, committed route, enforced cap, same attempt and reservations survive reassembly.
+It re-quotes and still refuses `s1`, never substituting `P`. With fees restored to stable
+`s0` and all other preconditions satisfied, it completes once through that recorded route,
+without another receive; a replay after funding even with `s1` restored attaches to that send
+and settles it once. This is an automated vetted-route case; `CNF-11` supplies the independent
+manual break-glass case without relying on an ineligible allocator destination.
+Demonstrates `ALC-20`, `ALC-21`, `OPS-22`, `OPS-25`, `OPS-26`, `OPS-29`, `SEC-7`, `OVR-7`.
 
 **CNF-24** *Given* a dying federation A and a policy whose evacuation cap is base-only (`bps =
 0`) with a base below the summed bases of G's fees at both ends, *when* a tick plans and drives

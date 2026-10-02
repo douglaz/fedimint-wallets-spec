@@ -420,11 +420,12 @@ send quote on `amount + gw_quote`; either quote failing skips the candidate; kee
 quote {lowest} msat exceeds fee cap {cap} msat")`; nothing quoted from the vetted list →
 `Permanent("no lnv2 gateway produced a send fee quote for federation {hex}")`; nothing quoted
 from a break-glass → `Retryable("break-glass gateway {url} produced no send fee quote for
-federation {hex}")`. Issue the lnv2 send through the chosen gateway with the raw metadata
-(`STO-34`); the protocol's refusals classify per `FMI-17`. Persist the operation id (fenced;
-stale → `Retryable`) and return `Awaiting` for a started send, already in flight for a
+federation {hex}")`. Issue the lnv2 send subject to `OPS-29` through the chosen gateway with
+the raw metadata (`STO-34`); pre-fund refusals classify per `FMI-17`. Persist the operation id
+(fenced; stale → `Retryable`) and return `Awaiting` for a started send, already in flight for a
 deduplicated one (both journal as `Awaiting`). A crash between the send and the artifact write is
-recovered by the hash lookup above. Terminalization is the awaiter's (`OPS-16`).
+recovered by the hash lookup above. Terminalization is the awaiter's (`OPS-16`). `CNF-9`
+demonstrates quote selection, funding and replay.
 
 **OPS-18** `Receive`. If the intent records an operation id: require the intent's `invoice`
 (`Permanent`), run the committed-fee check below and return `Awaiting`. Else look in the
@@ -642,8 +643,9 @@ send_gw` + the federation's send quote on `invoice_msat + send_gw` (a quote erro
 the receive quote after a cache loss); **both-leg cap check** on `rec.fee_cap`: the fixed receive
 quote alone over the cap → `Permanent`, the total over → `Retryable`; for `Evacuate` the
 viability check (`receive > net` → `Permanent`, `total > net` → `Retryable`); issue the lnv2
-send through that same send-leg gateway, accepting a started or an already-in-flight outcome
-(`FMI-17`); persist the send operation id, phase `Sending`.
+send subject to `OPS-29` through that same send-leg gateway, accepting a started or an
+already-in-flight outcome (`FMI-17`); persist the send operation id, phase `Sending`.
+`CNF-11` and `CNF-43` demonstrate the funding boundary.
 
 **OPS-27** Awaiting settlement: await the **send first**. Any await error → `Retryable`,
 reservations retained. `Success(preimage)` → persist the preimage **before** awaiting the receive;
@@ -683,11 +685,38 @@ implementation injects the aborts to prove this is its own (`SEC-18`).
 
 | Action | Pre-mint / pre-fund | Both legs | Base |
 |---|---|---|---|
-| Pay | cheapest `gw + fed ≤ fee_cap`, else `Permanent` | — | absolute `fee_cap` (default `max_fee`) |
+| Pay | initial selection: cheapest `gw + fed ≤ fee_cap`, else `Permanent` | — | absolute `fee_cap` (default `max_fee`) |
 | Receive | cheapest fitting, then committed-contract re-check | — | absolute |
 | DirectInflow | receive leg ≤ `fee_cap` (`Permanent`) | — | absolute; gross-up bounded by it |
 | Move | receive leg ≤ `fee_cap` (`Permanent`); fallback route priced at the amount | fixed receive + re-quoted send ≤ `fee_cap` | `floor(amount × max_fee_bps_of_move / 10 000)` stamped by the allocator (`ALC-7`) |
 | Evacuate | sizing at delivered net; receive leg ≤ `cap.at(delivered)` (`Retryable`) | same, on `cap.at(delivered net)` + viability | `base + floor(net × bps / 10 000)` (`ALC-20`) |
+
+**Funded send cost.** Before funding any outgoing contract, the wallet MUST ensure that the
+fee carried by the contract actually funded plus the federation's send quote on that outgoing
+contract amount fits the admitted send allowance. For raw Pay the allowance is its admitted
+`fee_cap`. For a send-required move, including Evacuate, it is the enforced cap **minus the
+fixed receive-side cost** (`OPS-26`), never the whole cap again. The evacuation cap remains the
+cap enforced at the committed delivered net, including on replay (`OPS-20`, `OPS-25`); neither
+the planning cap nor a cap recomputed at a larger amount may replace it. This guarantee applies
+to **every send**, including automated sends and the named operation's break-glass send
+(`ADR-0030`). Vetting is not a substitute for it.
+
+If a selected quote fits but changed send terms would exceed that allowance, the wallet MUST
+fund no outgoing contract and return `Retryable`; the next eligible drive MUST re-quote.
+A fee increase still within the allowance, or a cheaper re-quote, need not be refused; an
+implementation MAY instead refuse **any** change of terms, also as `Retryable` with no outgoing
+contract funded and a re-quote on the next eligible drive. `Retryable` here is the existing
+drive disposition (`OPS-4`), not a persisted intent status or a user retry that increments the
+attempt (`OPS-10`): evidence, committed receive artifacts and reservations remain retained.
+With stable fitting terms and otherwise successful execution, the operation completes; changed
+terms do not justify indefinite refusal after they stabilize.
+
+These pre-fund refusals do not alter initial-quote classifications (`OPS-17`, `OPS-26`),
+authorize another send or terminalize an already-funded one. Deduplication (`FMI-17`),
+reassembly (`OPS-20`) and settlement (`OPS-16`, `OPS-27`) continue to govern an existing send.
+This cost guarantee is separate from the funded expiration ceiling owned by `FMI-17`: it adds
+no quote-equality or no-increase rule for expiration. `CNF-9`, `CNF-11` and `CNF-43`
+demonstrate the guarantee and its replay boundaries.
 
 **OPS-42** `Join`: parse the invite (`Permanent`); join (`FMI-8`; an error → `Retryable`); the
 join is **new** iff `!membership_preexisting && (the protocol reported a new join || the
