@@ -33,14 +33,12 @@ two parts below and split on the third. Decided on 2026-09-24.
 - The wallet never fetches `meta_override_url`. `FMI-26` has two shutdown inputs (the at-join
   authenticated config expiry and corroborated `/status`), `SEC-14` and `ALC-39` lose the
   override-served value and its wake, and the threat model's malicious-guardian item says so.
-  The reference implementation replaces the SDK's meta source to comply.
 - Private egress is **one boolean host setting**, `allow_private_egress`, a new
   `walletd.toml` key (`HST-3`) with a standalone flag (`HST-10`), **default on**. While on,
   loopback, RFC 1918 and unique-local (`fc00::/7`) destinations are reachable for every
   class; a **floor** is refused regardless: link-local (`169.254.0.0/16`, `fe80::/10`) and
   the cloud metadata addresses (`169.254.169.254`, `fd00:ec2::254`, `100.100.100.200`).
-  Every contact with a private destination is logged with its provenance (vetted list, feed,
-  user, operator). Chapter 10's environment runs with the default and needs no setting.
+  Chapter 10's environment runs with the default and needs no setting.
 
 **Why default on.** The residual risk while the knob is on is blind, fixed-shape Fedimint API
 requests to private hosts from a guardian- or feed-chosen destination; the metadata floor
@@ -72,5 +70,5 @@ is expected to turn it off, and the setting is one line.
 the knob and the refusal outcomes (a rejected gateway is unavailable; a rejected discovery
 base is a source failure; a rejected guardian endpoint fails the preview, join, open or
 recovery using it); `SEC-16`, `SEC-17`, `FMI-28`, `HST-2`, `HST-10` cite; `FMI-26`, `SEC-14`,
-`ALC-39` lose the override input; `HST-3` gains the key; chapter 10 gains one scenario per
-class. `spec-22p` carries the edits and its chapter-11 entry is filed as answered by this ADR.
+`ALC-39` lose the override input; `HST-3` gains the key; chapter 10 gains CNF-56, the next free
+CNF identifier, one scenario with a case per destination class. `spec-22p` carries the edits.

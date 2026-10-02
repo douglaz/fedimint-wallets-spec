@@ -6,8 +6,7 @@ status: accepted
 `FMI-28` fetches `{base}/federations` from the Fedimint Observer but nothing says where `{base}`
 comes from, `STO-15` persists a `Nostr` discovery source that no requirement collects, and
 `ADR-0019` left open whether to consume the Observer as a bootstrap prior or run our own
-collection (`spec-6w6`). The reference implementation hard-codes the Observer URL in its
-scheduler, so a resident daemon has no operator knob at all. Decided on 2026-09-25.
+collection (`spec-6w6`). Decided on 2026-09-25.
 
 **Decided.**
 
@@ -25,11 +24,8 @@ scheduler, so a resident daemon has no operator knob at all. Decided on 2026-09-
   read (the code repository's June 2026 measurement found them content-free and
   non-predictive).
 - **Announcements are unauthenticated**, so a Nostr candidate gets `FMI-28`'s identity check
-  (the claimed id, the invite's embedded id and the previewed config's computed id agree)
-  and one more: an invite whose guardian endpoints are not the previewed config's endpoints
-  is dropped — the attack reported against the Observer's own Nostr sync (a real federation
-  id paired with an invite pointing at attacker infrastructure, fedimint-observer#126). The
-  wrong network (`n`) is dropped before preview. Relay URLs are operator-named destinations
+  (the claimed id, the invite's embedded id and the previewed config's computed id agree), as
+  `FMI-43` already requires. Relay URLs are operator-named destinations
   for `ADR-0034`'s egress rule; guardian endpoints inside announced invites are feed-chosen.
 - `FMI-43` becomes the Nostr collector's owner with the same bounds shape as `FMI-28` (a
   per-source share of the pass deadline, a per-relay time and size bound, a cap on events

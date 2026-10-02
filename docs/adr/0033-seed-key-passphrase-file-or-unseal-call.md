@@ -16,7 +16,8 @@ Keystore (`ADR-0011`) and is outside this decision.
 - The key is derived from an **operator passphrase** by a memory-hard KDF and used with an
   AEAD over the stored entropy (`ADR-0026` option 1). The slot's on-disk layout — a version
   discriminator that an older build cannot decode as entropy, the KDF parameters, the nonce,
-  the ciphertext and its associated data — is fixed under one `STO` identifier so that two
+  the ciphertext and its associated data — is fixed under STO-36, the next free STO identifier (defined by the change that writes it), so
+  that two
   implementations write interoperable stores.
 - The passphrase reaches `walletd` in one of two ways, as `lnd` does: a **passphrase file**
   named by a new `walletd.toml` key with an environment override (`HST-3`, `HST-2`), read at

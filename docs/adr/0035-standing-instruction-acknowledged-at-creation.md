@@ -49,7 +49,7 @@ only: each adds a stored consent state, an acceptance surface, a refusal reason 
 environment change to chapter 10, for a distinction the creation gate already makes. Treating
 the seeded policy row as the acknowledgement: `init` writes it without the user.
 
-**Consequences.** `spec-dn8` narrows to: an owning requirement (a new domain rule under the next free `DOM` identifier)
+**Consequences.** `spec-dn8` narrows to: an owning requirement (DOM-22, the next free DOM identifier, defined by the change that writes it)
 stating the acknowledgement's content, that creation and restoration require it, that the
 store records it, and that its existence is the proof; `HST-4` (`init`), `HST-10` (the
 standalone flag), the `restore-mnemonic` contract (it restores into `init`'s store and does not ask again) and

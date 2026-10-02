@@ -5,8 +5,8 @@ status: accepted
 
 When a gateway funds an incoming contract, the wallet's claim transaction can fail: the
 federation rejects it, or accepts it and then fails to issue the notes. The client SDK submits
-the claim once and reports `Failure`; no SDK version retries, and at the pinned revision a claim
-the client cannot build stops the client outright. A funded, unconsumed incoming contract has
+the claim once and reports `Failure`; it does not retry, and a claim the client cannot build can
+stop the client outright. A funded, unconsumed incoming contract has
 no claim deadline — the federation checks expiry only when the contract is funded — so the money
 is still recoverable. `FMI-41` required a retry "until the contract's expiry has passed", which
 has no referent for a funded contract, and offered an explicit re-claim for the operator
@@ -28,16 +28,15 @@ never definitive. A receive whose claim is being retried is a known state, not a
 outside the settlement-stall watchdog's count (`ALC-40`), so a federation that keeps rejecting
 claims cannot make the daemon exit and crash-loop, and it holds no slot of the external driver
 cap (`OPS-6`) between attempts; each attempt is one perform under the perform timeout (`OPS-15`). The explicit re-claim (`API-42`) stays as the operator's manual trigger for the
-same work and answers the same three outcomes plus a transient one and an in-recovery one; it is
+same work and answers the same three outcomes plus a transient one and an issuance-pending one; it is
 no longer the only
 recovery path. A contract **this wallet** consumed whose note issuance failed is reported as
 not claimable by the federation, but that is not definitive for the wallet: its notes may still
-be recovered from the operation's issuance evidence, never by a second claim. The receive stays
+be issued from the operation's issuance evidence, never by a second claim. The receive stays
 non-terminal, keeping its reservation, until that issuance resolves — credited (`Done`) or
-definitively lost (`Failed`) — so no inflow is admitted into room the recovered notes will
-fill. "This wallet consumed it" is the wallet's own evidence, not the federation's answer: its
+definitively lost (`Failed`) — so no inflow is admitted into room those notes will fill. "This wallet consumed it" is the wallet's own evidence, not the federation's answer: its
 issuance evidence holds an accepted claim transaction for the contract. `FMI-41` names what
-counts as definitively lost. While issuance is being recovered, the receive has the same
+counts as definitively lost. While its issuance is pending, the receive has the same
 standing as a retrying claim: outside `ALC-40`'s count and holding no `OPS-6` driver-cap slot
 between attempts.
 
@@ -53,9 +52,9 @@ count. No automatic retry at all: every transient failure becomes operator work.
 **Consequences.** `FMI-41` owns the rule (the retry, the three definitive outcomes, the
 transient class, the backoff bound as an engineering value) and loses the expiry clause;
 `FMI-37`'s receive row, `OPS-16`'s receive map, `OPS-27`'s move mapping (a move strands only on
-a definitive non-claim), `API-42`'s outcomes (a transient answer, and an in-recovery answer for a contract this wallet
+a definitive non-claim), `API-42`'s outcomes (a transient answer, and an issuance-pending answer for a contract this wallet
 consumed whose issuance is unresolved — never `not_claimable`) and its precondition, which widens
-to a receive or receive leg in claim retry or issuance recovery as well as one that reached a
-terminal non-claim, with `CNF-26`'s precondition and exit code for each, `ALC-40`'s count, `OPS-6`'s driver cap and `HST-32` align; a new prohibition says an
-uneconomical claim ends in a state and never stops the client. The pinned SDK exposes no
-re-claim entry point, so the reference implementation needs one — a code-repository hand-off.
+to a receive or receive leg in claim retry or with issuance pending as well as one that reached a
+terminal non-claim, with `CNF-26`'s precondition and exit code for each, `ALC-40`'s count, `OPS-6`'s driver cap and `HST-32` align; a new prohibition, DEF-26 (the next free DEF identifier), says an
+uneconomical claim ends in a state and never stops the client. The client SDK has no
+re-claim entry point, so an implementation provides one.

@@ -16,7 +16,7 @@ or a `DirectInflow` — fresh, on retry, and again at perform time, like the per
 (`OPS-7`, `OPS-45`) — gains one check: the wallet's **aggregate** plus the request's amount MUST
 NOT exceed `total_cap`, else the request is refused `over_cap`. Moves, evacuations and pays never
 trip the cap: they do not raise the total. Recovery from the seed (`FMI-31`) is never refused by
-it: recovery restores money the seed already owned, and `OPS-7` admits it without arithmetic; a
+it: recovery rebuilds money the seed already owned, and `OPS-7` admits it without arithmetic; a
 recovered total above the cap refuses new inflows like any total above it. While a recovery is in progress
 (a non-terminal `Recover` intent), the balance it will add is unknown, so the check fails closed:
 every inflow is refused as a transient refusal until the recovery commits or fails. Lowering the cap
@@ -37,11 +37,8 @@ the operations it has admitted, and it must keep three properties; the arithmeti
   own reservation, on a retry or at perform time, is not added again.
 - **Fail closed.** Any membership, balance, registry row, move record or projection the check
   cannot read or classify refuses the inflow as a transient refusal — retryable, nothing minted —
-  and is never left out of the sum, with the refusal the set already gives a failed read on the
-  admission path — `OPS-39`'s `storage_error` for a journal read, `API-36`'s `503 failed` for a
-  balance read — and a new `OPS-39` reason for a joined federation that is not open. Where a
-  move's state is
-  ambiguous, the check counts it on the side that refuses.
+  and is never left out of the sum; `OPS-7` names the inputs and the refusal. Where a move's
+  state is ambiguous, the check counts it on the side that refuses.
 - **Over-counts only refuse.** Where the projection briefly counts money twice — an inflow
   credited before its intent's terminal write, as the per-federation check already does — the
   effect is a refused inflow, never an inflow admitted past the cap.
@@ -57,8 +54,8 @@ software cannot hold. Capping the allocator's moves too: they cannot raise the t
 
 **Consequences.** Chapter 11's question 2 moves to *Answered* with this ADR. `OPS-7` owns the
 check; `DOM-15`, `STO-13` (the field, unset in the seeded row), `STO-30` (decodes when absent as
-unset, with its counts and `CNF-18`), `API-20`, `API-27` and `CNF-26` gain the parameter and their
-parameter counts move from twenty-eight to twenty-nine; the policy validity rule (`spec-pe4`)
-says a set value is positive; `OPS-39`'s `storage_error` row, `API-37`'s admission-read
-exception and `API-36`'s balance-read row gain the total-cap reads, and `OPS-39` the not-open
-reason; `ALC-9`'s and `SEC-9`'s sentences that call the question open cite this ADR instead; a scenario demonstrates a receive refused at the cap and a move unaffected.
+unset, with its counts and `CNF-18`), `API-20`, `API-27` and `CNF-26` gain the parameter, and every
+count of the Policy parameters moves with it; ALC-54, the policy validity rule and the next free
+ALC identifier, says a set value is positive; `ALC-9`'s and `SEC-9`'s sentences that called the
+question open cite this ADR; CNF-57, the next free CNF identifier after CNF-56, demonstrates a
+receive refused at the cap and a move unaffected.

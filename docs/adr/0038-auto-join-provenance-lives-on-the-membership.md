@@ -22,12 +22,10 @@ unproven slot and nothing else.
 - The registry row (`FederationInfo`, `STO-14`) gains `auto_joined: bool`, written with the row
   in the join's own transaction — `true` when auto-join (`ALC-29`) created the membership,
   `false` when a user `join` (`OPS-42`) or a recovery (`FMI-31`) did — and never changed by any
-  later write. A row without the field decodes as `true`: missing provenance counts against the
-  agent, never for it.
+  later write. The field is required: the set is greenfield, so no registry row predates it.
 - `lifetime` is the number of registry rows with `auto_joined` true; `weekly` is the number of
-  those whose `joined_at` lies within a rolling seven days of now (a join exactly seven days old
-  is outside the window; a `joined_at` later than now is inside it). A registry row that cannot
-  be read counts once in each. Neither count reads a candidate row or the ledger, so `approve`,
+  those whose `joined_at` lies within the last seven days; `ALC-29` states the window's
+  boundary and how an unreadable row counts. Neither count reads a candidate row or the ledger, so `approve`,
   a lost or repaired `join:` ledger row, and a reopen that writes no registry row change nothing.
 - `ALC-28` step 2's "agent-created" is `auto_joined` true, and its second branch uses the same
   field: a joined federation with no candidate row gets `AutoJoined` when `auto_joined` is true
@@ -55,7 +53,7 @@ unproven slot and nothing else.
 (`FederationView`, and the `list-feds` line) gain it; `ALC-29` owns both counts; `ALC-28` step 2
 cites the field; the sentences that made the ledger the count source (`STO-22`'s "the auto-join
 caps", `STO-35`'s auto-join classifier, `OPS-42`'s "keeps a re-open out of the auto-join
-counts") go. `spec-tj5` types `joined_at` as unsigned Unix seconds. Should a removal verb ever
+counts") go. `joined_at` is unsigned Unix seconds, which `STO-14` states. Should a removal verb ever
 exist, its decision must say whether removing an agent-created membership frees budget. Orphan
 client partitions left by failed auto-joins (`FMI-8`, `FMI-35`) are not memberships and no cap
 bounds them.

@@ -286,9 +286,8 @@ received) authorizing the on-device software to auto-manage funds across
 federations on a best-effort, no-guarantees basis. It is what makes the Allocator
 the user's own on-device agent rather than a service that controls funds (see
 [ADR-0014](./docs/adr/0014-on-device-agent-standing-instruction.md)).
-Its parameters are the stored **Policy** (`OVR-8`). It is given where a store is created — `walletd
-init`, the standalone mode's first run, the Android app — and travels with any backup that
-carries it (Android's Block Store), never later: a store that exists was acknowledged
+Its parameters are the stored **Policy** (`OVR-8`). It is given once, when a store is created,
+so a store that exists was acknowledged
 ([ADR-0035](./docs/adr/0035-standing-instruction-acknowledged-at-creation.md)). Every wallet is
 auto-managed: there is no manual-only wallet
 ([ADR-0039](./docs/adr/0039-every-wallet-is-auto-managed.md)).
@@ -387,12 +386,9 @@ two frontends)
 
 **Sealed**:
 The state of a running `walletd` that has not yet obtained the passphrase that keys
-the seed at rest ([ADR-0033](./docs/adr/0033-seed-key-passphrase-file-or-unseal-call.md)).
-A sealed daemon listens and authenticates, reports the state on its health view, accepts the
-unseal call, refuses every other request, and has opened no federation client, written no store and started no
-scheduler. **Unseal** is the
-operator's act of supplying the passphrase — a configured file at start, or a call while
-sealed — after which the daemon is simply running.
+the seed at rest; what it serves meanwhile is
+[ADR-0033](./docs/adr/0033-seed-key-passphrase-file-or-unseal-call.md)'s. **Unseal** is the
+operator's act of supplying that passphrase, after which the daemon is simply running.
 _Avoid_: "locked" (the store lock of `STO-2` is a different thing), "logged in"
 
 **Frontend**:
