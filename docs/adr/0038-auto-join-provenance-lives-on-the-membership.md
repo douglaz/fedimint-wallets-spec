@@ -22,7 +22,10 @@ unproven slot and nothing else.
 - The registry row (`FederationInfo`, `STO-14`) gains `auto_joined: bool`, written with the row
   in the join's own transaction — `true` when auto-join (`ALC-29`) created the membership,
   `false` when a user `join` (`OPS-42`) or a recovery (`FMI-31`) did — and never changed by any
-  later write. The field is required: the set is greenfield, so no registry row predates it.
+  later write. A row without it — one a build before the field wrote, after a rollback —
+  decodes as `true` (`STO-30`): that only counts a user's join against the agent's budget,
+  while `false` would let a membership the agent created escape both caps and `ALC-28`'s
+  repair to `AutoJoined`.
 - `lifetime` is the number of registry rows with `auto_joined` true; `weekly` is the number of
   those whose `joined_at` lies within the last seven days; `ALC-29` states the window's
   boundary and how an unreadable row counts. Neither count reads a candidate row or the ledger, so `approve`,
