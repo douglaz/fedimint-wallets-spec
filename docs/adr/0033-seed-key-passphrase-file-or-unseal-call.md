@@ -84,8 +84,8 @@ Keystore (`ADR-0011`) and is outside this decision.
 **Consequences.** `SEC-25` names this ADR as the key-source decision and loses its migration
 clause, and its fail-closed sentence is restated: a configured passphrase file that is missing,
 unreadable or wrong, no file on a seedless store, or no file on a seeded store bound beyond
-loopback refuses to start; no file on a seeded store bound to loopback is sealed. A new `STO`
-rule owns the slot bytes; `HST-3` gains a key and `HST-2` its override; `HST-5` and `HST-2`
+loopback refuses to start; no file on a seeded store bound to loopback is sealed. STO-36
+owns the slot bytes; `HST-3` gains a key and `HST-2` its override; `HST-5` and `HST-2`
 gain the `walletd` one-shot commands' passphrase-file flag and prompt, `HST-10` and `API-25`
 the standalone flag; `HST-6`'s serve order gains the unseal step and the sealed branch;
 `API-8`'s route table gains `/v1/unseal`; `API-16` gains the sealed flag; `API-37` gains the
