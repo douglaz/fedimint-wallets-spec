@@ -564,7 +564,8 @@ older build wrote, malformed is corruption; a send operation never
 carries it, and a reader of `MoveMeta` ignores it as an unknown key. The operation-log backfill
 (`OPS-20`) recognises a move operation by the **presence of the `move_id` key** alone: an
 operation without it is skipped silently; one with it whose value fails to decode as a
-`MoveMeta` is corruption (warned and skipped). The leg is taken from the protocol's own
+`MoveMeta` is corruption (warned and skipped, except for matching `move_id` corruption governed
+by `OPS-20`). The leg is taken from the protocol's own
 send-or-receive operation variant, which is authoritative over `role`.
 
 **STO-34** A raw `Pay` writes the metadata `{"role":"send","correlation_key":"<k>"}` and a raw

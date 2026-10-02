@@ -97,57 +97,141 @@ payable invoice was ever minted, and the route recorded with the committed leg i
 send went through. Demonstrates `OPS-28`, `OPS-20`, `OPS-24`, `OPS-25`, `FMI-17`, `OPS-35`,
 `OVR-2`.
 
-**CNF-55** *Given* the move environment, a fixed stored `per_fed_cap`, valid committed contracts
-and routes whose fees fit the admitted cap, with no other live reservations, exercise the
-following crash-resume cases independently. Balances and fees follow `CNF-11` for moves and
-`CNF-10` for direct inflows; gross-up, contract verification and settlement remain those of
-`OPS-22`, `OPS-23` and `OPS-27`.
+**CNF-55** *Given* the move environment, a stored `per_fed_cap` fixed except for the explicit
+policy edits below, valid policies throughout, valid committed contracts and routes whose fees
+fit the admitted cap, with no other live reservations except where stated, exercise the
+following cases independently.
+Balances and fees follow `CNF-11` for moves and `CNF-10` for direct inflows; gross-up, contract
+verification and settlement remain those of `OPS-22`, `OPS-23` and `OPS-27`. Fixture balance
+samples and damaged metadata below are supplied environmental faults, not additional wallet
+verbs or permission to bypass admission. Their realization is the implementation's choice.
 
 1. **Committed send, tight source.** *Given* an admitted `Move` from A to B for which A holds
    exactly `amount + fee_cap` before funding and B has ample cap room, *when* its send commits
    and debits A, and an uncatchable abort occurs at `OPS-28`'s fourth killpoint before the send
    id reaches the cached record, *then* on restart and reconcile the wallet recovers that send
-   and completes the move exactly once, with no `insufficient_after_reservations`
-   terminalization. Keep the receive uncredited until after the resumed admission decision,
+   and completes the move exactly once, without terminalizing it for insufficient source
+   balance. Keep the receive uncredited until after the resumed admission decision,
    so only the source's already-debited balance could cause the false refusal.
 2. **Committed send, credited destination.** *Given* a separately admitted `Move` for which
    B initially holds `per_fed_cap - amount` and A is sufficiently funded that even after the
    send debit it still covers `amount + fee_cap`, *when* the same fourth-killpoint abort occurs
    and the existing receive credits B before the resumed admission decision, *then* restart
-   and reconcile complete the move exactly once, with no `over_cap` terminalization. The source
-   check would still pass, so it cannot mask an erroneous destination check.
+   and reconcile complete the move exactly once, without terminalizing it for destination cap
+   room. The source check would still pass, so it cannot mask an erroneous destination check.
 
 Run each of cases 1 and 2 with the `Invoiced` cache present, lacking the send operation id, and
 again with that cache removed while the intent and both federation operation logs survive.
-Exercise each without reconcile's optional pre-step backfill (`OPS-35`). In every run, the
-intent reaches `Done`, there is one source debit and one destination credit across the crash,
-no second payable invoice and no second send, and the committed route is retained under
-`OPS-20` and `STO-33`.
+At the start of each resumed drive, supply those persisted records and balances. Every perform
+that reaches pre-fund applicability must decide from reassembled evidence (`OPS-45`); any
+pre-step backfill permitted by `OPS-35` may participate. No particular internal division of
+reassembly work is required. In every run, the intent reaches `Done`, there is one source debit
+and one destination credit across the crash, no second payable invoice and no second send,
+and the committed route is retained under `OPS-20` and `STO-33`.
 
-3. **Unfunded Move controls.** *Given* an admitted `Move` aborted separately at each of
-   killpoints 2 and 3, with an invoice and receive operation id but no committed send, change
-   the balances before resume in two independent cases: (a) reduce A below the amount plus
-   cap required by `OPS-7`, leaving B ample room; (b) leave A well funded and credit B from an
-   unrelated settled inflow until it has less than `amount` of cap room. *When* the wallet
-   restarts and reconciles, *then* (a) terminalizes `Failed` with
-   `insufficient_after_reservations`, and (b) terminalizes `Failed` with `over_cap`, as `OPS-45`
-   requires. Neither issues a send or pays the move's existing invoice; the invoice is not
-   surfaced to an external payer. Its presence alone does not exempt either check.
+3. **Unfunded Move controls.** *Given* a user `Move` of 100 000 msat with a fee cap of
+   10 000 msat, admitted under `per_fed_cap = 300 000` msat and aborted separately at each
+   of killpoints 2 and 3, retain its invoice and receive operation id but no committed send.
+   The live attempt reserves 110 000 outbound on A and 100 000 inbound on B; its own
+   reservations are excluded at perform by `OPS-45`. Exercise two independent adverse states:
+   (a) admit with A = 110 000 and B = 0, then supply a fresh spendable-balance sample of
+   A = 105 000 on resume while B stays 0 and all reservations are unchanged. This is an
+   explicit balance-boundary fault fixture, not a second wallet spend admitted through the
+   existing reservation. Set the route's actual total fee to 1 000 msat, so the 101 000 msat
+   debit could still be funded if the 110 000 msat pre-fund check were omitted.
+   (b) admit with A = 250 000 and B = 100 000, then, before the resumed perform, lower the
+   stored cap to 175 000 through the policy edit of `ALC-41`. This case explicitly changes
+   the fixed-cap premise: balances and reservations stay unchanged, but B + amount = 200 000
+   now exceeds 175 000 while the source still passes. No competing inflow evades reservation
+   admission. *When* the wallet resumes and reconciles, *then* (a) terminalizes `Failed` for
+   insufficient source balance under the amount-plus-cap check, and (b) terminalizes `Failed`
+   for insufficient destination cap room, as `OPS-45` requires. Neither issues a send or pays
+   the existing invoice; the invoice is not surfaced to an external payer. Its presence alone
+   does not exempt either check. With the original balances and cap instead, each killpoint
+   resumes through `OPS-28` and pays that invoice exactly once.
 4. **Paid DirectInflow resume.** *Given* an admitted `DirectInflow` into B, initially at
    `per_fed_cap - amount`, with a receive artifact and its invoice already supplied to the
    external payer, *when* an uncatchable abort occurs before `Awaiting` is journaled, the payer
    pays that invoice, and its positive credit is reflected in B's balance before the resumed
-   admission decision, *then* restart and reconcile recover the existing receive, without
-   `over_cap` even though adding `amount` again would exceed the cap. Exercise this with the
-   cache present and with it lost while the intent and destination operation log survive.
+   admission decision, *then* restart and reconcile recover the existing receive, without a
+   cap-room refusal even though adding `amount` again would exceed the cap. Exercise this with
+   the cache present and with it lost while the intent and destination operation log survive.
    The recovered contract is verified under `OPS-23`, the intent follows `OPS-27`'s `Awaiting`
    path and `OPS-16`'s settlement to `Done`, and there is one invoice and one credit across
    the crash, with the balance change required by `CNF-10`.
-5. **New DirectInflow control.** *Given* an admitted `DirectInflow` with no receive artifact,
-   and an unrelated settled inflow that leaves B less than `amount` of cap room after admission
-   but before perform, *when* that perform runs, *then* destination admission terminalizes it
-   `Failed` with `over_cap` before any invoice or receive operation is issued. With sufficient
-   room instead, it issues one receive and follows `CNF-10` when paid.
+5. **New DirectInflow control.** *Given* B = 100 000 msat and a stored cap of 300 000 msat,
+   admit a `DirectInflow` of 100 000 msat, but let no receive artifact commit yet. Then admit
+   a separate user `Receive` of 50 000 msat into B, issue its invoice and leave it unpaid
+   and `Awaiting`. Both admissions fit: 100 000 + 100 000 = 200 000, then
+   100 000 + 100 000 + 50 000 = 250 000 ≤ 300 000. Before the DirectInflow perform,
+   lower the stored cap to 225 000 through `ALC-41`, explicitly replacing the fixed-cap and
+   no-other-reservations premises. Keep B's balance unchanged and the other receive live.
+   *When* the DirectInflow performs, *then* `OPS-45` terminalizes it `Failed` for destination
+   cap room before issuing an invoice or receive operation: excluding its own reservation,
+   B + other inbound + amount = 250 000 > 225 000. Independently, `OPS-22` would allow
+   B + rec.amount = 200 000 ≤ 225 000; its balance-only check cannot produce this required
+   refusal. Keep fees and contracts otherwise valid so they cannot mask a missing `OPS-45`
+   check. As a positive control, repeat with the cap lowered only to 250 000, leaving the
+   other receive unpaid: the equality passes, one DirectInflow receive is issued and follows
+   `CNF-10` when paid.
+
+For cases 6–8, observe the intent's attempt and status, the reservation projection, the ledger
+and the federation operation logs. Unknown is the `OPS-20` outcome: perform follows `OPS-4`
+and `OPS-14`; an `Awaiting` DirectInflow follows `OPS-16`'s one-second retry cadence. Existing
+protocol operations may progress independently during the fault; their progress is not new
+funding by the wallet's resumed caller.
+
+6. **Required operation-log read failure.** Exercise each row independently, once with the
+   cache present as described and once with it lost. All listed federation operations survive;
+   inject a read failure before the required log read can establish their presence or absence.
+
+   | Caller | Surviving evidence and failing read |
+   |---|---|
+   | `Move` perform (`OPS-45`) | Case 1's fourth-killpoint state: `Invoiced` cache without a send id, valid receive and committed send in the logs, already-debited source; the required source log read fails. |
+   | `DirectInflow` perform (`OPS-45`) | Case 4's `Executing` intent with an `Invoiced` cache and the paid receive in B's log; the required destination log read fails. |
+   | `DirectInflow` awaiter (`OPS-16`) | An `Awaiting` intent with its receive id in the cache and its valid receive in B's log; the required destination log read fails. In the cache-lost variant the awaiter cannot obtain the receive id until that read succeeds. |
+   | `Evacuate` perform (`OPS-19`) | A sized evacuation aborted after its send commits but before the send id is cached; the `Invoiced` cache and valid receive metadata preserve the committed amount, cap and route, and the source log holds the send; the required source log read fails. |
+
+   *Then* each caller yields `Retryable` under `OPS-20`: the same attempt stays non-terminal,
+   its reservations remain, no new invoice or send is issued, and neither the ledger nor the
+   move record is terminalized because evidence could not be read. In particular the Move
+   does not reach a no-send source-balance refusal, the Evacuate does not fund again, and the
+   cache-lost awaiter does not fail for a missing receive id. *When* only the read failure is
+   cleared, later reassembly resumes the original operations at the original attempt; let
+   the existing receives be paid if still unpaid and let both legs settle where applicable.
+   Each reaches `Done` with its original operation ids, one invoice and at most one source
+   send in total, without a new attempt or replacement payment.
+7. **Invoice finds a send behind undecodable metadata.** *Given* case 1's committed Move
+   send, damage that send's metadata so `amount` has a nonnumeric value and its readable
+   `move_id` is a different, unrelated key, not this attempt's correlation key. Keep the
+   protocol send's invoice and id intact, and keep the receive's metadata valid for this
+   attempt, including its invoice, amount, cap, quoted contract and route. Thus the malformed
+   entry is warned about and skipped by metadata backfill, and does not meet `OPS-20`'s
+   matching-corruption condition. *When* the Move resumes, once with the valid `Invoiced`
+   cache lacking the send id and once with the cache lost, *then* reassembly finds the original
+   source send from the invoice recovered from the cache or valid receive evidence. The
+   original send id is recovered despite its undecodable metadata, pre-fund applicability
+   follows `OPS-45`'s committed-send row, and the move settles once without a new invoice,
+   send or source-balance refusal. The original route and enforced cap survive both variants.
+8. **Undecodable metadata identifies this attempt.** Repeat each caller and surviving-evidence
+   row of case 6 with all required reads successful. Instead, damage one of this attempt's
+   log entries: retain a readable `move_id` exactly equal to its correlation key, but make
+   `amount` nonnumeric so `MoveMeta` cannot decode. For Move and Evacuate, damage the send
+   entry and keep the receive valid; for DirectInflow, damage the receive entry. Exercise both
+   the cache-present and cache-lost variants. *Then* each reassembly is unknown under `OPS-20`,
+   retains the same attempt and reservations, issues no new invoice or send and does not
+   terminalize the intent, ledger or move record. In the Move variants, the invoice lookup
+   can find the original send; that does not override matching-corruption uncertainty. In
+   the cache-lost DirectInflow awaiter, failure to recover a receive id does not become
+   `Permanent`. Repeating reassembly with the corruption still present preserves these
+   observations; no corruption-repair facility is presumed.
+
+   As an independent control, start a fresh Move with sufficient source funds and destination
+   room, no artifacts of its own and an older undecodable entry in a scanned log whose readable
+   `move_id` belongs to an unrelated operation. *Then* the wallet warns and skips that entry,
+   finds no send for the fresh attempt, applies both `OPS-45` checks and completes one move.
+   The old corruption does not stall it. A wholly unreadable `move_id` is not evidence of
+   equality to the current attempt in either this control or the matching-corruption cases.
 
 Demonstrates `OPS-7`, `OPS-16`, `OPS-19`, `OPS-20`, `OPS-22`, `OPS-23`, `OPS-24`, `OPS-27`,
 `OPS-28`, `OPS-35`, `OPS-45`, `STO-33`, `FMI-17`, `OVR-2`.

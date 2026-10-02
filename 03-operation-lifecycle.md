@@ -296,8 +296,9 @@ taking any exclusive hold, since preparation may read the federation; then, unde
 hold (`OPS-41`), finalize — the ledger advance and `Awaiting → Done | Failed` in one transaction,
 adopting the observed operation id — and release the hold. A `DirectInflow` awaiter MUST: re-read
 the intent (`Done | Failed` → finished; any status other than `Awaiting` → `Permanent`); backfill
-the move record from the operation log (`OPS-20`); require the receive operation id (absent →
-`Permanent`); wait for the receive's final state; then under the hold settle the record — phase
+the move record from the operation log (`OPS-20`); only when reassembly is not unknown under
+`OPS-20`, require the receive operation id (absent → `Permanent`); wait for the receive's final
+state; then under the hold settle the record — phase
 `Settled`, or `Failed` with the outcome "receive invoice expired before payment" or the
 protocol's detail; a fenced write that does not apply → `Retryable` — and finalize (`Awaiting →
 Done | Failed` conditioned on the attempt; a conditional write that does not apply is success,
@@ -412,8 +413,9 @@ placement and applicability by `OPS-45`.
 
 **OPS-20** Reassembly reconstructs the working move record from the cached record (`STO-11`)
 plus the operation log of the destination (and of the source, when distinct), filtered by
-`move_id == this attempt's correlation key` (`STO-33`). The backfill reads the operation log
-newest-first to exhaustion; per leg the **first** (newest) matching artifact wins; a receive
+`move_id == this attempt's correlation key` (`STO-33`), with the invoice-based send evidence
+below. The backfill reads the operation log newest-first to exhaustion; per leg the **first**
+(newest) matching artifact wins; a receive
 artifact without an invoice is dropped entirely (never a receive operation id without its
 invoice); `amount` is the first matching artifact's, either leg; `fee_cap` the first artifact
 carrying one. Precedence: amount — artifact > cached > planned; cap — artifact > cached > the
@@ -442,6 +444,24 @@ a draft is, under the same fee cap, which the pay step re-checks (`OPS-26`); `CO
 **Committed route** names this exception. A committed receive-only move recovered without a cache takes the
 `gateway` its metadata carries; when the metadata carries none it carries the local sentinel
 gateway string `recovered-receive-only-gateway-not-used`, since no send leg will use it.
+
+A `Move` whose reassembled record contains an invoice MUST also look on its source for a send
+of that invoice, as `OPS-17` does for `Pay`. The send operation id is derived from the invoice
+(`FMI-17`); a send found this way counts as a recovered send operation id regardless of whether
+its metadata decodes. The invoice alone is not evidence of a send. This lookup supplies send
+evidence for the invoice recovered for this attempt; it does not adopt another attempt's invoice
+or change the amount, cap or committed-route precedence above.
+
+For every reassembly caller — perform through `OPS-45`, the `DirectInflow` awaiter through
+`OPS-16`, and `Evacuate` through `OPS-19` — a required operation-log read that fails MUST yield
+**unknown** (`ADR-0041`). Metadata that does not decode but whose readable `move_id` equals
+this attempt's correlation key MUST also yield unknown, even when the invoice lookup finds a
+send. Other undecodable entries are warned about and skipped (`STO-33`). On unknown the caller
+MUST return `Retryable`: the intent remains non-terminal at the same attempt, retains its
+reservation and issues no new invoice or send. It MUST NOT interpret unknown as absence of a
+send, continue to fresh funding, or terminalize the intent. The caller's existing disposition
+and retry cadence apply (`OPS-4`, `OPS-14`, `OPS-16`); unknown introduces no intent state or
+separate retry mechanism. `CNF-55` demonstrates these outcomes and invoice-based recovery.
 
 **OPS-21** `Evacuate` only, and only while no artifact exists (no invoice, receive or send
 operation id): size the fresh evacuation. The ask is the **action's** `amount`, not the cached
@@ -596,8 +616,8 @@ complete exactly once on resume (`CNF-12` demonstrates all four):
 | Killpoint | State on disk | Required resume |
 |---|---|---|
 | before the move record | receive committed; the record has no invoice or receive operation id | backfill by `move_id` (`OPS-20`); no second mint |
-| after the receive commit | the record has the invoice, no send | proceed to the pay step (`OPS-26`) |
-| before the send | invoice exists, no send | pay exactly once, by the protocol's dedup (`FMI-17`) |
+| after the receive commit | the record has the invoice, no send | apply pre-fund admission under `OPS-45`; if admitted, proceed to the pay step (`OPS-26`) |
+| before the send | invoice exists, no send | apply pre-fund admission under `OPS-45`; if admitted, pay exactly once, by the protocol's dedup (`FMI-17`) |
 | after the send commit | the federation operation log holds the committed send; the cached record is `Invoiced`, lacking the send operation id | recover the send under `OPS-20`; admission applicability is `OPS-45`'s, then await settlement (`OPS-27`) |
 
 At the first killpoint the gateway replays from the pre-receive draft `OPS-24` wrote; if that
