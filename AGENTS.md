@@ -12,7 +12,9 @@ repository. Where it disagrees with this file, this file governs: there is no co
 implement or stage — a bead's work is an edit to the specification; an untaken product decision
 goes to `11-open-questions.md` and a shortfall of the implementation to the code repository's
 `docs/open-findings.md`, not to a new bead; and a change to the specification lands through a
-pull request, while a change to `.beads/` alone may go straight to `main`.
+pull request, while a change to `.beads/` alone may go straight to `main`. The owner merges:
+an agent commits on the branch it was given and does not push, open or merge a pull request, or
+push to `main`, unless asked to.
 
 ## The one rule that shapes every edit
 
