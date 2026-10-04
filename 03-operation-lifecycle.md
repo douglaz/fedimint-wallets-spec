@@ -643,8 +643,9 @@ send_gw` + the federation's send quote on `invoice_msat + send_gw` (a quote erro
 the receive quote after a cache loss); **both-leg cap check** on `rec.fee_cap`: the fixed receive
 quote alone over the cap → `Permanent`, the total over → `Retryable`; for `Evacuate` the
 viability check (`receive > net` → `Permanent`, `total > net` → `Retryable`); issue the lnv2
-send subject to `OPS-29` through that same send-leg gateway, accepting a started or an
-already-in-flight outcome (`FMI-17`); persist the send operation id, phase `Sending`.
+send subject to `OPS-29`'s funded allowance for the action through that same send-leg gateway,
+accepting a started or an already-in-flight outcome (`FMI-17`); persist the send operation id,
+phase `Sending`.
 `CNF-11` and `CNF-43` demonstrate the funding boundary.
 
 **OPS-27** Awaiting settlement: await the **send first**. Any await error → `Retryable`,
@@ -694,22 +695,32 @@ implementation injects the aborts to prove this is its own (`SEC-18`).
 **Funded send cost.** Before funding any outgoing contract, the wallet MUST ensure that the
 fee carried by the contract actually funded plus the federation's send quote on that outgoing
 contract amount fits the admitted send allowance. For raw Pay the allowance is its admitted
-`fee_cap`. For a send-required move, including Evacuate, it is the enforced cap **minus the
-fixed receive-side cost** (`OPS-26`), never the whole cap again. The evacuation cap remains the
-cap enforced at the committed delivered net, including on replay (`OPS-20`, `OPS-25`); neither
+`fee_cap`. For Move it is the enforced cap **minus the fixed receive-side cost** (`OPS-26`).
+For Evacuate it is **`min(C, n) − r`**, where `C` is the enforced cap at the committed
+delivered net `n` and `r` is the fixed receive-side cost: both the cap and
+`total_fee ≤ delivered net` bind at funding. Neither action has the whole cap available again.
+The evacuation cap remains the cap enforced at the committed delivered net, including on replay
+(`OPS-20`, `OPS-25`); neither
 the planning cap nor a cap recomputed at a larger amount may replace it. This guarantee applies
 to **every send**, including automated sends and the named operation's break-glass send
 (`ADR-0030`). Vetting is not a substitute for it.
 
 If a selected quote fits but changed send terms would exceed that allowance, the wallet MUST
-fund no outgoing contract and return `Retryable`; the next eligible drive MUST re-quote.
-A fee increase still within the allowance, or a cheaper re-quote, need not be refused; an
+fund no outgoing contract and return `Retryable`, **even when the changed terms also violate
+the send schedule limit (`FMI-19`) or funded expiration ceiling (`FMI-17`)**. The next eligible
+drive MUST re-quote and judge the new quote under the existing refusal classes (`OPS-17`,
+`OPS-26`, `FMI-17`); a still-over-limit schedule or expiration is then `Permanent`.
+A changed schedule or expiration that stays within the cost allowance but violates its
+protocol limit takes that limit's `Permanent` class, subject to the permitted stricter
+changed-terms refusal below; a stable re-quote no longer qualifies for that permission.
+A protocol-valid fee increase still within the allowance, or a cheaper protocol-valid re-quote,
+need not be refused; an
 implementation MAY instead refuse **any** change of terms, also as `Retryable` with no outgoing
 contract funded and a re-quote on the next eligible drive. `Retryable` here is the existing
 drive disposition (`OPS-4`), not a persisted intent status or a user retry that increments the
 attempt (`OPS-10`): evidence, committed receive artifacts and reservations remain retained.
-With stable fitting terms and otherwise successful execution, the operation completes; changed
-terms do not justify indefinite refusal after they stabilize.
+With stable fitting, protocol-valid terms and otherwise successful execution, the operation
+completes; changed terms do not justify indefinite refusal after they stabilize.
 
 These pre-fund refusals do not alter initial-quote classifications (`OPS-17`, `OPS-26`),
 authorize another send or terminalize an already-funded one. Deduplication (`FMI-17`),

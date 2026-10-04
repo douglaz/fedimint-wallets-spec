@@ -77,14 +77,15 @@ is answered with the existing outcome. Demonstrates `FMI-16`, `FMI-17`, `OPS-8`,
 `OPS-18`, `OPS-29`.
 
 For the following independent Pay cases, use fresh invoices of 100 000 msat, a cap of
-10 000 msat, 200 000 msat spendable on A with no other reservations, and successful transport
-and settlement. Even the over-cap send could be funded from that balance if the cap were ignored.
+10 000 msat unless stated otherwise, 300 000 msat spendable on A with no other reservations,
+valid unexpired invoices throughout the drives, and successful transport and settlement.
+Even the adverse send in case 5 could be funded from that balance if the refusal were ignored.
 The gateway's applicable send schedule has zero proportional fee and the base named below;
 the federation send quote on **each actual outgoing contract amount** is 1 000 msat except
-in case 1's explicitly varied federation-quote control. All
-posted schedules stay within both components of `FMI-19` throughout, so its schedule filter
-cannot mask a wallet-cap refusal. Run each case first through ordinary vetted routing with
-one candidate, then as a manual `pay` with a valid break-glass gateway outside A's vetted list
+in case 1's explicitly varied federation-quote control. Except for cases 5 and 7's intentional
+schedule-limit violations, all posted schedules stay within both components of `FMI-19`, so its
+schedule filter cannot mask a wallet-cost refusal. Run each case first through ordinary vetted
+routing with one candidate, then as a manual `pay` with a valid break-glass gateway outside A's vetted list
 armed for that operation's key alone. That gateway answers valid `routing_info` for A and
 can pay the Lightning destination; no allocator decision into an ineligible federation is needed.
 
@@ -116,6 +117,29 @@ can pay the Lightning destination; no allocator decision into an ineligible fede
    restarts and replays the same operation, *then* it attaches to the funded send and observes
    its settlement. It does not terminalize it for the new terms or fund another send; one
    source debit and one settled payment remain, including on a further replay after success.
+5. *Given* the admitted 10 000-msat cap and a selected quote of 6 000 + 1 000 = 7 000 msat,
+   *when* the gateway changes to base 101 000 msat, ppm 0, after selection but before funding,
+   *then* the 102 000-msat send cost exceeds the allowance and the base exceeds `FMI-19`'s
+   100-sat limit. `OPS-29` requires `Retryable`, no outgoing contract and no corresponding
+   source debit, despite the simultaneous protocol-limit breach. Keep the new schedule stable:
+   the next eligible drive re-quotes and returns `Permanent`, with nothing funded. This drive
+   is not a user retry and does not increment the attempt; evidence and the reservation remain
+   through the first refusal until the stable re-quote terminalizes the operation.
+6. Independently, *given* the same selected 7 000-msat quote and 10 000-msat cap, *when* the
+   send base changes to 9 500 msat and the expiration delta changes from 100 to 1 441 blocks
+   before funding, *then* the 10 500-msat cost and above-ceiling expiration likewise require
+   `Retryable`, no outgoing contract and no corresponding source debit. Hold both new terms
+   stable: the next eligible re-quote is `Permanent` with nothing funded and no attempt
+   increment. The schedule itself stays within `FMI-19`; this case isolates the cost/expiration
+   overlap from case 5's cost/schedule overlap.
+7. As an independent control, admit a cap of 110 000 msat, still with 300 000 msat spendable,
+   and select the 7 000-msat quote. Change only the gateway base to 101 000 msat, ppm 0,
+   before funding. The new 102 000-msat cost fits this cap but the schedule violates `FMI-19`:
+   its limit-refusal class is `Permanent`. A stricter implementation may instead refuse the
+   change as `Retryable` and re-quote; with the schedule held stable, the next eligible drive
+   MUST return `Permanent`. Neither outcome funds an outgoing contract or debits the source,
+   and no user retry or attempt increment is involved. Case 2's stable, protocol-valid changed
+   terms still complete once; these refusals do not permit refusing all sends forever.
 
 These cases additionally demonstrate `SEC-7`.
 
@@ -377,6 +401,42 @@ It re-quotes and still refuses `s1`, never substituting `P`. With fees restored 
 without another receive; a replay after funding even with `s1` restored attaches to that send
 and settles it once. This is an automated vetted-route case; `CNF-11` supplies the independent
 manual break-glass case without relying on an ineligible allocator destination.
+
+In a separate funded-viability fixture, independent of the `C < n` case above, let A have
+400 000 msat spendable, no other reservations, and a corroborated shutdown notice while still
+able to send. B remains eligible for automated evacuation, with exactly 100 000 msat cap room
+and no receive blocker. G is vetted and live at both ends, on a shared route. Use evacuation
+cap components base 200 000 msat and 300 bps: the planned amount and sized delivered net
+`n` are 100 000 msat and the enforced cap `C` is 203 000 msat. The admitted intent reserves
+303 000 msat outbound and 100 000 msat inbound; no other operation consumes either end's
+funds or room. Keep those reservations through the pre-fund refusals.
+
+Set G's receive base to 4 000 msat with zero proportional fee and zero federation receive
+fee: the committed invoice is 104 000 msat, its contract delivers `n = 100 000`, and the
+fixed receive cost is `r = 4 000`. The applicable send base is initially 19 000 msat with
+zero proportional fee, and the federation send quote is 1 000 msat on each actual outgoing
+amount. Thus `s0 = 20 000`, initial total cost is 24 000, and source debit would be 124 000
+msat: sizing, cap and viability checks all admit this receive and selected send quote. Keep
+the invoice unexpired, the expiration delta within the ceiling, all schedules within `FMI-19`,
+and transport and settlement otherwise successful throughout.
+
+*When* G changes its send base to 100 000 msat, ppm 0, after the fitting quote is selected
+but before funding, *then* `s1 = 101 000` and the combined cost 105 000 still fits `C` but
+exceeds `n`. It exceeds the `min(C, n) − r = 96 000` send allowance, so `OPS-29` requires
+`Retryable` with no outgoing contract and no corresponding source debit. A's 400 000 msat
+could pay even the adverse 205 000-msat debit; neither balance nor the schedule limit masks
+the viability refusal. The committed invoice, receive operation id, route, enforced cap,
+attempt and reservations remain unchanged.
+
+*When* the wallet loses its cache and reassembles before any send is funded, *then* it recovers
+those same receive artifacts and cap at the same attempt, retaining the reservations. With
+`s1` held stable, the next eligible drive re-quotes and still refuses funding as `Retryable`
+under `OPS-26`'s combined-cost viability check. Restore stable `s0`: without a user retry or
+another receive, the operation completes once on that same invoice and route, debiting A
+124 000 and crediting B 100 000 msat. Also replay after funding at `s0` with `s1` restored
+and settlement pending, including after loss of the cached send id: the wallet attaches to
+the existing send and settles it once. The later terms neither terminalize that funded send
+nor authorize a second send or receive.
 Demonstrates `ALC-20`, `ALC-21`, `OPS-22`, `OPS-25`, `OPS-26`, `OPS-29`, `SEC-7`, `OVR-7`.
 
 **CNF-24** *Given* a dying federation A and a policy whose evacuation cap is base-only (`bps =

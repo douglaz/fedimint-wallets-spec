@@ -165,9 +165,10 @@ and is not part of the unit (`ADR-0025`).
 protocol's limits on a gateway's posted fee schedule are `FMI-19`'s — compared component-wise,
 an admission filter on the schedule, not a bound on what a payment costs — and the class each
 refusal takes is `FMI-16`'s and `FMI-17`'s. The wallet selects by its own cap (`FMI-14`),
-and a selected gateway whose schedule is over the protocol's limit fails the attempt in that
-class rather than being skipped for the next candidate. `OPS-29` owns the receive and both-leg
-checks and requires that the cost of the contract actually funded "fits the admitted send
+and a selected gateway whose schedule is over the protocol's limit is refused in that
+class, subject to `OPS-29`'s changed-terms rule, rather than being skipped for the next candidate.
+`OPS-29` owns the receive and both-leg checks and requires that the cost of the contract
+actually funded "fits the admitted send
 allowance" for "every send", including automated and break-glass sends. `CNF-9`, `CNF-11`
 and `CNF-43` demonstrate that protection when terms change after quote selection.
 
