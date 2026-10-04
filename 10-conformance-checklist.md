@@ -161,9 +161,11 @@ of 10 000 msat and a committed invoice of 104 000 msat: a fixed receive cost of 
 (receive gateway base 4 000, zero proportional and federation receive fees). The source
 federation's send quote on each outgoing contract amount is 1 000 msat. Set the initial send
 gateway base to 4 000, zero proportional fee, so the initial combined cost is
-4 000 + (4 000 + 1 000) = 9 000 msat. Give A 200 000 msat spendable with no other reservations
-and B sufficient cap room, so even the over-cap send would be affordable. Keep all schedules
-within `FMI-19` and both legs otherwise able to complete. Repeat through ordinary vetted routing
+4 000 + (4 000 + 1 000) = 9 000 msat. Give A 300 000 msat spendable with no other reservations
+and B sufficient cap room, so even case 5's adverse 206 000-msat source debit is affordable.
+Keep the committed receive valid, the invoice unexpired and the expiration delta within the
+ceiling throughout the drives. Except for case 5's intentional schedule-limit violation, keep
+all schedules within `FMI-19`, with both legs otherwise able to complete. Repeat through ordinary vetted routing
 and a manual `move` whose valid single-operation break-glass gateway is outside the vetted lists
 but answers valid `routing_info` and performs for both ends. The receive artifact commits that
 route before the changes below; subsequent drives retain it under `OPS-20`.
@@ -192,6 +194,17 @@ route before the changes below; subsequent drives retain it under `OPS-20`.
    present or lost recovers and settles the existing send under `OPS-20`, `OPS-27` and
    `CNF-12`. The fee change neither terminalizes it nor authorizes another send or receive;
    the source is debited once and the destination credited once.
+5. *When* the selected 4 000-msat send base changes to 101 000 msat, ppm 0, before funding,
+   *then* the send cost is 102 000 msat and the combined cost is 106 000 msat. The send cost
+   exceeds the remaining 6 000 allowance and the base exceeds `FMI-19`'s 100-sat limit.
+   `OPS-29` requires `Retryable`, with no outgoing contract or corresponding source debit.
+   The same attempt, committed invoice, receive operation id, route, cap, evidence and
+   reservations remain; the operation is not terminal. Hold the new terms stable: on the next
+   eligible drive of that same attempt, without a user retry or another receive, the re-quote
+   MUST return `Permanent` under `OPS-29`, despite also exceeding the both-leg cap in
+   `OPS-26`. No outgoing contract or source debit exists. Terminalization and reservation
+   release then follow `OPS-4` and `OPS-9`. Returning `Retryable` forever on this stable quote
+   fails the scenario.
 
 These cases also demonstrate `FMI-17`, `OPS-20` and `SEC-7`.
 
@@ -409,7 +422,7 @@ and no receive blocker. G is vetted and live at both ends, on a shared route. Us
 cap components base 200 000 msat and 300 bps: the planned amount and sized delivered net
 `n` are 100 000 msat and the enforced cap `C` is 203 000 msat. The admitted intent reserves
 303 000 msat outbound and 100 000 msat inbound; no other operation consumes either end's
-funds or room. Keep those reservations through the pre-fund refusals.
+funds or room. Keep those reservations through the `Retryable` pre-fund refusals.
 
 Set G's receive base to 4 000 msat with zero proportional fee and zero federation receive
 fee: the committed invoice is 104 000 msat, its contract delivers `n = 100 000`, and the
@@ -417,8 +430,9 @@ fixed receive cost is `r = 4 000`. The applicable send base is initially 19 000 
 zero proportional fee, and the federation send quote is 1 000 msat on each actual outgoing
 amount. Thus `s0 = 20 000`, initial total cost is 24 000, and source debit would be 124 000
 msat: sizing, cap and viability checks all admit this receive and selected send quote. Keep
-the invoice unexpired, the expiration delta within the ceiling, all schedules within `FMI-19`,
-and transport and settlement otherwise successful throughout.
+the invoice unexpired, the expiration delta within the ceiling, and transport and settlement
+otherwise successful throughout. All schedules stay within `FMI-19` except in the separate
+schedule-limit variant below.
 
 *When* G changes its send base to 100 000 msat, ppm 0, after the fitting quote is selected
 but before funding, *then* `s1 = 101 000` and the combined cost 105 000 still fits `C` but
@@ -437,7 +451,22 @@ another receive, the operation completes once on that same invoice and route, de
 and settlement pending, including after loss of the cached send id: the wallet attaches to
 the existing send and settles it once. The later terms neither terminalize that funded send
 nor authorize a second send or receive.
-Demonstrates `ALC-20`, `ALC-21`, `OPS-22`, `OPS-25`, `OPS-26`, `OPS-29`, `SEC-7`, `OVR-7`.
+
+As a separate variant of this `C > n` fixture, start again with the valid committed receive
+and selected `s0`, then change the applicable send base to 101 000 msat, ppm 0, before funding.
+The send cost is 102 000 and the combined cost 106 000 msat: the total still fits `C = 203 000`
+but exceeds `n = 100 000`, while the base exceeds `FMI-19`'s 100-sat limit. A's 400 000 msat
+can fund even this adverse 206 000-msat debit, so balance and cap checks cannot mask the
+viability/schedule overlap. `OPS-29` requires `Retryable` with no outgoing contract or source
+debit, retaining the same attempt, committed invoice, receive operation id, route, enforced
+cap, evidence and reservations. With the new terms held stable, the next eligible drive of
+the same attempt MUST re-quote and return `Permanent` under `OPS-29`, despite the combined-cost
+viability branch in `OPS-26`. No user retry, attempt increment, new receive, outgoing contract
+or source debit occurs. Terminalization and reservation release follow `OPS-4` and `OPS-9`;
+the first refusal's reservation retention does not extend past terminalization. This variant
+must not remain `Retryable` on the stable schedule; the protocol-valid `s1 = 101 000` case
+above still does, and its restored-cost completion and already-funded replay remain required.
+Demonstrates `ALC-20`, `ALC-21`, `OPS-22`, `OPS-25`, `OPS-26`, `OPS-29`, `FMI-17`, `SEC-7`, `OVR-7`.
 
 **CNF-24** *Given* a dying federation A and a policy whose evacuation cap is base-only (`bps =
 0`) with a base below the summed bases of G's fees at both ends, *when* a tick plans and drives

@@ -640,13 +640,15 @@ recorded `send_gateway` on a hop (`STO-33`, `OVR-13`): `receive_quote = invoice_
 rec.amount`, `send_gw` = that gateway's send fee on the invoice (`FMI-18`), `send_quote =
 send_gw` + the federation's send quote on `invoice_msat + send_gw` (a quote error →
 `Retryable`); persist both quotes (this also restores
-the receive quote after a cache loss); **both-leg cap check** on `rec.fee_cap`: the fixed receive
+the receive quote after a cache loss). The following quote-time cap and viability dispositions
+are subject to `OPS-29`'s overlap and stable re-quote classification.
+**Both-leg cap check** on `rec.fee_cap`: the fixed receive
 quote alone over the cap → `Permanent`, the total over → `Retryable`; for `Evacuate` the
 viability check (`receive > net` → `Permanent`, `total > net` → `Retryable`); issue the lnv2
 send subject to `OPS-29`'s funded allowance for the action through that same send-leg gateway,
 accepting a started or an already-in-flight outcome (`FMI-17`); persist the send operation id,
 phase `Sending`.
-`CNF-11` and `CNF-43` demonstrate the funding boundary.
+`CNF-11` and `CNF-43` demonstrate the funding boundary and those refusal classifications.
 
 **OPS-27** Awaiting settlement: await the **send first**. Any await error → `Retryable`,
 reservations retained. `Success(preimage)` → persist the preimage **before** awaiting the receive;
@@ -727,7 +729,7 @@ authorize another send or terminalize an already-funded one. Deduplication (`FMI
 reassembly (`OPS-20`) and settlement (`OPS-16`, `OPS-27`) continue to govern an existing send.
 This cost guarantee is separate from the funded expiration ceiling owned by `FMI-17`: it adds
 no quote-equality or no-increase rule for expiration. `CNF-9`, `CNF-11` and `CNF-43`
-demonstrate the guarantee and its replay boundaries.
+demonstrate the guarantee, overlap and stable re-quote classifications, and replay boundaries.
 
 **OPS-42** `Join`: parse the invite (`Permanent`); join (`FMI-8`; an error → `Retryable`); the
 join is **new** iff `!membership_preexisting && (the protocol reported a new join || the
