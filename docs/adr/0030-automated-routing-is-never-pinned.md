@@ -26,6 +26,12 @@ status: accepted
 > re-quotes and no admission reads it, so binding it to the quote would delay a longer lock by
 > one attempt and prevent nothing. An implementation MAY refuse any change of terms and
 > re-quote. Whether the wallet should hold the lock below that ceiling is chapter 11's question 3.
+> Two further rules (decided 2026-10-04). Terms that changed past the allowance fund nothing and
+> are `Retryable` even when they also break a protocol limit (`FMI-19`); the re-quote then judges
+> the new terms by `FMI-17`'s rows, so a schedule still over the limit is `Permanent` there. And
+> an `Evacuate`'s funded cost is held to its viability as well as its cap — `ADR-0029`'s
+> `total_fee <= delivered net` — so its send may cost at most the smaller of the cap and the
+> delivered net, less the fixed receive cost; above that it funds nothing and is `Retryable`.
 
 ## Decision
 
