@@ -156,16 +156,18 @@ claim — and the invoice amount is what the payer paid. Demonstrates `FMI-15`, 
 total fee is within the move's cap, and both legs' operation ids are on the move's ledger row.
 Demonstrates `OPS-19`, `OPS-22`, `OPS-24`, `OPS-26`, `OPS-27`, `OPS-29`, `STO-33`.
 
-For independent changed-terms cases, use a Move delivering 100 000 msat with an enforced cap
+For independent pay-step cases, use a Move delivering 100 000 msat with an enforced cap
 of 10 000 msat and a committed invoice of 104 000 msat: a fixed receive cost of 4 000 msat
 (receive gateway base 4 000, zero proportional and federation receive fees). The source
-federation's send quote on each outgoing contract amount is 1 000 msat. Set the initial send
-gateway base to 4 000, zero proportional fee, so the initial combined cost is
-4 000 + (4 000 + 1 000) = 9 000 msat. Give A 300 000 msat spendable with no other reservations
-and B sufficient cap room, so even case 5's adverse 206 000-msat source debit is affordable.
+federation's send quote on each outgoing contract amount is 1 000 msat. For receive admission
+and sizing, set the send gateway base to 4 000, zero proportional fee, so the combined cost is
+4 000 + (4 000 + 1 000) = 9 000 msat. Unless a case says otherwise, the first pay-step quote
+uses these terms. Give A 300 000 msat spendable with no other reservations and B sufficient
+cap room, so even cases 5 and 6's adverse 206 000-msat source debit is affordable.
 Keep the committed receive valid, the invoice unexpired and the expiration delta within the
-ceiling throughout the drives. Except for case 5's intentional schedule-limit violation, keep
-all schedules within `FMI-19`, with both legs otherwise able to complete. Repeat through ordinary vetted routing
+ceiling throughout the drives except in case 7's explicit expiration control. Except for cases
+5 and 6's intentional schedule-limit violations, keep all schedules within `FMI-19`, with both
+legs otherwise able to complete. Repeat through ordinary vetted routing
 and a manual `move` whose valid single-operation break-glass gateway is outside the vetted lists
 but answers valid `routing_info` and performs for both ends. The receive artifact commits that
 route before the changes below; subsequent drives retain it under `OPS-20`.
@@ -205,6 +207,27 @@ route before the changes below; subsequent drives retain it under `OPS-20`.
    `OPS-26`. No outgoing contract or source debit exists. Terminalization and reservation
    release then follow `OPS-4` and `OPS-9`. Returning `Retryable` forever on this stable quote
    fails the scenario.
+6. As an independent first-pay-step-quote control, admit and commit the valid receive under
+   the earlier fitting routing and sizing terms above. After that commit but before the first
+   pay-step send quote, set the applicable send base to 101 000 msat, ppm 0, keeping expiration
+   within its ceiling. No fitting send quote has been selected at this pay step; its first
+   quote already has send cost 102 000 and combined cost 106 000 msat, exceeding both the
+   10 000 cap and `FMI-19`'s 100-sat base limit. Under `OPS-29`, the first drive MUST return
+   `Permanent` immediately, with no outgoing contract or source debit, followed by `OPS-4`
+   terminalization and `OPS-9` reservation release. One `Retryable` drive before `Permanent`
+   fails this control. The committed invoice, receive operation id, route, cap and evidence
+   remain; no second receive is issued. Run this control through both the ordinary vetted
+   route and the manual single-operation break-glass route specified above.
+7. Independently repeat case 6's admission, receive commit and first-quote timing, but set
+   the send base to 5 500 msat, ppm 0, and expiration to 1 441 blocks before the first
+   pay-step send quote. The send schedule satisfies `FMI-19`; send cost 6 500 and combined
+   cost 10 500 msat exceed the remaining allowance and cap respectively. Only the expiration
+   ceiling is breached among the protocol limits; this control is exempt from the in-ceiling
+   premise above, and the invoice itself remains unexpired. `OPS-29` requires immediate
+   `Permanent` on that first drive, not an initial `Retryable`, with no outgoing contract or
+   source debit, `OPS-4` terminalization and `OPS-9` reservation release. Retain the same
+   committed receive artifacts, route, cap and evidence; issue no second receive. Repeat on
+   both routes as in case 6. Case 3's protocol-valid initial over-cap quote remains `Retryable`.
 
 These cases also demonstrate `FMI-17`, `OPS-20` and `SEC-7`.
 
@@ -429,10 +452,12 @@ fee: the committed invoice is 104 000 msat, its contract delivers `n = 100 000`,
 fixed receive cost is `r = 4 000`. The applicable send base is initially 19 000 msat with
 zero proportional fee, and the federation send quote is 1 000 msat on each actual outgoing
 amount. Thus `s0 = 20 000`, initial total cost is 24 000, and source debit would be 124 000
-msat: sizing, cap and viability checks all admit this receive and selected send quote. Keep
-the invoice unexpired, the expiration delta within the ceiling, and transport and settlement
-otherwise successful throughout. All schedules stay within `FMI-19` except in the separate
-schedule-limit variant below.
+msat: sizing, cap and viability checks all admit this receive. Except in the first-quote
+controls below, select this fitting send quote at the pay step. Keep
+the invoice unexpired, the expiration delta within the ceiling except in the explicit
+first-quote expiration control below, and transport and settlement otherwise successful
+throughout. All schedules stay within `FMI-19` except in the separate schedule-limit variant
+and first-quote schedule control below.
 
 *When* G changes its send base to 100 000 msat, ppm 0, after the fitting quote is selected
 but before funding, *then* `s1 = 101 000` and the combined cost 105 000 still fits `C` but
@@ -466,6 +491,33 @@ or source debit occurs. Terminalization and reservation release follow `OPS-4` a
 the first refusal's reservation retention does not extend past terminalization. This variant
 must not remain `Retryable` on the stable schedule; the protocol-valid `s1 = 101 000` case
 above still does, and its restored-cost completion and already-funded replay remain required.
+
+As an independent first-pay-step-quote control, reuse this `C > n` fixture with the receive
+admitted and committed under the valid earlier routing and sizing terms (`s0`). After that
+commit but before the first pay-step send quote, set the applicable send base to 101 000 msat,
+ppm 0, with expiration within its ceiling. No fitting send quote has been selected at this
+pay step. Its first quote already has send cost 102 000 and combined cost 106 000 msat:
+the total fits `C = 203 000` but exceeds `n = 100 000`, and the schedule exceeds `FMI-19`'s
+100-sat base limit. A's 400 000 msat covers even the adverse 206 000-msat debit; B remains
+eligible with the reserved cap room and the valid committed receive. `OPS-29` requires
+`Permanent` immediately on this first drive, not one `Retryable` drive followed by
+`Permanent`. No outgoing contract or source debit occurs; terminalization and reservation
+release follow `OPS-4` and `OPS-9`. The committed invoice, receive operation id, route,
+enforced cap and evidence remain, and no second receive is issued.
+
+Independently repeat that admission, receive commit and first-quote timing with send base
+100 000 msat, ppm 0, and expiration 1 441 blocks already present before the first pay-step
+send quote. This schedule satisfies `FMI-19`; send cost 101 000 and combined cost 105 000
+msat fit `C` but exceed the send allowance and `n` respectively. The invoice stays unexpired;
+this control explicitly replaces the in-ceiling expiration premise above and breaches no
+other protocol limit. The first drive MUST return `Permanent` under `OPS-29`, with no
+initial `Retryable`, no outgoing contract or source debit, `OPS-4` terminalization and
+`OPS-9` reservation release. Retain the committed receive artifacts, route, enforced cap and
+evidence and issue no second receive. With the same fees but expiration within the ceiling
+from the outset, the independent protocol-valid first-quote control instead returns
+`Retryable`, retaining the same attempt, committed receive evidence and reservations without
+outgoing funding or source debit (`OPS-26`).
+
 Demonstrates `ALC-20`, `ALC-21`, `OPS-22`, `OPS-25`, `OPS-26`, `OPS-29`, `FMI-17`, `SEC-7`, `OVR-7`.
 
 **CNF-24** *Given* a dying federation A and a policy whose evacuation cap is base-only (`bps =

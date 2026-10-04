@@ -248,8 +248,8 @@ whether enforced by the SDK or by the wallet around it (`OPS-17`):
 | invoice expired | | `Permanent` (invoice defect) |
 | wrong currency | invoice network ≠ the federation's network | `Permanent` (invoice defect) |
 | federation not served | the gateway's `routing_info` returned `null` | `Permanent` (route defect) |
-| gateway fee over limit | the send fee schedule exceeds the limit (`FMI-19`) | `Permanent` (route defect), subject to `OPS-29`'s changed-terms rule |
-| gateway expiration over limit | the expiration delta of the terms to be funded exceeds 1 440 blocks, even if the earlier quote did not | `Permanent` (route defect), subject to `OPS-29`'s changed-terms rule; nothing funded |
+| gateway fee over limit | the send fee schedule exceeds the limit (`FMI-19`) | `Permanent` (route defect), with precedence and changed-terms exceptions governed by `OPS-29` |
+| gateway expiration over limit | the expiration delta of the terms to be funded exceeds 1 440 blocks, even if the earlier quote did not | `Permanent` (route defect), with precedence and changed-terms exceptions governed by `OPS-29`; nothing funded |
 | terms changed | `OPS-29`'s changed-terms refusal, including its overlap with the limit rows above | `Retryable`; no outgoing contract funded; re-quote on the next eligible drive |
 | gateway unreachable, consensus read failed, funding failed | transport, consensus-read or funding fault | `Retryable` |
 
@@ -257,8 +257,9 @@ A failure before the protocol call: an unparseable invoice is `Permanent` (an in
 no retry changes); an unparseable gateway URL or a missing lnv2 module is `Retryable`.
 The expiration ceiling applies to the terms actually funded, independently of `OPS-29`'s
 cost guarantee; an in-ceiling expiration change does not itself require refusal. `OPS-29`
-owns the classification when changed terms overlap a limit refusal, and the permitted stricter
-changed-terms refusal. `CNF-9` demonstrates both boundaries and those classifications.
+owns protocol-limit precedence over cap or viability refusals, including on the first pay-step
+quote, as well as the changed-terms exceptions and permitted stricter refusal. `CNF-9`,
+`CNF-11` and `CNF-43` demonstrate these boundaries and classifications.
 
 **FMI-18** Fee shapes. A gateway fee is `base + floor(amount × parts_per_million / 1 000 000)`,
 the multiplication saturating in `u64` before the division — the protocol's `PaymentFee`. The

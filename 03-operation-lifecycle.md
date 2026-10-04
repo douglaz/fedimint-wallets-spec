@@ -641,7 +641,8 @@ rec.amount`, `send_gw` = that gateway's send fee on the invoice (`FMI-18`), `sen
 send_gw` + the federation's send quote on `invoice_msat + send_gw` (a quote error →
 `Retryable`); persist both quotes (this also restores
 the receive quote after a cache loss). The following quote-time cap and viability dispositions
-are subject to `OPS-29`'s overlap and stable re-quote classification.
+are subject to `OPS-29`'s protocol-limit precedence, including on the first pay-step quote,
+and its changed-terms exceptions.
 **Both-leg cap check** on `rec.fee_cap`: the fixed receive
 quote alone over the cap → `Permanent`, the total over → `Retryable`; for `Evacuate` the
 viability check (`receive > net` → `Permanent`, `total > net` → `Retryable`); issue the lnv2
@@ -712,9 +713,13 @@ fund no outgoing contract and return `Retryable`, **even when the changed terms 
 the send schedule limit (`FMI-19`) or funded expiration ceiling (`FMI-17`)**. The next eligible
 drive MUST re-quote and judge the new quote under the existing refusal classes (`OPS-17`,
 `OPS-26`, `FMI-17`); a still-over-limit schedule or expiration is then `Permanent`.
-A changed schedule or expiration that stays within the cost allowance but violates its
-protocol limit takes that limit's `Permanent` class, subject to the permitted stricter
-changed-terms refusal below; a stable re-quote no longer qualifies for that permission.
+Outside the changed-terms refusals specified here (including the permitted stricter refusal
+below), a pay-step quote violating `FMI-19`'s send schedule limit or `FMI-17`'s expiration
+ceiling MUST be `Permanent`, even when it also exceeds the cap or delivered net. This includes
+the first pay-step quote, with no prior fitting send quote selected at that pay step, as well
+as a stable re-quote; neither qualifies as changed terms merely because earlier routing or
+sizing used different terms. Pay's over-cap reason remains `OPS-17`'s. Protocol-valid initial
+quotes retain `OPS-17`'s and `OPS-26`'s classifications.
 A protocol-valid fee increase still within the allowance, or a cheaper protocol-valid re-quote,
 need not be refused; an
 implementation MAY instead refuse **any** change of terms, also as `Retryable` with no outgoing
@@ -724,12 +729,13 @@ attempt (`OPS-10`): evidence, committed receive artifacts and reservations remai
 With stable fitting, protocol-valid terms and otherwise successful execution, the operation
 completes; changed terms do not justify indefinite refusal after they stabilize.
 
-These pre-fund refusals do not alter initial-quote classifications (`OPS-17`, `OPS-26`),
-authorize another send or terminalize an already-funded one. Deduplication (`FMI-17`),
-reassembly (`OPS-20`) and settlement (`OPS-16`, `OPS-27`) continue to govern an existing send.
+These pre-fund refusals do not authorize another send or terminalize an already-funded one.
+Deduplication (`FMI-17`), reassembly (`OPS-20`) and settlement (`OPS-16`, `OPS-27`) continue to
+govern an existing send.
 This cost guarantee is separate from the funded expiration ceiling owned by `FMI-17`: it adds
 no quote-equality or no-increase rule for expiration. `CNF-9`, `CNF-11` and `CNF-43`
-demonstrate the guarantee, overlap and stable re-quote classifications, and replay boundaries.
+demonstrate the guarantee, changed-terms exceptions, protocol-limit precedence (including
+first pay-step quotes in `CNF-11` and `CNF-43`), and replay boundaries.
 
 **OPS-42** `Join`: parse the invite (`Permanent`); join (`FMI-8`; an error → `Retryable`); the
 join is **new** iff `!membership_preexisting && (the protocol reported a new join || the
