@@ -32,6 +32,10 @@ status: accepted
 > an `Evacuate`'s funded cost is held to its viability as well as its cap — `ADR-0029`'s
 > `total_fee <= delivered net` — so its send may cost at most the smaller of the cap and the
 > delivered net, less the fixed receive cost; above that it funds nothing and is `Retryable`.
+> Outside that exception a protocol limit wins (decided 2026-10-04): a pay-step quote whose terms
+> break `FMI-19`'s send limit or `FMI-17`'s expiration ceiling is `Permanent`, even when it is
+> also over the cap or the delivered net — a first quote included, since every pay step
+> re-quotes and nothing distinguishes a first quote from a stable one. `OPS-29` owns the rule.
 
 ## Decision
 
