@@ -66,7 +66,7 @@ admission point (`OPS-13`), with the spendable balance of every **open** federat
 sampled before admission and handed to it: `pay`: `from`; `move`: `from` and `to`; `receive` and
 `direct-inflow`: `to`; `join` and `recover`: none. A federation that is joined but not open
 (`DOM-2`) samples no balance and is treated as zero spendable on the source side (`API-18`); a
-**fresh** request, or a retry (`OPS-10`), whose destination — `move`, `receive`,
+**fresh** request, or a retry eligible under `OPS-10`, whose destination — `move`, `receive`,
 `direct-inflow` — is joined but not open MUST be refused as destination-unavailable with nothing
 journaled (`OPS-6`; `API-6`: 503). An
 active probe's legs are agent work: they MUST be admitted through the same point, validated
@@ -161,13 +161,31 @@ retry and pending issuance; neither an SDK final failure nor funding expiry rele
 (`CNF-26`).
 
 **OPS-10** Retry. Only a `Failed` intent, only by a `User` request, only preserving the anchor
-fields of `OPS-8`, never a `Failed` pay that recorded an operation id — refused `conflict`,
-"this invoice already consumed its single payment attempt" (`FMI-17`) — and never a `Failed`
-move whose move record's phase is `Stranded` — refused `conflict`, "this move's send already
-settled" (`HST-32`: a retry would send again) — a refusal checked before every admission check
-below, `API-19`'s destination check included. Before the write the retry
-is admitted like a fresh key: an unopened destination (`OPS-5`), the driver cap and the probe
-hold (`OPS-6`), and the arithmetic (`OPS-7`) on the refreshed intent against the strict
+fields of `OPS-8`. A `Failed` pay that recorded an operation id MUST be refused `conflict`,
+"this invoice already consumed its single payment attempt" (`FMI-17`). For a `Failed`
+send-required `Move` or `Evacuate`, a durable ledger `error` beginning `send failed:` or
+`receive failed:` (`STO-15`, `STO-35`) MUST permanently forbid a same-key user retry,
+whatever the cached move record says or whether it exists. A `Stranded` move MUST also be
+refused: either its cached phase or its retained ledger evidence with `OPS-27`'s anchor
+"send settled but receive was not credited" establishes this protection (`HST-32`). The
+anchor suffices after cache loss, including never-funded `Expired` receive stranding without
+a `receive failed:` prefix. Each of these move refusals is `conflict` (`OPS-39`, `API-6`:
+HTTP 409), with diagnostic "this move's send was issued and cannot safely be repeated".
+
+These are admission refusals, checked before every fresh-admission check below, including
+`API-19`'s destination check. They MUST NOT advance the attempt, delete a cache, append a
+retry row, repoint the ledger index, issue an invoice or send, or rewrite the failed intent
+or its ledger row; its error remains verbatim (`STO-35`). No later verifying preimage or
+incoming reclaim releases the move refusal: a preimage proves payment, and this set supplies
+no outgoing-position reader establishing a safe release. A genuinely fresh key is a new
+operation subject to ordinary admission, never an automatic replacement or a resume of the
+old payment. The send-required guard does not apply to raw `Receive` or receive-only
+`DirectInflow` (`STO-11`: `send_required = false`); their otherwise-eligible retries remain
+possible. `CNF-26` demonstrates these refusals and controls.
+
+Before the write an eligible retry is admitted like a fresh key: an unopened destination
+(`OPS-5`), the driver cap and the probe hold (`OPS-6`), and the arithmetic (`OPS-7`) on the
+refreshed intent against the strict
 projection, the request's sampled balances and the stored cap. The retry write then, in one transaction (`STO-9`): writes `Pending` at
 `attempt + 1`, deletes the cached move record, appends a fresh ledger row and repoints the key
 index (`STO-20`), so the failed attempt and the retry are two truthful rows and the failed row's
@@ -863,7 +881,7 @@ is the other repair path. Neither admits a fresh intent.
 | refused, with a reason (`OPS-39`) | admission or commit refused; nothing journaled for a fresh key | 422 / 409 |
 | storage fault | a durable read or write failed or an internal invariant broke; a fresh agent admission may or may not have committed | 500 |
 | not found | an await on an unknown key | 404 |
-| destination unavailable | a fresh admission, or a retry (`OPS-5`), whose destination is joined but not open; nothing journaled | 503 |
+| destination unavailable | a fresh admission, or a retry eligible under `OPS-10` (`OPS-5`), whose destination is joined but not open; nothing journaled | 503 |
 | timeout | the await deadline elapsed; the operation is still live | 504 |
 | shutting down | the wallet is draining or its engine is gone | 503 |
 
@@ -884,7 +902,7 @@ reason a condition yields; how an implementation derives the reason is its own:
 | `policy_superseded` | a batch planned under a stale policy generation (`OPS-11`, `ALC-41`), or a replacement whose child cap is not the current policy's (`OPS-32`) |
 | `policy_invalid` | a stored or submitted policy that fails validation (`DOM-15`, `API-20`) |
 | `budget_exhausted` | a probe the probe budget refuses (`ALC-26`) |
-| `conflict` | every other refusal: a goal conflict (`ALC-30`), the driver cap, a probe/user key collision (`DOM-21`), the anchor refusals of `OPS-8` and `OPS-10`, an agent decision meeting a terminal key (`ALC-53`), a replacement occurrence or exchange conflict (`OPS-30`, `OPS-33`), an admission racing a membership change in progress (`OPS-41`), a batch refused whole for any reason but the policy generation (`OPS-11`), a candidate approval race (`API-23`) |
+| `conflict` | every other refusal: a goal conflict (`ALC-30`), the driver cap, a probe/user key collision (`DOM-21`), the anchor and retry-eligibility refusals of `OPS-8` and `OPS-10`, an agent decision meeting a terminal key (`ALC-53`), a replacement occurrence or exchange conflict (`OPS-30`, `OPS-33`), an admission racing a membership change in progress (`OPS-41`), a batch refused whole for any reason but the policy generation (`OPS-11`), a candidate approval race (`API-23`) |
 
 **OPS-40** The wallet MUST NOT attach a cause to a money state it did not observe in what it
 records or emits: the ledger `error` (`STO-35`) and the operation views (`API-12`) state what the

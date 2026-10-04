@@ -333,7 +333,7 @@ on its own output.
 **HST-32** A `Stranded` move (`DOM-10`; the transition is `OPS-27`) is terminal: nothing
 re-drives its send (`OPS-36`), and the wallet MUST NOT admit a second send
 for the same key: a request under it attaches to the existing intent (`OPS-8`) and a retry of
-it is refused (`OPS-10`), which is what stands between the operator and a double send.
+it is refused under `OPS-10`'s durable-evidence rule, including after cache loss (`CNF-26`).
 Incoming recovery is owned by `FMI-41`: its automatic path covers live receives, and its
 manual trigger (`API-42`) also admits a `Stranded` target without rewriting terminal history.
 Claim retry and pending issuance do not require an operator to trigger recovery (`CNF-26`).

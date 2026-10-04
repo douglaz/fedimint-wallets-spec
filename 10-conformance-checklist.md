@@ -695,7 +695,7 @@ print `<word> <key>`, and the await verbs print `claimed` and `success`. Demonst
 
 **CNF-26** *Given* a daemon reachable by the CLI in client mode, *when* each verb of `API-26`
 is invoked, *then*: the request each sends carries the fields and only the fields `API-18`–`API-24` name, and
-`reclaim` posts an empty body to the route `API-42` names; two nonce-less `receive`
+`reclaim` posts an empty body with the optional attempt selector `API-42` names; two nonce-less `receive`
 invocations each send a nonce of 32 lower-hex characters (`API-41`'s generated shape) and
 create two distinct operations, while two nonce-less `direct-inflow` invocations of
 one amount attach to one operation and re-yield its invoice, a nonce-less `move` sends
@@ -884,10 +884,100 @@ settled-send cases for `Move` and `Evacuate`.
    exit 2. Each attempts and journals nothing. Without the bearer token, the route returns
    401 and CLI exit 5, attempting and journaling nothing.
 
+6. **Durable unsafe-retry refusal.** For both `Move` and `Evacuate`, plant a `Failed`
+   send-required attempt with a `send failed:` ledger error and consistent client evidence
+   of an unresolved funded outgoing contract (`FMI-37`). Submit an otherwise matching user
+   retry. It is an admission refusal: HTTP `409`, `kind: refused`, `refuse_reason: conflict`,
+   diagnostic `this move's send was issued and cannot safely be repeated`, CLI exit 2.
+   Repeat with a cached phase other than `Stranded`, with the cache absent, and after a
+   restart in each condition. The attempt, failed intent, ledger row and verbatim error,
+   key index and any surviving cache remain unchanged; there is no retry row, invoice or
+   send. Repeat with the destination joined but not open: the same `409` wins over `503`.
+   No refusal creates a fresh key automatically.
+
+   Repeat those observations for a send-required failed attempt whose durable error begins
+   `receive failed:`, and for case 4's settled-send `Stranded` fixtures with the retained
+   stranding anchor and receive-failure detail. Include the planted settled-send/never-funded
+   `Expired` case with `send settled but receive was not credited` and **no**
+   `receive failed:` prefix; cache loss and restart still cannot admit a second send.
+   A verifying preimage does not release any of these guards. For a funded stranded receive
+   that becomes affordable, reclaim may answer `claimed`; a later same-key user retry still
+   refuses with the same diagnostic and no send. For the never-funded expiry, case 5's
+   reclaim refusal remains intact and likewise cannot enable a send. Preserve each original
+   terminal row and error throughout.
+
+   As controls, a `Failed` Pay with an operation id still refuses with `OPS-10`'s single
+   payment attempt diagnostic. Raw `Receive` and receive-only `DirectInflow` with a
+   `receive failed:` terminal error from an uneconomical funded contract remain eligible for
+   user retry when the ordinary checks pass: advance the attempt once, append its row and
+   repoint the index, retaining the old row and error. `DirectInflow` has
+   `send_required = false`. A separately requested fresh key meets ordinary admission,
+   including destination-unavailable, and is not a resume of the refused payment.
+
+7. **Select one receive attempt.** For raw `Receive` and `DirectInflow`, start from case 6's
+   allowed retry. Fixtures may plant valid historical and current artifacts to isolate
+   selection from retry artifact reset: attempts 0 and 1 have immutable terminal failure
+   rows with `receive failed:` from definitive evidence, attempt 2 is current, the base key
+   index points to attempt 2, and the move cache is absent. Preserve the client operation-log
+   receives for all three, using `STO-34`'s base key for attempt 0 and its retry encoding
+   for attempts 1 and 2, with the byte length and decimal number checked. Use raw
+   `correlation_key` metadata for `Receive` and `STO-33`'s `move_id` for `DirectInflow`.
+
+   Give the contracts distinct evidence: attempt 0 remains uneconomical, attempt 1 was
+   consumed by another claimant with no own issuance evidence, and attempt 2 has own
+   accepted-claim evidence with notes pending. Empty-body authenticated HTTP calls with
+   `?attempt=0`, `?attempt=1`, and no selector answer `uneconomical`, `not_claimable`, and
+   `issuance_pending` respectively; `?attempt=2` matches the omitted selector. Repeat via
+   `reclaim <key> --attempt 0`, `--attempt 1`, `--attempt 2` and `reclaim <key>`: observe the
+   actual query transmission and empty body, the same outcomes and case 5's exits. Each
+   response names the base `operation_key`, and each audit row's receive id belongs to the
+   selected contract. Restart and repeat with the current intent holding only attempt 2's
+   artifacts: they cannot replace attempt 0 or 1's lookup evidence.
+
+   For both `Move` and `Evacuate`, also select a receive leg on attempt 0 in case 4's
+   stranded fixtures, including the expiry refusal. Separately plant a valid retry history
+   whose attempt 0 failed before any send was issued and whose never-funded receive expired;
+   attempt 1 has a settled send and pending receive issuance. Selecting 0 refuses the expired
+   receive even though 1 is recoverable; selecting 1 or omitting the selector reaches the
+   pending issuance via its retry-encoded `move_id`. This fixture does not retry any attempt
+   that case 6 forbids. No selection issues an invoice or send.
+
+   For HTTP, try `attempt=` empty, `-1`, `+1`, `01`, `1.0`, non-digits, whitespace,
+   `4294967296`, and repeated `attempt` parameters: each is `422 refused`, with
+   `invalid query parameters: …` and no `refuse_reason`. The CLI rejects those invalid
+   values and repeated `--attempt` flags as usage errors, exit 1, before a request. Valid
+   but absent attempt numbers, including the accepted upper bound `4294967295`, return
+   `404 not_found`, CLI exit 1. Also plant a selected historical attempt whose receive
+   cannot be resolved while the newest can: it returns `404`, never the newest outcome.
+   A lookup storage fault follows `API-37` and CLI exit 4 instead of masquerading as absence.
+   Every selection refusal leaves no recovery IO or audit row; the existing ineligible,
+   unknown-key, authentication and never-funded controls of case 5 still apply. Exercise
+   HTTP validation envelopes through the CLI's `API-28` mapping (exit 2 for `422`).
+
+8. **Older terminal recovery, replay and exclusion.** In case 7's raw-receive and direct-inflow
+   histories, make attempt 0's funded unconsumed contract affordable. Explicitly reclaim 0:
+   it answers `claimed`, credits once, and audits that receive id, while its original
+   terminal row and error remain unchanged. The newest attempt's intent, ledger, artifacts
+   and reservations also remain unchanged. Repeat after losing the response, after restart,
+   and after spending the notes: the answer remains `claimed`, with no additional credit,
+   invoice or send and one best-effort audit row per eligible call under case 5's rules.
+
+   Race reclaim of 0 with recovery work owning the base key for current attempt 2, whose
+   outcome remains `issuance_pending`. Recovery work never overlaps under that key, and
+   the call for 0 returns its own `claimed`, never 2's outcome. Reverse the ownership order
+   and repeat across restart. Recovery of 0 cannot write into attempt 2 or release its
+   reservation; attempt fencing and immutable history still hold. Separately let a valid
+   user retry advance a failed current raw receive after a selector-less reclaim has bound
+   its target: that call stays bound to the formerly newest receive and cannot consume the
+   new attempt's artifacts or result. Merely transient claim rejection and pending issuance
+   remain live recovery states as in cases 1–3, never freshly terminalized fixtures to
+   manufacture these histories.
+
 Demonstrates `API-25`, `API-26`, `API-27`, `API-28`, `API-29`, `API-33`, `API-38`, `API-39`,
 `API-40`, `API-41`, `API-42`, `API-36`, `FMI-37`, `FMI-41`, `FMI-23`, `DOM-8`, `DOM-10`,
-`OPS-3`, `OPS-6`, `OPS-8`, `OPS-9`, `OPS-14`, `OPS-15`, `OPS-16`, `OPS-27`, `OPS-35`,
-`OPS-36`, `OPS-40`, `OPS-43`, `OPS-46`, `STO-10`, `STO-15`, `STO-24`, `ALC-38`, `ALC-40`,
+`OPS-3`, `OPS-6`, `OPS-8`, `OPS-9`, `OPS-10`, `OPS-13`, `OPS-14`, `OPS-15`, `OPS-16`, `OPS-27`, `OPS-35`,
+`OPS-36`, `OPS-40`, `OPS-43`, `OPS-46`, `STO-10`, `STO-15`, `STO-20`, `STO-24`, `STO-34`,
+`STO-35`, `API-6`, `API-19`, `ALC-38`, `ALC-40`,
 `HST-32`, `DEF-26`.
 
 **CNF-54** *Given* a running daemon, *when* `wallet-web init` is run, *then* it takes the

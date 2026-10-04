@@ -321,9 +321,11 @@ false`, and `diagnostics` all-`None` except that a nonzero conflict-suppressed c
 `amount: Some(0)` and `conflict_suppressed: true`. It is create-if-absent (a re-drop of the
 same key is a no-op).
 
-A re-claim (`API-42`, `FMI-41`) writes one `Reclaim` row per attempt, keyed
+A re-claim (`API-42`, `FMI-41`) writes one `Reclaim` row per eligible manual call, keyed
 `reclaim:<nonce>:<key>` (`STO-6`): `actor User`, `reason UserInitiated`, `fees` default,
-`repaired false`; `status Succeeded` with `error` `None` on `claimed`, and `status Failed`
+`repaired false`; `target` is the base operation key, and `fed` and `op_id` identify the
+actual receive selected by `API-42`, including an older attempt. `status Succeeded` with
+`error` `None` on `claimed`, and `status Failed`
 on `not_claimable`, `uneconomical`, `transient` or `issuance_pending`. The latter rows record
 that the manual attempt did not obtain issued notes; their `error` begins with the wire
 outcome followed by `:` and states only what was observed (`OPS-40`; the remaining text is
@@ -411,8 +413,9 @@ page is shorter, never an error (`STO-22`) — except that a `status=open` page 
 it skipped (`API-43`, `skipped_unreadable`).
 
 **STO-20** `0x06` maps a correlation key to exactly one current row. A retry appends a fresh row
-and repoints the index, so older attempts' rows are reachable by `seq` only. A lookup by key
-resolves through the index; a lookup by `seq` reads `0x05` directly.
+and repoints the index, so older attempts' ledger rows are reachable by `seq` only. A ledger
+lookup by key resolves through the index; a lookup by `seq` reads `0x05` directly. Receive
+contract selection for reclaim is `API-42`'s separate attempt lookup under `STO-34`.
 
 **STO-21** On every fresh insert of an `Agent {occurrence}` row, and in the retry write
 (`OPS-10`), the wallet MUST raise `WatchState.occurrence` to `max(current, occurrence)` **in
@@ -586,9 +589,11 @@ correlation key**: the intent's `idempotency_key` when `attempt == 0`, and other
 `retry:<len>:<key>:<attempt>` with `<len>` the decimal byte length of the idempotency key,
 `<key>` the idempotency key verbatim and `<attempt>` the decimal attempt number (a `pay:` key
 is 68 bytes, so its first retry is `retry:68:pay:<64 hex>:1`). The same value is
-`MoveMeta.move_id` for a move attempt. Repair's primary operation-log lookup (`STO-24`) and
-every backfill therefore match on this per-attempt key, so a retry can never adopt the
-operation that terminally failed the previous attempt (`OPS-1`). Neither metadata object
+`MoveMeta.move_id` for a move-shaped attempt (`Move`, `Evacuate` or `DirectInflow`). Repair's
+primary operation-log lookup (`STO-24`), every backfill and reclaim's selected-attempt lookup
+(`API-42`) therefore match on this per-attempt key, so a retry can never adopt the
+operation that terminally failed the previous attempt (`OPS-1`). `CNF-26` demonstrates
+reclaim selection with both metadata shapes. Neither raw metadata object
 carries any other key; both are recognised as non-move operations by the absence of `move_id`
 (`STO-33`).
 
@@ -601,7 +606,8 @@ non-terminal enrichment may overwrite it; an unrepaired terminal row's `error` i
 Every wording ever written to a row that reached an unrepaired terminal therefore lives in the
 store forever, and any classifier that reads `error` — the auto-join count that excludes a
 `Succeeded` agent `Join` row carrying "already joined (concurrent/prior); no-op re-open"
-(`OPS-42`, `ALC-29`), the never-reached recogniser of `STO-24`, and the operator reading
-history — MUST match the stored text exactly as listed here and in `STO-24`, and a change to any of
+(`OPS-42`, `ALC-29`), the never-reached recogniser of `STO-24`, the retry guard of `OPS-10`
+using `FMI-37`'s prefixes and `OPS-27`'s stranding anchor, and the operator reading
+history — MUST match the stored text exactly as listed here and in those owners, and a change to any of
 these strings MUST keep matching the wording already on disk or it silently changes the money
 accounting of rows already written.
