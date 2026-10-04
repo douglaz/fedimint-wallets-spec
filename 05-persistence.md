@@ -202,7 +202,8 @@ supplies, `None` clearing it, and the deliberate clear blanks it and nothing els
 intents; **`Done` is never indexed**, which is what makes finished work unscannable. Index and
 intent row move in one transaction. The scan of re-drivable intents returns `[Pending,
 Executing]` — it **includes `Executing`** — and tolerates a corrupt entry; the scan of awaiting
-intents returns `[Awaiting]` and is never re-driven (`OPS-36`); the reservation scan returns
+intents returns `[Awaiting]`: `OPS-36`'s "never re-issues the original effect" applies, with
+bounded recovery under `FMI-41` (`CNF-26`); the reservation scan returns
 `[Pending, Executing, Awaiting]` and **fails closed** on any corrupt entry, so admission stops
 rather than under-reserve (`OPS-9`).
 
@@ -320,12 +321,22 @@ false`, and `diagnostics` all-`None` except that a nonzero conflict-suppressed c
 `amount: Some(0)` and `conflict_suppressed: true`. It is create-if-absent (a re-drop of the
 same key is a no-op).
 
-A re-claim (`API-42`, `FMI-41`) writes one `Reclaim` row per attempt, keyed
+A re-claim (`API-42`, `FMI-41`) writes one `Reclaim` row per eligible manual call, keyed
 `reclaim:<nonce>:<key>` (`STO-6`): `actor User`, `reason UserInitiated`, `fees` default,
-`repaired false`; `status Succeeded` with `error` `None` on the outcome `claimed`, and `status
-Failed` on `not_claimable` — the attempt claimed nothing — with an `error` that states only
-what the attempt observed (`OPS-40`; the text is informative). It describes no
-intent and is written best-effort (`OVR-4`); the reclaimed operation's own row is not touched. `Reclaim`
+`repaired false`; `target` is the base operation key, and `fed` and `op_id` identify the
+actual receive selected by `API-42`, including an older attempt. `status Succeeded` with
+`error` `None` on `claimed`, and `status Failed`
+on `not_claimable`, `uneconomical`, `transient` or `issuance_pending`. The latter rows record
+that the manual attempt did not obtain issued notes; their `error` begins with the wire
+outcome followed by `:` and states only what was observed (`OPS-40`; the remaining text is
+informative). A failed audit attempt MUST NOT terminalize a still-recoverable receive.
+Every eligible manual call gets a row, including claimed replay; refused calls get none
+(`API-42`). The row describes no intent and is written best-effort (`OVR-4`). Recording it
+does not itself update the target operation's row. Normal terminalization of a **live** target
+under `FMI-41` still advances its intent and ledger together (`STO-16`), retaining the earlier
+failure evidence `FMI-41` requires even when the ledger's current error changes. An already
+terminal target keeps its record under `STO-16`'s existing terminal-write protection;
+reclaim introduces no terminal-history rewrite. `CNF-26` demonstrates these audit cases. `Reclaim`
 is a variant added to a persisted enum, which `OVR-14` allows for `OperationKind` alone: a
 build without it cannot decode the row and skips it as unreadable (`STO-19`, `STO-22`), and
 nothing else about that build changes.
@@ -402,8 +413,9 @@ page is shorter, never an error (`STO-22`) — except that a `status=open` page 
 it skipped (`API-43`, `skipped_unreadable`).
 
 **STO-20** `0x06` maps a correlation key to exactly one current row. A retry appends a fresh row
-and repoints the index, so older attempts' rows are reachable by `seq` only. A lookup by key
-resolves through the index; a lookup by `seq` reads `0x05` directly.
+and repoints the index, so older attempts' ledger rows are reachable by `seq` only. A ledger
+lookup by key resolves through the index; a lookup by `seq` reads `0x05` directly. Receive
+contract selection for reclaim is `API-42`'s separate attempt lookup under `STO-34`.
 
 **STO-21** On every fresh insert of an `Agent {occurrence}` row, and in the retry write
 (`OPS-10`), the wallet MUST raise `WatchState.occurrence` to `max(current, occurrence)` **in
@@ -448,6 +460,9 @@ are:
 | a tick or discovery row is interrupted | `interrupted — no terminal report` |
 | a raw row has no operation after one hour | `never reached the federation` |
 | a raw row is matched by payment hash rather than by attempt | `correlated by payment hash to an existing payment of this invoice; attempt-level correlation uncertain (deduped retry or never-sent attempt); the matched operation is authoritative` |
+
+An observed receive follows `FMI-41`'s evidence classification; repair MUST NOT turn claim
+retry or pending issuance into a terminal receive failure (`CNF-26`).
 
 When a note accompanies an operation's own terminal error the stored text is `"{note}
 ({err})"`. A raw terminal repair re-drives the intent to its terminal (`OPS-37`) except for the
@@ -564,7 +579,8 @@ older build wrote, malformed is corruption; a send operation never
 carries it, and a reader of `MoveMeta` ignores it as an unknown key. The operation-log backfill
 (`OPS-20`) recognises a move operation by the **presence of the `move_id` key** alone: an
 operation without it is skipped silently; one with it whose value fails to decode as a
-`MoveMeta` is corruption (warned and skipped). The leg is taken from the protocol's own
+`MoveMeta` is corruption (warned and skipped, except for matching `move_id` corruption governed
+by `OPS-20`). The leg is taken from the protocol's own
 send-or-receive operation variant, which is authoritative over `role`.
 
 **STO-34** A raw `Pay` writes the metadata `{"role":"send","correlation_key":"<k>"}` and a raw
@@ -573,9 +589,11 @@ correlation key**: the intent's `idempotency_key` when `attempt == 0`, and other
 `retry:<len>:<key>:<attempt>` with `<len>` the decimal byte length of the idempotency key,
 `<key>` the idempotency key verbatim and `<attempt>` the decimal attempt number (a `pay:` key
 is 68 bytes, so its first retry is `retry:68:pay:<64 hex>:1`). The same value is
-`MoveMeta.move_id` for a move attempt. Repair's primary operation-log lookup (`STO-24`) and
-every backfill therefore match on this per-attempt key, so a retry can never adopt the
-operation that terminally failed the previous attempt (`OPS-1`). Neither metadata object
+`MoveMeta.move_id` for a move-shaped attempt (`Move`, `Evacuate` or `DirectInflow`). Repair's
+primary operation-log lookup (`STO-24`), every backfill and reclaim's selected-attempt lookup
+(`API-42`) therefore match on this per-attempt key, so a retry can never adopt the
+operation that terminally failed the previous attempt (`OPS-1`). `CNF-26` demonstrates
+reclaim selection with both metadata shapes. Neither raw metadata object
 carries any other key; both are recognised as non-move operations by the absence of `move_id`
 (`STO-33`).
 
@@ -588,7 +606,8 @@ non-terminal enrichment may overwrite it; an unrepaired terminal row's `error` i
 Every wording ever written to a row that reached an unrepaired terminal therefore lives in the
 store forever, and any classifier that reads `error` — the auto-join count that excludes a
 `Succeeded` agent `Join` row carrying "already joined (concurrent/prior); no-op re-open"
-(`OPS-42`, `ALC-29`), the never-reached recogniser of `STO-24`, and the operator reading
-history — MUST match the stored text exactly as listed here and in `STO-24`, and a change to any of
+(`OPS-42`, `ALC-29`), the never-reached recogniser of `STO-24`, the retry guard of `OPS-10`
+using `FMI-37`'s prefixes and `OPS-27`'s stranding anchor, and the operator reading
+history — MUST match the stored text exactly as listed here and in those owners, and a change to any of
 these strings MUST keep matching the wording already on disk or it silently changes the money
 accounting of rows already written.

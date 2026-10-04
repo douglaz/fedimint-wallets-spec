@@ -254,10 +254,9 @@ A scenario names the killpoint as something the environment does to the wallet; 
 implementation induces it is `SEC-18`'s.
 
 **Stranded**:
-The move phase `OPS-27` defines as "a settled send with a preimage and an op-terminal
-non-claim on the receive". Terminal; what it leaves for the operator is `HST-32`. A rejected
-claim alone never strands a move: the wallet keeps claiming until the federation answers
-definitively ([ADR-0037](./docs/adr/0037-a-rejected-claim-is-retried-until-definitive.md)).
+The move phase `OPS-27` defines as "a settled send with a preimage and a definitive
+non-claim on the receive". Terminal; what it leaves for the operator is `HST-32`.
+Claim retry and pending issuance are governed by `FMI-41`, demonstrated by `CNF-26`.
 _Avoid_: "stuck" — a stuck move is retryable; a stranded one is terminal.
 
 **Lightning Address**:
@@ -316,9 +315,10 @@ _Avoid_: "intent" in any user-facing surface, "transaction"
 **Intent**:
 The internal durable, executable record inside an executable **Operation**'s
 lifecycle: an idempotency-keyed, decision-driven record that may be `Pending`,
-`Executing`, or subscription/external-payment-owned `Awaiting` until terminal,
-and is crash-resumable via reconcile. Reconcile does not re-perform `Awaiting`
-work. NOT money-only — a join and a recovery are Intents too, which is why "user-initiated"
+`Executing`, or `Awaiting` until terminal, and is crash-resumable via reconcile.
+For `Awaiting`, `OPS-36` says reconcile "never re-issues the original effect": ordinary
+settlement follows `OPS-16`, and bounded claim or issuance recovery follows `FMI-41`
+(`CNF-26`). NOT money-only — a join and a recovery are Intents too, which is why "user-initiated"
 and "resolves a route" are different tests: ADR-0030 binds the break-glass to one operation key
 by verb, not by intent actor. Never appears in API type
 names or user copy.

@@ -238,8 +238,8 @@ NOT fund a second outgoing contract; it reports the original operation, which th
 attach to as **already in flight** rather than treat as an error. Re-issuing a send after a crash
 therefore cannot double-pay as long as the source client's store survives; a seed recovery
 mid-send discards that dedup and is the one real double-pay hazard (`FMI-32`). The wallet always
-names the gateway. The protocol's own pre-fund refusals, and the class each MUST take
-(`OPS-17`):
+names the gateway. The following pre-fund outcomes and classifications are wallet requirements,
+whether enforced by the SDK or by the wallet around it (`OPS-17`):
 
 | Refusal | Condition | Wallet class |
 |---|---|---|
@@ -248,12 +248,18 @@ names the gateway. The protocol's own pre-fund refusals, and the class each MUST
 | invoice expired | | `Permanent` (invoice defect) |
 | wrong currency | invoice network ≠ the federation's network | `Permanent` (invoice defect) |
 | federation not served | the gateway's `routing_info` returned `null` | `Permanent` (route defect) |
-| gateway fee over limit | the send fee schedule exceeds the limit (`FMI-19`) | `Permanent` (route defect) |
-| gateway expiration over limit | the gateway's expiration delta exceeds 1 440 blocks | `Permanent` (route defect) |
+| gateway fee over limit | the send fee schedule exceeds the limit (`FMI-19`) | `Permanent` (route defect), with precedence and changed-terms exceptions governed by `OPS-29` |
+| gateway expiration over limit | the expiration delta of the terms to be funded exceeds 1 440 blocks, even if the earlier quote did not | `Permanent` (route defect), with precedence and changed-terms exceptions governed by `OPS-29`; nothing funded |
+| terms changed | `OPS-29`'s changed-terms refusal, including its overlap with the limit rows above | `Retryable`; no outgoing contract funded; re-quote on the next eligible drive |
 | gateway unreachable, consensus read failed, funding failed | transport, consensus-read or funding fault | `Retryable` |
 
 A failure before the protocol call: an unparseable invoice is `Permanent` (an input defect that
 no retry changes); an unparseable gateway URL or a missing lnv2 module is `Retryable`.
+The expiration ceiling applies to the terms actually funded, independently of `OPS-29`'s
+cost guarantee; an in-ceiling expiration change does not itself require refusal. `OPS-29`
+owns protocol-limit precedence over cap or viability refusals, including on the first pay-step
+quote, as well as the changed-terms exceptions and permitted stricter refusal. `CNF-9`,
+`CNF-11` and `CNF-43` demonstrate these boundaries and classifications.
 
 **FMI-18** Fee shapes. A gateway fee is `base + floor(amount × parts_per_million / 1 000 000)`,
 the multiplication saturating in `u64` before the division — the protocol's `PaymentFee`. The
@@ -301,40 +307,70 @@ wallet MUST NOT retry any of them through another gateway within the same operat
 and never funded expires after 3 600 seconds (a direct inflow stays `Awaiting` until then); a
 send funded and never completed is refunded by the protocol's send state machine on gateway
 forfeit or expiry, and the move terminalizes `Refunded`; a send that succeeds while the receive
-reaches a terminal non-claim is `Stranded` (`OPS-27`). "Forfeit ⇒ `Refunded`" is the normal
+reaches a definitive non-claim is `Stranded` (`OPS-27`, demonstrated by `CNF-26`). "Forfeit ⇒ `Refunded`" is the normal
 case, not a guarantee: when a refund does not finalize — the refund transaction rejected because
 the gateway claimed the outgoing contract after all, or accepted and the note issuance then
 failed, which the wallet cannot tell apart (`FMI-37`) — the protocol re-reads the preimage one
 last time and, if one verifying against the contract is there, the send is `Success`; a
-forfeited send can therefore be promoted to a settled send and, meeting a non-claimed receive,
+forfeited send can therefore be promoted to a settled send and, meeting a definitive non-claim on the receive,
 land `Stranded`. With neither a refund nor a preimage the send is `Failure` (`FMI-37`). The
 gateway is set aside (`FMI-42`).
 
-**FMI-37** What an lnv2 terminal `Failure` proves, and what it does not. The protocol folds two
+**FMI-37** What an lnv2 SDK terminal `Failure` proves, and what it does not. The protocol folds two
 distinct outcomes into each `Failure` terminal, and the wallet cannot tell them apart from the
 operation state:
 
 | Leg | `Failure` is reached when | Money position |
 |---|---|---|
 | send | (a) the **funding** transaction was rejected, nothing was funded; or (b) the refund did not finalize — the **refund** transaction was rejected, or it was accepted and note issuance then failed — **and** no verifying preimage was available (`FMI-23`) | (a) nothing moved; (b) the outgoing contract WAS funded and its position is unresolved |
-| receive | the **claim** transaction was rejected and the retries `FMI-41` requires are exhausted (this wallet claimed nothing, which does not prove the contract is unclaimed), or it was accepted and note issuance then failed | unknown whether the incoming contract was consumed |
+| receive | the **claim** transaction was rejected, or it was accepted and note issuance then failed | unknown from this state alone whether the incoming contract was consumed; the wallet classifies the evidence under `FMI-41` |
 
 The wallet MUST record the send case with an error beginning `send failed:` and the receive case
 with one beginning `receive failed:`; the two prefixes are the operator's anchors (`HST-32`) and
 MUST NOT change. A move whose error starts `send failed:` is NOT evidence the money stayed put
-(`OPS-27`). `Expired` on a receive and `Refunded` on a send are the only terminals that establish
-the funds' position.
+(`OPS-27`). An SDK final receive observation is not a wallet terminal conclusion: `FMI-41`
+owns that classification. `Expired` on a receive establishes that it was never funded;
+`Refunded` on a send establishes the refund. `CNF-26` demonstrates the receive distinction.
 
-**FMI-41** A funded incoming contract the wallet has not claimed MUST remain claimable by the
-wallet: a claim whose transaction is rejected MUST be retried until the contract's expiry has
-passed before the receive reaches its terminal `Failure` (`FMI-37`) — so the transition
-`OPS-27` maps from that terminal is reached only once the retries are exhausted — and the
-wallet MUST provide an explicit re-claim, invocable for one operation by its operation key
-(`API-42`), that claims an incoming contract the federation still holds funded and unclaimed —
-the receive leg of a `Stranded` move included — and reports "not claimable" when the contract
-is expired or already consumed. This is the recovery path for `Stranded`; it runs only after
-`HST-32`'s evidence preservation, and it does not contradict `DEF-20`, because it
-claims what the federation holds rather than reasoning from the preimage about what happened.
+**FMI-41** Incoming claim recovery (`ADR-0037`). Funding expiry is not a claim deadline: a
+funded, unconsumed incoming contract MUST remain claimable after that expiry. On a rejected
+claim or another failure, the wallet MUST classify the contract and its own issuance evidence
+as follows, before choosing recovery work:
+
+| Evidence | Recovery and wallet outcome |
+|---|---|
+| The contract's notes have issued to this wallet | `claimed`: complete a live receive `Done`, or its move receive leg `Settled`, crediting once. A later manual reclaim, including after a lost response or after spending those notes, MUST replay `claimed` without another credit. |
+| The wallet's own issuance evidence holds an accepted claim transaction for this contract, but its notes have not issued | Issuance pending: recover the notes from that evidence, MUST NOT submit another claim for the consumed contract. A federation answer that the contract is consumed does not establish `not_claimable` in this case. |
+| Funded and unconsumed, with claim federation fee less than the contract amount | Submit the claim using the stored claim material; a rejection remains transient. |
+| Consumed by another claimant, established after successfully reading both the contract's disposition and the wallet's own issuance evidence | `not_claimable`: a live receive becomes `Failed` with the `receive failed:` anchor and the evidence retained; a settled-send move becomes `Stranded` (`OPS-27`). |
+| Funded and unconsumed, but the claim's federation fee is at least the contract amount | `uneconomical`: a live receive becomes `Failed` with the `receive failed:` anchor and the reason `uneconomical`; a settled-send move becomes `Stranded` (`OPS-27`). The client MUST NOT stop (`DEF-26`); do not submit the unaffordable claim. |
+
+Federation unreachability, timeout, rejected claim transactions, and inability to read or
+classify the evidence are transient, never definitive. Claim retry and pending issuance MUST
+keep a live receive non-terminal and retain its inbound reservation across retries and
+restarts until the notes issue or a definitive non-claim is established. Pending issuance has
+no definitively-lost outcome: no timeout, attempt count, failed retrieval, or final SDK
+issuance failure permits giving up or releasing that reservation. The wallet MUST durably
+retain the claim material, accepted-claim issuance evidence and earlier failure observations;
+a later success MUST NOT erase them when the live operation's ledger status advances.
+
+Recovery MUST run automatically through reconcile (`OPS-14`, `OPS-35`), with one bounded
+attempt per eligible pass and no independent retry loop. After an unresolved attempt, the
+backoff delay MUST be at least **1 second** and at most **60 seconds**; the first reconcile
+pass after that delay MUST resume recovery. Thus the delay is bounded by 60 seconds plus the
+wait for the next pass at `OPS-14`'s cadence, not by invoice expiry or an attempt limit. The
+same rule applies after restart. Each attempt is one perform under `OPS-15`; driver-cap and
+watchdog treatment are `OPS-6` and `ALC-40`'s. Recovery continues at the existing intent
+attempt, with per-key exclusion (`OPS-14`); it MUST NOT issue a new invoice, fund another
+send, or run fresh-money admission against money already owed.
+
+The wallet MUST also provide the manual trigger `API-42` for this same work. It may trigger
+one attempt without waiting for the automatic backoff, subject to the same per-key exclusion.
+For a live operation, definitive results use `OPS-16` or `OPS-27`'s terminalization. For an
+already-terminal target, reclaim records its own result without rewriting the target's
+terminal history (`STO-15`, `HST-32`). A never-funded `Expired` receive follows `OPS-16`'s
+expired-receive lifecycle and is ineligible for manual reclaim (`API-36`). `CNF-26`
+demonstrates these cases.
 
 ## Recovery
 

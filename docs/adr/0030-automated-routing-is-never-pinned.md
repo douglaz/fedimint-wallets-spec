@@ -20,6 +20,22 @@ status: accepted
 > and the operation takes the outcome class `OPS-29` gives an over-cap route for its action
 > (`OPS-29` owns the rule and the class; `spec-azs` carries the edit). Everything else the
 > break-glass skips stays skipped; the residual paragraph below is kept as history.
+> The binding covers the fee only (decided 2026-10-02): the expiration delta — how long a
+> gateway that never completes can keep the payer's funds locked — is held to `FMI-17`'s
+> 1 440-block ceiling on the terms the send funds, not to the quote, since every pay step
+> re-quotes and no admission reads it, so binding it to the quote would delay a longer lock by
+> one attempt and prevent nothing. An implementation MAY refuse any change of terms and
+> re-quote. Whether the wallet should hold the lock below that ceiling is chapter 11's question 3.
+> Two further rules (decided 2026-10-04). Terms that changed past the allowance fund nothing and
+> are `Retryable` even when they also break a protocol limit (`FMI-19`); the re-quote then judges
+> the new terms by `FMI-17`'s rows, so a schedule still over the limit is `Permanent` there. And
+> an `Evacuate`'s funded cost is held to its viability as well as its cap — `ADR-0029`'s
+> `total_fee <= delivered net` — so its send may cost at most the smaller of the cap and the
+> delivered net, less the fixed receive cost; above that it funds nothing and is `Retryable`.
+> Outside that exception a protocol limit wins (decided 2026-10-04): a pay-step quote whose terms
+> break `FMI-19`'s send limit or `FMI-17`'s expiration ceiling is `Permanent`, even when it is
+> also over the cap or the delivered net — a first quote included, since every pay step
+> re-quotes and nothing distinguishes a first quote from a stable one. `OPS-29` owns the rule.
 
 ## Decision
 

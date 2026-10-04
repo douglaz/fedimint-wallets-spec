@@ -121,5 +121,6 @@ requires that it fails rather than opening the store on another seed.
 
 ## What this document does not decide
 
-No product decision is open today: `11-open-questions.md` records each question it held and the
-ADR that answered it. Every wallet is auto-managed (`ADR-0039`).
+One product decision is open: whether the wallet caps how long a send can lock the payer's funds
+below `FMI-17`'s ceiling (`11-open-questions.md`, question 3). That chapter also records each
+question it held and the ADR that answered it. Every wallet is auto-managed (`ADR-0039`).

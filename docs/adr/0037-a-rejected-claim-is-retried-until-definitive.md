@@ -33,10 +33,11 @@ no longer the only
 recovery path. A contract **this wallet** consumed whose note issuance failed is reported as
 not claimable by the federation, but that is not definitive for the wallet: its notes may still
 be issued from the operation's issuance evidence, never by a second claim. The receive stays
-non-terminal, keeping its reservation, until that issuance resolves — credited (`Done`) or
-definitively lost (`Failed`) — so no inflow is admitted into room those notes will fill. "This wallet consumed it" is the wallet's own evidence, not the federation's answer: its
-issuance evidence holds an accepted claim transaction for the contract. `FMI-41` names what
-counts as definitively lost. While its issuance is pending, the receive has the same
+non-terminal, keeping its reservation, until its notes are issued (`Done`), so no inflow is
+admitted into room those notes will fill. Nothing ends the wait short of that — no timeout, no
+attempt count, no failed retrieval — because nothing the wallet observes shows that the notes can
+never be issued (decided 2026-10-02). "This wallet consumed it" is the wallet's own evidence, not the federation's answer: its
+issuance evidence holds an accepted claim transaction for the contract. While its issuance is pending, the receive has the same
 standing as a retrying claim: outside `ALC-40`'s count and holding no `OPS-6` driver-cap slot
 between attempts.
 
@@ -47,14 +48,23 @@ keeps its reservation, so the per-federation cap still accounts for money that i
 
 **Rejected.** A fixed number of automatic attempts followed by `Failed`, with `reclaim` as the
 only recovery afterwards: it still hands transient failures to the operator after an arbitrary
-count. No automatic retry at all: every transient failure becomes operator work.
+count. No automatic retry at all: every transient failure becomes operator work. Giving up on
+pending issuance when the client reports a final issuance failure: notes issued afterwards would
+land in room already admitted to another inflow. Keeping a never-funded `Expired` receive
+eligible for `reclaim` with an outcome of its own: it adds an exit code and a journaled attempt
+that tries nothing, on every call.
 
 **Consequences.** `FMI-41` owns the rule (the retry, the three definitive outcomes, the
-transient class, the backoff bound as an engineering value) and loses the expiry clause;
+transient class, the backoff bound as an engineering value) and loses the expiry clause.
 `FMI-37`'s receive row, `OPS-16`'s receive map, `OPS-27`'s move mapping (a move strands only on
-a definitive non-claim), `API-42`'s outcomes (a transient answer, and an issuance-pending answer for a contract this wallet
-consumed whose issuance is unresolved — never `not_claimable`) and its precondition, which widens
-to a receive or receive leg in claim retry or with issuance pending as well as one that reached a
-terminal non-claim, with `CNF-26`'s precondition and exit code for each, `ALC-40`'s count, `OPS-6`'s driver cap and `HST-32` align; a new prohibition, DEF-26 (the next free DEF identifier), says an
-uneconomical claim ends in a state and never stops the client. The client SDK has no
-re-claim entry point, so an implementation provides one.
+a definitive non-claim), `ALC-40`'s count, `OPS-6`'s driver cap and `HST-32` align. `API-42`
+gains a transient answer and an issuance-pending answer for a contract this wallet consumed
+whose issuance is unresolved (never `not_claimable`), and its precondition becomes an explicit
+list (decided 2026-10-02): a receive or receive leg in claim retry or with issuance pending, a
+receive `Failed` with `FMI-37`'s `receive failed:` anchor, the receive leg of a `Stranded` move,
+and a receive whose contract this wallet claimed (a replay answers `claimed`). A receive that
+ended `Expired` was never funded, so nothing is owed: it is not eligible, and `reclaim` refuses
+it `422` (`API-6`) with a fixed `API-36` message, attempting and journaling nothing. `CNF-26`
+gains the precondition and an exit code for each outcome. A new prohibition, DEF-26 (the next
+free DEF identifier), says an uneconomical claim ends in a state and never stops the client. The
+client SDK has no re-claim entry point, so an implementation provides one.

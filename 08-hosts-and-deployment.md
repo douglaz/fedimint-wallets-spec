@@ -331,11 +331,13 @@ on its own output.
 ## What a stranded move leaves for the operator
 
 **HST-32** A `Stranded` move (`DOM-10`; the transition is `OPS-27`) is terminal: nothing
-re-drives it (`OPS-35` re-drives `Pending` and `Executing` intents only, and a `Stranded` move
-is neither) and the wallet MUST NOT admit a second send
+re-drives its send (`OPS-36`), and the wallet MUST NOT admit a second send
 for the same key: a request under it attaches to the existing intent (`OPS-8`) and a retry of
-it is refused (`OPS-10`), which is what stands between the operator and a double send. The only recovery is the explicit re-claim `FMI-41` requires,
-and the operator's response before it is **evidence preservation**: the preimage is not a
+it is refused under `OPS-10`'s durable-evidence rule, including after cache loss (`CNF-26`).
+Incoming recovery is owned by `FMI-41`: its automatic path covers live receives, and its
+manual trigger (`API-42`) also admits a `Stranded` target without rewriting terminal history.
+Claim retry and pending issuance do not require an operator to trigger recovery (`CNF-26`).
+For a terminal stranded move the operator's response begins with **evidence preservation**: the preimage is not a
 recovery procedure (`DEF-20`). What the wallet MUST guarantee for that response: the move
 record with both leg operation ids, the invoice, the gateway and the preimage (`STO-11`) and
 the operation record with the receive leg's error detail anchored on "send settled but receive
@@ -344,9 +346,8 @@ was not credited" (`OPS-27`) stay in the journal unchanged, once the stranding w
 reads the operation record offline — the leg operation ids, the gateway, the error detail, and
 the timestamps that date the move's window — while the preimage survives only in the move
 record (`STO-11`: the invoice and the leg ids can be rebuilt from the operation log, the
-preimage cannot) and no verb is required to display it; and the destination federation's client state — what a re-claim (`FMI-41`) reads to learn
-whether the incoming contract is still funded and claimable or already consumed (`FMI-37`:
-after some failures its position is unknown) — stays in the client store, where a running
+preimage cannot) and no verb is required to display it; and the destination federation's client
+state, including the claim and issuance evidence `FMI-41` requires, stays in the client store, where a running
 daemon keeps transacting on it, which is why the operator's procedure begins with stopping the
 daemon. The data directory is then
 the whole of the evidence, and a copy of it run elsewhere is a second spender (`SEC-23`). The

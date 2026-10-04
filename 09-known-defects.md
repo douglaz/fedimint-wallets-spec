@@ -156,6 +156,13 @@ preview unbounded, one unreachable federation queued every later join and recove
 
 ## Recorded and reported state
 
+### DEF-26 — An uneconomical incoming claim MUST NOT stop the client
+
+When the claim's federation fee is at least the incoming contract's amount, the wallet MUST
+end with `FMI-41`'s `uneconomical` outcome without stopping the client. `FMI-41` owns the
+positive behavior and its evidence classification; `CNF-26` demonstrates the fee boundary
+and continued client operation.
+
 ### DEF-20 — The wallet MUST NOT attach a cause to a money state it did not observe
 
 What the wallet records and emits states what a money state **is**, never why it arose or what

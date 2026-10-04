@@ -15,7 +15,17 @@ was open can see where it landed.
 
 ## Open
 
-*(none)*
+3. **Should the wallet cap how long a send can lock the payer's funds?** *Opened 2026-10-02.*
+   An lnv2 send funds an outgoing contract that the payer can refund unilaterally only once its
+   expiration passes, unless the gateway cancels; the expiration is the federation's block count
+   plus the gateway's expiration delta plus a margin. A gateway that never completes therefore
+   holds the payer's funds for up to that delta, which `FMI-17` refuses only above 1 440 blocks
+   (about ten days); the reference gateway asks for 1 440 on every send it routes to another
+   node. Nothing in the set prices, shows or selects on the delta — `FMI-14` chooses a gateway
+   by precedence and price (`FMI-12`) — and `ADR-0030`'s amendment binds the funded fee, not the delta. The
+   question is whether a lower ceiling, as a `Policy` parameter with a default or as a factor in
+   gateway selection, is worth the routes it would refuse. While it is open, the set says only
+   that a delta above 1 440 blocks is refused.
 
 ## Answered
 
